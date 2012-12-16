@@ -1,0 +1,1 @@
+NOTE: The current Kmeans implementation doesn't use texture/constant memories, and is different from the CUDA implementation.

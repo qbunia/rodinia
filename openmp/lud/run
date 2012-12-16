@@ -1,0 +1,1 @@
+./omp/lud_omp -n 4 -i ../../data/lud/512.dat 
