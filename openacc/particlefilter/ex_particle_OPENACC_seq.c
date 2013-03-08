@@ -1,7 +1,8 @@
 /**
- * @file ex_particle_OPENMP_seq.c
+ * @file ex_particle_OPENACC_seq.c
  * @author Michael Trotter & Matt Goodrum
- * @brief Particle filter implementation in C/OpenMP 
+ * @author Pisit Makpaisit (port to OpenACC)
+ * @brief Particle filter implementation in C/OpenACC
  */
 #include <stdlib.h>
 #include <stdio.h>
@@ -329,8 +330,8 @@ int findIndexBin(double * CDF, int beginIndex, int endIndex, double value){
 	return findIndexBin(CDF, middleIndex-1, endIndex, value);
 }
 /**
-* The implementation of the particle filter using OpenMP for many frames
-* @see http://openmp.org/wp/
+* The implementation of the particle filter using OpenACC for many frames
+* @see http://www.openacc-standard.org/
 * @note This function is designed to work with a video of several frames. In addition, it references a provided MATLAB function which takes the video, the objxy matrix and the x and y arrays as arguments and returns the likelihoods
 * @param I The video to be run
 * @param IszX The x dimension of the video
@@ -521,7 +522,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 }
 int main(int argc, char * argv[]){
 	
-	char* usage = "openmp.out -x <dimX> -y <dimY> -z <Nfr> -np <Nparticles>";
+	char* usage = "particle_filter -x <dimX> -y <dimY> -z <Nfr> -np <Nparticles>";
 	//check number of arguments
 	if(argc != 9)
 	{
