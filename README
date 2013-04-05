@@ -14,6 +14,7 @@ rodinia_2.1/bin		: binary executables
 rodinia_2.1/common	: common configuration file
 rodinia_2.1/cuda	: source code for the CUDA implementations
 rodinia_2.1/data	: input files
+rodinia_2.1/openacc : source code for the OpenACC implementations
 rodinia_2.1/openmp	: source code for the OpenMP implementations
 rodinia_2.1/opencl	: source code for the OpenCL implementations
 
