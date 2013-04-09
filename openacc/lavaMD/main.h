@@ -63,7 +63,6 @@ typedef struct dim_str
 	// input arguments
 	int cur_arg;
 	int arch_arg;
-	int cores_arg;
 	int boxes1d_arg;
 
 	// system memory

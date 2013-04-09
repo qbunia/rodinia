@@ -27,16 +27,16 @@ extern "C" {
 #include "./../util/timer/timer.h"					// (in library path specified to compiler)	needed by timer
 
 //======================================================================================================================================================150
-//	KERNEL_CPU FUNCTION HEADER
+//	KERNEL_ACC FUNCTION HEADER
 //======================================================================================================================================================150
 
-#include "kernel_cpu.h"								// (in the current directory)
+#include "kernel_acc.h"								// (in the current directory)
 
 //========================================================================================================================================================================================================200
 //	PLASMAKERNEL_GPU
 //========================================================================================================================================================================================================200
 
-void  kernel_cpu(	par_str par, 
+void  kernel_acc(	par_str par, 
 					dim_str dim,
 					box_str* box,
 					FOUR_VECTOR* rv,
@@ -106,7 +106,7 @@ void  kernel_cpu(	par_str par,
 	//	PROCESS INTERACTIONS
 	//======================================================================================================================================================150
 
-	#pragma acc kernels
+	#pragma acc parallel loop present(box,rv,qv,fv)
 	for(l=0; l<dim.number_boxes; l=l+1){
 
 		//------------------------------------------------------------------------------------------100
@@ -125,7 +125,7 @@ void  kernel_cpu(	par_str par,
 		//------------------------------------------------------------------------------------------100
 		//	Do for the # of (home+neighbor) boxes
 		//------------------------------------------------------------------------------------------100
-
+		#pragma acc loop seq
 		for (k=0; k<(1+box[l].nn); k++) 
 		{
 
@@ -156,10 +156,11 @@ void  kernel_cpu(	par_str par,
 			//----------------------------------------50
 			//	Do for the # of particles in home box
 			//----------------------------------------50
-
+			#pragma acc loop seq
 			for (i=0; i<NUMBER_PAR_PER_BOX; i=i+1){
 
 				// do for the # of particles in current (home or neighbor) box
+				#pragma acc loop seq
 				for (j=0; j<NUMBER_PAR_PER_BOX; j=j+1){
 
 					// // coefficients

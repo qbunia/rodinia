@@ -7,16 +7,18 @@
           # .
 	# command n
 
-C_C = pathcc
-ACC_FLAG = -acc
+#C_C = pathcc
+#C_C_FLAG = -acc
+C_C = pgcc
+C_C_FLAG = -acc -Minfo -I /usr/include/i386-linux-gnu/ -L /usr/lib/i386-linux-gnu/ -g
 
 # link objects (binaries) together
 a.out:		main.o \
-			./kernel/kernel_cpu.o \
+			./kernel/kernel_acc.o \
 			./util/num/num.o \
 			./util/timer/timer.o
-	$(C_C)	main.o \
-			./kernel/kernel_cpu.o \
+	$(C_C) $(C_C_FLAG) main.o \
+			./kernel/kernel_acc.o \
 			./util/num/num.o \
 			./util/timer/timer.o \
 			-lm \
@@ -24,35 +26,34 @@ a.out:		main.o \
 # compile function files into objects (binaries)
 main.o:		main.h \
 			main.c \
-			./kernel/kernel_cpu.h \
-			./kernel/kernel_cpu.c \
+			./kernel/kernel_acc.h \
+			./kernel/kernel_acc.c \
 			./util/num/num.h \
 			./util/num/num.c \
 			./util/timer/timer.h \
 			./util/timer/timer.c
-	$(C_C)	main.c \
+	$(C_C) $(C_C_FLAG) main.c \
 			-c \
 			-o main.o \
 			-O3
 
-./kernel/kernel_cpu.o:	./kernel/kernel_cpu.h \
-						./kernel/kernel_cpu.c
-	$(C_C)				./kernel/kernel_cpu.c \
+./kernel/kernel_acc.o:	./kernel/kernel_acc.h \
+						./kernel/kernel_acc.c
+	$(C_C) $(C_C_FLAG) 	./kernel/kernel_acc.c \
 						-c \
-						-o ./kernel/kernel_cpu.o \
-						-O3 \
-						$(ACC_FLAG)
+						-o ./kernel/kernel_acc.o \
+						-O3
 
 ./util/num/num.o:	./util/num/num.h \
 					./util/num/num.c
-	$(C_C)			./util/num/num.c \
+	$(C_C) $(C_C_FLAG) ./util/num/num.c \
 					-c \
 					-o ./util/num/num.o \
 					-O3
 
 ./util/timer/timer.o:	./util/timer/timer.h \
 						./util/timer/timer.c
-	$(C_C)				./util/timer/timer.c \
+	$(C_C) $(C_C_FLAG) 	./util/timer/timer.c \
 						-c \
 						-o ./util/timer/timer.o \
 						-O3

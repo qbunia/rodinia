@@ -38,7 +38,7 @@
 //	KERNEL
 //======================================================================================================================================================150
 
-#include "./kernel/kernel_cpu.h"				// (in library path specified here)
+#include "./kernel/kernel_acc.h"				// (in library path specified here)
 
 //========================================================================================================================================================================================================200
 //	MAIN FUNCTION
@@ -86,38 +86,12 @@ main(	int argc,
 	//======================================================================================================================================================150
 
 	// assing default values
-	dim_cpu.cores_arg = 1;
 	dim_cpu.boxes1d_arg = 1;
 
 	// go through arguments
 	for(dim_cpu.cur_arg=1; dim_cpu.cur_arg<argc; dim_cpu.cur_arg++){
-		// check if -cores
-		if(strcmp(argv[dim_cpu.cur_arg], "-cores")==0){
-			// check if value provided
-			if(argc>=dim_cpu.cur_arg+1){
-				// check if value is a number
-				if(isInteger(argv[dim_cpu.cur_arg+1])==1){
-					dim_cpu.cores_arg = atoi(argv[dim_cpu.cur_arg+1]);
-					if(dim_cpu.cores_arg<0){
-						printf("ERROR: Wrong value to -cores parameter, cannot be <=0\n");
-						return 0;
-					}
-					dim_cpu.cur_arg = dim_cpu.cur_arg+1;
-				}
-				// value is not a number
-				else{
-					printf("ERROR: Value to -cores parameter in not a number\n");
-					return 0;
-				}
-			}
-			// value not provided
-			else{
-				printf("ERROR: Missing value to -cores parameter\n");
-				return 0;
-			}
-		}
 		// check if -boxes1d
-		else if(strcmp(argv[dim_cpu.cur_arg], "-boxes1d")==0){
+		if(strcmp(argv[dim_cpu.cur_arg], "-boxes1d")==0){
 			// check if value provided
 			if(argc>=dim_cpu.cur_arg+1){
 				// check if value is a number
@@ -149,7 +123,7 @@ main(	int argc,
 	}
 
 	// Print configuration
-	printf("Configuration used: cores = %d, boxes1d = %d\n", dim_cpu.cores_arg, dim_cpu.boxes1d_arg);
+	printf("Configuration used: boxes1d = %d\n", dim_cpu.boxes1d_arg);
 
 	time2 = get_time();
 
@@ -254,7 +228,6 @@ main(	int argc,
 
 	// input (distances)
 	rv_cpu = (FOUR_VECTOR*)malloc(dim_cpu.space_mem);
-	#pragma acc kernels create(rv_cpu[0:dim_cpu.space_mem])
 	for(i=0; i<dim_cpu.space_elem; i=i+1){
 		rv_cpu[i].v = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
 		rv_cpu[i].x = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
@@ -270,7 +243,6 @@ main(	int argc,
 
 	// output (forces)
 	fv_cpu = (FOUR_VECTOR*)malloc(dim_cpu.space_mem);
-	#pragma acc kernels create(fv_cpu[0:dim_cpu.space_mem])
 	for(i=0; i<dim_cpu.space_elem; i=i+1){
 		fv_cpu[i].v = 0;								// set to 0, because kernels keeps adding to initial value
 		fv_cpu[i].x = 0;								// set to 0, because kernels keeps adding to initial value
@@ -288,10 +260,10 @@ main(	int argc,
 	//	CPU/MCPU
 	//====================================================================================================100
 
-	#pragma acc data copyin(qv_cpu[0:dim_cpu.space_mem2], box_cpu[0:dim_cpu.box_mem]) \
-		copyout(fv_cpu[0:dim_cpu.space_mem]) present(rv_cpu)
+	#pragma acc data copy(fv_cpu[0:dim_cpu.space_mem]) \
+		copyin(box_cpu[0:dim_cpu.box_mem],rv_cpu[0:dim_cpu.space_mem],qv_cpu[0:dim_cpu.space_mem2])
 	{
-	kernel_cpu(	par_cpu,
+	kernel_acc(	par_cpu,
 				dim_cpu,
 				box_cpu,
 				rv_cpu,
