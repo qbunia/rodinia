@@ -31,8 +31,9 @@ void single_iteration(double *result, double *temp, double *power, int row, int 
 	double delta;
 	int r, c;
 
-	#pragma acc kernels present(temp, power, result)
+	#pragma acc parallel loop present(temp, power, result)
 	for (r = 0; r < row; r++) {
+		#pragma acc loop
 		for (c = 0; c < col; c++) {
   			/*	Corner 1	*/
 			if ( (r == 0) && (c == 0) ) {
@@ -97,9 +98,9 @@ void single_iteration(double *result, double *temp, double *power, int row, int 
 		}
 	}
 
-	#pragma acc kernels present(temp, result)
+	#pragma acc parallel loop present(temp, result)
 	for (r = 0; r < row; r++) {
-		#pragma acc loop independent
+		#pragma acc loop
 		for (c = 0; c < col; c++) {
 			temp[r*col+c]=result[r*col+c];
 		}
@@ -126,7 +127,6 @@ void compute_tran_temp(double *result, int num_iterations, double *temp, double 
 
 	double max_slope = MAX_PD / (FACTOR_CHIP * t_chip * SPEC_HEAT_SI);
 	double step = PRECISION / max_slope;
-	double t;
 
 	#ifdef VERBOSE
 	fprintf(stdout, "total iterations: %d s\tstep size: %g s\n", num_iterations, step);
@@ -158,7 +158,7 @@ void fatal(char *s)
 
 void read_input(double *vect, int grid_rows, int grid_cols, char *file)
 {
-  	int i, index;
+  	int i;
 	FILE *fp;
 	char str[STR_SIZE];
 	double val;
@@ -192,12 +192,12 @@ void usage(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
-	int grid_rows, grid_cols, sim_time, i;
+	int grid_rows, grid_cols, sim_time;
 	double *temp, *power, *result;
 	char *tfile, *pfile;
 	
 	/* check validity of inputs	*/
-	if (argc != 7)
+	if (argc != 6)
 		usage(argc, argv);
 	if ((grid_rows = atoi(argv[1])) <= 0 ||
 		(grid_cols = atoi(argv[2])) <= 0 ||
