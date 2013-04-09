@@ -1,6 +1,6 @@
 LOCAL_CC = gcc -g -O3 -Wall
-CC = pathcc
-CFLAGS = -lm -acc -Wall
+CC = pgcpp
+CFLAGS = -Minfo -O3 -acc
 
 
 all : nn
@@ -8,8 +8,8 @@ all : nn
 clean :
 	rm -rf *.o nn
 
-nn : nn_openacc.c
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+nn : nn_openacc.cpp
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lm 
 
 hurricane_gen : hurricane_gen.c
 	$(LOCAL_CC) -o $@ $< -lm
