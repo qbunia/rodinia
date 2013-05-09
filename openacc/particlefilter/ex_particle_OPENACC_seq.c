@@ -10,6 +10,7 @@
 #include <sys/time.h>
 #include <limits.h>
 #define PI acos(-1)
+#define UPDATE_TARGET_CDF 1
 /**
 @var M value for Linear Congruential Generator (LCG); use GCC's value
 */
@@ -39,12 +40,8 @@ float elapsed_time(long long start_time, long long end_time) {
 * Takes in a double and returns an integer that approximates to that double
 * @return if the mantissa < .5 => return value < input value; else return value > input value
 */
-double roundDouble(double value){
-	int newValue = (int)(value);
-	if(value - newValue < .5)
-	return newValue;
-	else
-	return newValue++;
+inline double roundDouble(double value){
+	return (value - (int)(value) < .5)? ((int)(value)) : ((int)(value)) + 1;
 }
 /**
 * Set values of the 3D array to a newValue if that value is equal to the testValue
@@ -282,19 +279,20 @@ double calcLikelihoodSum(int * I, int * ind, int numOnes){
 * @param value The value to be found
 * @return The index of value in the CDF; if value is never found, returns the last index
 */
-int findIndex(double * CDF, int lengthCDF, double value){
-	int index = -1;
-	int x;
-	for(x = 0; x < lengthCDF; x++){
-		if(CDF[x] >= value){
-			index = x;
-			break;
-		}
-	}
-	if(index == -1){
-		return lengthCDF-1;
-	}
-	return index;
+#define FIND_INDEX(i,CDF,lengthCDF,value) \
+{ \
+	int index = -1; \
+	int x; \
+	for(x = 0; x < lengthCDF; x++){ \
+		if(CDF[x] >= value){ \
+			index = x; \
+			break; \
+		} \
+	} \
+	if(index == -1){ \
+		i = lengthCDF-1; \
+	} \
+	i = index; \
 }
 /**
 * Finds the first element in the CDF that is greater than or equal to the provided value and returns that index
@@ -364,11 +362,17 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 	double * objxy = (double *)malloc(countOnes*2*sizeof(double));
 	getneighbors(disk, countOnes, objxy, radius);
 	
+	#pragma acc data copy(I[0:IszX*IszY*Nfr]) copyin(seed[0:Nparticles]) \
+		create(ind[0:countOnes*Nparticles], likelihood[0:Nparticles], CDF[0:Nparticles]) \
+		create(u[0:Nparticles], xj[0:Nparticles], yj[0:Nparticles]) \
+		create(weight[0:Nparticles], arrayX[0:Nparticles], arrayY[0:Nparticles])
+	{
+
 	long long get_neighbors = get_time();
 	printf("TIME TO GET NEIGHBORS TOOK: %f\n", elapsed_time(start, get_neighbors));
 	//initial weights are all equal (1/Nparticles)
 	double * weights = (double *)malloc(sizeof(double)*Nparticles);
-	#pragma acc kernels create(weight[0:Nparticles])
+	#pragma acc kernels
 	for(x = 0; x < Nparticles; x++){
 		weights[x] = 1/((double)(Nparticles));
 	}
@@ -383,7 +387,6 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 	double * CDF = (double *)malloc(sizeof(double)*Nparticles);
 	double * u = (double *)malloc(sizeof(double)*Nparticles);
 	int * ind = (int*)malloc(sizeof(int)*countOnes*Nparticles);
-	#pragma acc kernels create(arrayX[0:Nparticles], arrayY[0:Nparticles])
 	for(x = 0; x < Nparticles; x++){
 		arrayX[x] = xe;
 		arrayY[x] = ye;
@@ -393,21 +396,16 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 	printf("TIME TO SET ARRAYS TOOK: %f\n", elapsed_time(get_weights, get_time()));
 	int indX, indY;
 
-	#pragma acc data copy(I[0:IszX*IszY*Nfr]) copyin(seed[0:Nparticles]) \
-		create(ind[0:countOnes*Nparticles], likelihood[0:Nparticles], CDF[0:Nparticles]) \
-		create(u[0:Nparticles], xj[0:Nparticles], yj[0:Nparticles]) \
-		present(weight)
-	{
 	for(k = 1; k < Nfr; k++){
 		long long set_arrays = get_time();
 		//apply motion model
 		//draws sample from motion model (random walk). The only prior information
 		//is that the object moves 2x as fast as in the y direction
-		#pragma acc kernels
 		for(x = 0; x < Nparticles; x++){
 			arrayX[x] += 1 + 5*randn(seed, x);
 			arrayY[x] += -2 + 2*randn(seed, x);
 		}
+		#pragma acc update target(arrayX[0:Nparticles], arrayY[0:Nparticles])
 		long long error = get_time();
 		printf("TIME TO SET ERROR TOOK: %f\n", elapsed_time(set_arrays, error));
 		//particle filter likelihood
@@ -472,11 +470,16 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 		//pause(hold off for now)
 		
 		//resampling
-		#pragma acc kernels
-		for(x = 0; x < Nparticles; x++){
+		
+		#pragma acc update host(weights[0:Nparticles])
+
+		CDF[0] = weights[0];
+		for(x = 1; x < Nparticles; x++){
 			CDF[x] = weights[x] + CDF[x-1];
-			if (x == 0) CDF[0] = weights[0];
 		}
+
+		#pragma acc update target(CDF[0:Nparticles]) async(UPDATE_TARGET_CDF)
+
 		long long cum_sum = get_time();
 		printf("TIME TO CALC CUM SUM TOOK: %f\n", elapsed_time(move_time, cum_sum));
 		double u1 = (1/((double)(Nparticles)))*randu(seed, 0);
@@ -487,10 +490,12 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 		long long u_time = get_time();
 		printf("TIME TO CALC U TOOK: %f\n", elapsed_time(cum_sum, u_time));
 		int j, i;
+
+		#pragma acc wait(UPDATE_TARGET_CDF)
 		
 		#pragma acc kernels
 		for(j = 0; j < Nparticles; j++){
-			i = findIndex(CDF, Nparticles, u[j]);
+			FIND_INDEX(i, CDF, Nparticles, u[j]);
 			if(i == -1)
 				i = Nparticles-1;
 			xj[j] = arrayX[i];
@@ -500,14 +505,17 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 		long long xyj_time = get_time();
 		printf("TIME TO CALC NEW ARRAY X AND Y TOOK: %f\n", elapsed_time(u_time, xyj_time));
 		//reassign arrayX and arrayY
-		arrayX = xj;
-		arrayY = yj;
 		#pragma acc kernels
 		for(x = 0; x < Nparticles; x++){
+			//reassign arrayX and arrayY
+			arrayX[x] = xj[x];
+			arrayY[x] = yj[x];
 			weights[x] = 1/((double)(Nparticles));
 		}
 		long long reset = get_time();
 		printf("TIME TO RESET WEIGHTS TOOK: %f\n", elapsed_time(xyj_time, reset));
+
+		#pragma acc update host(arrayX[0:Nparticles], arrayY[0:Nparticles])
 	}
 	} /* end pragma acc data */
 	free(disk);
