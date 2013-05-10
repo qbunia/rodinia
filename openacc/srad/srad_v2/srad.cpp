@@ -79,14 +79,18 @@ int main(int argc, char* argv[])
     dW = (float *)malloc(sizeof(float)* size_I) ;
     dE = (float *)malloc(sizeof(float)* size_I) ;    
     
-    #pragma acc kernels create(iN[0:rows], iS[0:rows])
+#pragma acc data create(iN[0:rows],iS[0:rows],jW[0:cols],jE[0:cols]) \
+    create(dN[0:size_I],dS[0:size_I],dW[0:size_I],dE[0:size_I],c[0:size_I]) \
+    create(I[0:size_I]) copyout(J[0:size_I])
+{
+    #pragma acc kernels
     for (int i=0; i< rows; i++) {
         iN[i] = i-1;
         iS[i] = i+1;
         if (i == 0) iN[0] = 0;
         if (i == rows-1) iS[rows-1] = rows-1;
     }
-    #pragma acc kernels create(jW[0:cols], jE[0:cols])
+    #pragma acc kernels
     for (int j=0; j< cols; j++) {
         jW[j] = j-1;
         jE[j] = j+1;
@@ -97,25 +101,22 @@ int main(int argc, char* argv[])
 	printf("Randomizing the input matrix\n");
 
     random_matrix(I, rows, cols);
+    #pragma acc update target(I[0:size_I])
 
-    #pragma acc kernels copyin(I[0:size_I]) create(J[0:size_I])
+    #pragma acc kernels
     for (k = 0;  k < size_I; k++ ) {
      	J[k] = (float)exp(I[k]) ;
     }
    
 	printf("Start the SRAD main loop\n");
 
-	#pragma acc data copyout(J[0:size_I]) \
-		create(dN[0:size_I], dS[0:size_I], dW[0:size_I], dE[0:size_I], c[0:size_I]) \
-		present(iN, iS, jW, jE)
-	{
 #ifdef ITERATION
 	for (iter=0; iter< niter; iter++){
 #endif        
 		sum=0; sum2=0;     
-		#pragma acc parallel loop vector reduction(+:sum,sum2)
+		#pragma acc parallel loop reduction(+:sum,sum2)
 		for (i=r1; i<=r2; i++) {
-			#pragma acc loop vector reduction(+:sum,sum2)
+			#pragma acc loop seq
             for (j=c1; j<=c2; j++) {
                 tmp   = J[i * cols + j];
                 sum  += tmp ;
@@ -178,21 +179,14 @@ int main(int argc, char* argv[])
                 
                 // image update (equ 61)
                 J[k] = J[k] + 0.25*lambda*D;
-                #ifdef OUTPUT
-                //printf("%.5f ", J[k]); 
-                #endif //output
             }
-	            #ifdef OUTPUT
-                //printf("\n"); 
-                #endif //output
 	     }
 
 #ifdef ITERATION
 	}
 #endif
 
-	} /* end pragma acc data */
-
+} /* end acc data */
 
 #ifdef OUTPUT
 	  for( int i = 0 ; i < rows ; i++){

@@ -30,6 +30,8 @@
 #include "resize.c"
 #include "timer.c"
 
+#define TRANSFER_IMAGE 1
+
 //====================================================================================================100
 //====================================================================================================100
 //	MAIN FUNCTION
@@ -187,8 +189,14 @@ int main(int argc, char *argv []){
 	// allocate variable for diffusion coefficient
     c  = malloc(sizeof(fp)*Ne) ;											// diffusion coefficient
         
+#pragma acc data create(iN[0:Nr],iS[0:Nr],jW[0:Nc],jE[0:Nc]) \
+    create(dN[0:Ne],dS[0:Ne],dW[0:Ne],dE[0:Ne],c[0:Ne]) \
+    copyout(image[0:Ne])
+{
+	#pragma acc update target(image) async(TRANSFER_IMAGE)
+
     // N/S/W/E indices of surrounding pixels (every element of IMAGE)
-	#pragma acc kernels create(iN[0:Nr], iS[0:Nr])
+	#pragma acc kernels
     for (i=0; i<Nr; i++) {
         iN[i] = i-1;														// holds index of IMAGE row above
         iS[i] = i+1;														// holds index of IMAGE row below
@@ -197,7 +205,7 @@ int main(int argc, char *argv []){
         if (i==0) iN[0] = 0;												// changes IMAGE top row index from -1 to 0
         if (i==Nr-1) iS[Nr-1] = Nr-1;										// changes IMAGE bottom row index from Nr to Nr-1 
     }
-	#pragma acc kernels create(jW[0:Nc], jE[0:Nc])
+	#pragma acc kernels
     for (j=0; j<Nc; j++) {
         jW[j] = j-1;														// holds index of IMAGE column on the left
         jE[j] = j+1;														// holds index of IMAGE column on the right
@@ -213,7 +221,9 @@ int main(int argc, char *argv []){
 	// 	SCALE IMAGE DOWN FROM 0-255 TO 0-1 AND EXTRACT
 	//================================================================================80
 
-	#pragma acc kernels copyin(image[0:Ne])
+	#pragma acc wait(TRANSFER_IMAGE)
+
+	#pragma acc kernels
 	for (i=0; i<Ne; i++) {													// do for the number of elements in input IMAGE
 		image[i] = exp(image[i]/255);											// exponentiate input IMAGE and copy to output image
     }
@@ -227,8 +237,6 @@ int main(int argc, char *argv []){
 	// printf("iterations: ");
 
     // primary loop
-    #pragma acc data create(dN[0:Ne], dS[0:Ne], dW[0:Ne], dE[0:Ne], c[0:Ne])
-    {
     for (iter=0; iter<niter; iter++){										// do for the number of iterations input parameter
 
 		// printf("%d ", iter);
@@ -237,9 +245,9 @@ int main(int argc, char *argv []){
         // ROI statistics for entire ROI (single number for ROI)
         sum=0; 
 		sum2=0;
-		#pragma acc parallel loop vector reduction(+:sum,sum2) present(image)
+		#pragma acc parallel loop reduction(+:sum,sum2)
         for (i=r1; i<=r2; i++) {											// do for the range of rows in ROI
-        	#pragma acc loop vector reduction(+:sum,sum2)
+        	#pragma acc loop seq
             for (j=c1; j<=c2; j++) {										// do for the range of columns in ROI
                 tmp   = image[i + Nr*j];										// get coresponding value in IMAGE
                 sum  += tmp ;												// take corresponding value and add to sum
@@ -251,7 +259,7 @@ int main(int argc, char *argv []){
         q0sqr   = varROI / (meanROI*meanROI);								// gets standard deviation of ROI
 
         // directional derivatives, ICOV, diffusion coefficent
-		#pragma acc kernels present(image, c)
+		#pragma acc kernels
 		for (j=0; j<Nc; j++) {												// do for the range of columns in IMAGE
             for (i=0; i<Nr; i++) {											// do for the range of rows in IMAGE 
 
@@ -292,7 +300,7 @@ int main(int argc, char *argv []){
         }
 
         // divergence & image update
-        #pragma acc kernels present(c, jE, dN, dS, dW, dE)
+        #pragma acc kernels
         for (j=0; j<Nc; j++) {												// do for the range of columns in IMAGE
             for (i=0; i<Nr; i++) {											// do for the range of rows in IMAGE
 
@@ -316,7 +324,6 @@ int main(int argc, char *argv []){
         }
 
 	}
-	} /* end pragma add data */
 
 	// printf("\n");
 
@@ -326,12 +333,13 @@ int main(int argc, char *argv []){
 	// 	SCALE IMAGE UP FROM 0-1 TO 0-255 AND COMPRESS
 	//================================================================================80
 
-	#pragma acc kernels copyout(image)
+	#pragma acc kernels
 	for (i=0; i<Ne; i++) {													// do for the number of elements in IMAGE
 		image[i] = log(image[i])*255;													// take logarithm of image, log compress
 	}
 
 	time8 = get_time();
+} /* end acc data */
 
 	//================================================================================80
 	// 	WRITE IMAGE AFTER PROCESSING
