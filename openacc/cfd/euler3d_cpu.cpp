@@ -8,13 +8,7 @@
 
 struct float3 { float x, y, z; };
 
-#ifndef block_length
-	#ifdef _OPENMP
-	#error "you need to define block_length"
-	#else
-	#define block_length 1
-	#endif
-#endif
+#define block_length 1
 
 /*
  * Options

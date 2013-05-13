@@ -101,6 +101,8 @@
 //	VARIABLES
 //========================================================================================================================================================================================================200
 
+#define TRANSFER_KERNEL_DATA 1
+
 // general variables
 knode *knodes;
 record *krecords;
@@ -2175,17 +2177,22 @@ main(	int argc,
 				// OUTPUT: ans CPU allocation, initialize in GPU
 				record *ans = (record *)malloc(sizeof(record)*count);
 
+#pragma acc data create(currKnode[0:count],offset[0:count],ans[0:count]) \
+        create(keys[0:count], records, knodes) \
+        copyout(ans[0:count])
+{
+        #pragma acc update target(keys[0:count], records, knodes)\
+            async(TRANSFER_KERNEL_DATA)
+
         // Allocate variable in device and initialize
-        #pragma acc kernels create(currKnode[0:count], offset[0:count], ans[0:count])
+        #pragma acc kernels
         for(i = 0; i < count; i++) {
           currKnode[i] = 0;
           offset[i] = 0;
           ans[i].value = -1;
         }
 
-        #pragma acc data present(currKnode, offset) \
-          copyin(keys[0:count], records, knodes) copyout(ans[0:count])
-        {
+        #pragma acc wait(TRANSFER_KERNEL_DATA)
 				// New OpenACC kernel, same algorighm across all versions(OpenMP, CUDA, OpenCL) for comparison purposes
 				kernel_cpu(	cores_arg,
 
@@ -2201,7 +2208,7 @@ main(	int argc,
 							offset,
 							keys,
 							ans);
-        } /* end pragma acc data */
+} /* end pragma acc data */
 
 				// Original OpenMP kernel, different algorithm
 				// int j;
