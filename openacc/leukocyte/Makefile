@@ -1,8 +1,8 @@
-all: CUDA/leukocyte 
+all: OpenACC/leukocyte 
 
-CUDA/leukocyte:
-	cd CUDA; make
+OpenACC/leukocyte:
+	cd OpenACC; make
 
 clean:
-	cd CUDA; make clean
+	cd OpenACC; make clean
 	rm -f meschach_lib/meschach.a
