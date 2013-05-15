@@ -101,7 +101,7 @@ int main(int argc, char* argv[])
 	printf("Randomizing the input matrix\n");
 
     random_matrix(I, rows, cols);
-    #pragma acc update target(I[0:size_I])
+    #pragma acc update device(I[0:size_I])
 
     #pragma acc kernels
     for (k = 0;  k < size_I; k++ ) {

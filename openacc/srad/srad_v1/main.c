@@ -193,7 +193,7 @@ int main(int argc, char *argv []){
     create(dN[0:Ne],dS[0:Ne],dW[0:Ne],dE[0:Ne],c[0:Ne]) \
     copyout(image[0:Ne])
 {
-	#pragma acc update target(image) async(TRANSFER_IMAGE)
+	#pragma acc update device(image) async(TRANSFER_IMAGE)
 
     // N/S/W/E indices of surrounding pixels (every element of IMAGE)
 	#pragma acc kernels

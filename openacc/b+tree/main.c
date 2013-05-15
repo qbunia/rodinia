@@ -2181,7 +2181,7 @@ main(	int argc,
         create(keys[0:count], records, knodes) \
         copyout(ans[0:count])
 {
-        #pragma acc update target(keys[0:count], records, knodes)\
+        #pragma acc update device(keys[0:count], records, knodes)\
             async(TRANSFER_KERNEL_DATA)
 
         // Allocate variable in device and initialize

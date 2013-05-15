@@ -405,7 +405,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 			arrayX[x] += 1 + 5*randn(seed, x);
 			arrayY[x] += -2 + 2*randn(seed, x);
 		}
-		#pragma acc update target(arrayX[0:Nparticles], arrayY[0:Nparticles])
+		#pragma acc update device(arrayX[0:Nparticles], arrayY[0:Nparticles])
 		long long error = get_time();
 		printf("TIME TO SET ERROR TOOK: %f\n", elapsed_time(set_arrays, error));
 		//particle filter likelihood
@@ -478,7 +478,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 			CDF[x] = weights[x] + CDF[x-1];
 		}
 
-		#pragma acc update target(CDF[0:Nparticles]) async(UPDATE_TARGET_CDF)
+		#pragma acc update device(CDF[0:Nparticles]) async(UPDATE_TARGET_CDF)
 
 		long long cum_sum = get_time();
 		printf("TIME TO CALC CUM SUM TOOK: %f\n", elapsed_time(move_time, cum_sum));

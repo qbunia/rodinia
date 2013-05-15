@@ -89,7 +89,7 @@ void BFSGraph( int argc, char** argv)
 	create(h_graph_nodes[0:no_of_nodes], h_graph_edges[0:edge_list_size]) \
 	copyout(h_cost[0:no_of_nodes])
 {
-	#pragma acc update target(h_graph_nodes[0:no_of_nodes]) async(TRANSFER_GRAPH_NODE)
+	#pragma acc update device(h_graph_nodes[0:no_of_nodes]) async(TRANSFER_GRAPH_NODE)
 
 	#pragma acc kernels
 	for( unsigned int i = 0; i < no_of_nodes; i++)
@@ -129,7 +129,7 @@ void BFSGraph( int argc, char** argv)
 	}
 	
 	// finish transfer node and edge to target
-	#pragma acc update target(h_graph_edges[0:edge_list_size])
+	#pragma acc update device(h_graph_edges[0:edge_list_size])
 	#pragma acc wait(TRANSFER_GRAPH_NODE)
 
 	printf("Start traversing the tree\n");

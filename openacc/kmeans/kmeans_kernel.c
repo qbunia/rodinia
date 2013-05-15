@@ -151,7 +151,7 @@ kmeans(float   *feature,				/* in: [npoints][nfeatures] */
 	int i,j;				/* counters */
 
 	/* copy clusters (host to device) */
-	#pragma acc update target(clusters[0][0:nclusters*nfeatures])
+	#pragma acc update device(clusters[0][0:nclusters*nfeatures])
 
 	/* execute the kernel */
     kmeansPoint( feature_d,

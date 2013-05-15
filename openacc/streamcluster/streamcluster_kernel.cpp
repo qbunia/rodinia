@@ -62,7 +62,7 @@ float pgain( long x, Points *points, float z, long int *numcenters, int kmax, bo
 			center_table[i] = count++;
 		}
 	}
-	#pragma acc update target(center_table) async(TRANSFER_CENTER_TABLE)
+	#pragma acc update device(center_table) async(TRANSFER_CENTER_TABLE)
 
 	// Extract 'coord'
 	// Only if first iteration OR coord has changed
@@ -75,10 +75,10 @@ float pgain( long x, Points *points, float z, long int *numcenters, int kmax, bo
 				coord[ (i*num)+j ] = points->p[j].coord[i];
 			}
 		}
-		#pragma acc update target(coord[0:num*dim]) async(TRNASFER_COORD)
+		#pragma acc update device(coord[0:num*dim]) async(TRNASFER_COORD)
 	}
 
-	#pragma acc update target(points->p) async(TRANSFER_POINTS)
+	#pragma acc update device(points->p) async(TRANSFER_POINTS)
 
 	#pragma acc kernels
 	for(int i=0; i<num; i++) {
