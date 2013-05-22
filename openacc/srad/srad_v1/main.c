@@ -293,7 +293,7 @@ int main(int argc, char *argv []){
                 // saturate diffusion coefficent to 0-1 range
                 if (ck < 0)												// if diffusion coefficient < 0
 					{c[k] = 0;}												// ... set to 0
-                else if (ck > 1)											// if diffusion coefficient > 1
+                else if (ck >= 1)											// if diffusion coefficient > 1
 					{c[k] = 1;}												// ... set to 1
 
                 dN[k] = dNk, dS[k] = dSk, dW[k] = dWk, dE[k] = dEk;
