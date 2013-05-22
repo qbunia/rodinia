@@ -7,8 +7,8 @@
           # .
 	# command n
 	
-CC = pathcc
-CC_FLAGS = -acc
+CC = pgcc
+CC_FLAGS = -acc -g -Minfo
 
 # link objects(binaries) together
 a.out:	main.o
