@@ -245,7 +245,7 @@ int main(int argc, char *argv []){
         // ROI statistics for entire ROI (single number for ROI)
         sum=0; 
 		sum2=0;
-		#pragma acc parallel loop collapse(2) reduction(+:sum,sum2) copyin(image[0:Ne])
+		#pragma acc parallel loop collapse(2) reduction(+:sum,sum2)
         for (i=r1; i<=r2; i++) {											// do for the range of rows in ROI
             for (j=c1; j<=c2; j++) {										// do for the range of columns in ROI
                 tmp   = image[i + Nr*j];										// get coresponding value in IMAGE
@@ -262,22 +262,24 @@ int main(int argc, char *argv []){
 		for (j=0; j<Nc; j++) {												// do for the range of columns in IMAGE
             for (i=0; i<Nr; i++) {											// do for the range of rows in IMAGE 
 
+                fp dNk, dSk, dWk, dEk, ck;
+
                 // current index/pixel
                 k = i + Nr*j;												// get position of current element
                 Jc = image[k];													// get value of the current element
 
                 // directional derivates (every element of IMAGE)
-                dN[k] = image[iN[i] + Nr*j] - Jc;								// north direction derivative
-                dS[k] = image[iS[i] + Nr*j] - Jc;								// south direction derivative
-                dW[k] = image[i + Nr*jW[j]] - Jc;								// west direction derivative
-                dE[k] = image[i + Nr*jE[j]] - Jc;								// east direction derivative
+                dNk = image[iN[i] + Nr*j] - Jc;								// north direction derivative
+                dSk = image[iS[i] + Nr*j] - Jc;								// south direction derivative
+                dWk = image[i + Nr*jW[j]] - Jc;								// west direction derivative
+                dEk = image[i + Nr*jE[j]] - Jc;								// east direction derivative
 
                 // normalized discrete gradient mag squared (equ 52,53)
-                G2 = (dN[k]*dN[k] + dS[k]*dS[k]								// gradient (based on derivatives)
-                    + dW[k]*dW[k] + dE[k]*dE[k]) / (Jc*Jc);
+                G2 = (dNk*dNk + dSk*dSk								// gradient (based on derivatives)
+                    + dWk*dWk + dEk*dEk) / (Jc*Jc);
 
                 // normalized discrete laplacian (equ 54)
-                L = (dN[k] + dS[k] + dW[k] + dE[k]) / Jc;					// laplacian (based on derivatives)
+                L = (dNk + dSk + dWk + dEk) / Jc;					// laplacian (based on derivatives)
 
                 // ICOV (equ 31/35)
                 num  = (0.5*G2) - ((1.0/16.0)*(L*L)) ;						// num (based on gradient and laplacian)
@@ -286,14 +288,15 @@ int main(int argc, char *argv []){
  
                 // diffusion coefficent (equ 33) (every element of IMAGE)
                 den = (qsqr-q0sqr) / (q0sqr * (1+q0sqr)) ;					// den (based on qsqr and q0sqr)
-                c[k] = 1.0 / (1.0+den) ;									// diffusion coefficient (based on den)
+                ck = 1.0 / (1.0+den) ;									// diffusion coefficient (based on den)
 
                 // saturate diffusion coefficent to 0-1 range
-                if (c[k] < 0)												// if diffusion coefficient < 0
+                if (ck < 0)												// if diffusion coefficient < 0
 					{c[k] = 0;}												// ... set to 0
-                else if (c[k] > 1)											// if diffusion coefficient > 1
+                else if (ck > 1)											// if diffusion coefficient > 1
 					{c[k] = 1;}												// ... set to 1
 
+                dN[k] = dNk, dS[k] = dSk, dW[k] = dWk, dE[k] = dEk;
             }
 
         }
