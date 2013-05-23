@@ -2181,7 +2181,7 @@ main(	int argc,
         create(keys[0:count], records, knodes) \
         copyout(ans[0:count])
 {
-        #pragma acc update device(keys[0:count], records, knodes)\
+        #pragma acc update device(keys[0:count], records, knodes) \
             async(TRANSFER_KERNEL_DATA)
 
         // Allocate variable in device and initialize
@@ -2328,10 +2328,15 @@ main(	int argc,
 				int *recstart = (int *)malloc(count*sizeof(int));
 				int *reclength = (int *)malloc(count*sizeof(int));
 
+#pragma acc data create(currKnode[0:count],offset[0:count]) \
+    create(lastKnode[0:count],offset_2[0:count]) \
+    copyout(recstart[0:count],reclength[0:count])
+{
+        #pragma acc update device(start[0:count],end[0:count]) \
+            async(TRANSFER_KERNEL_DATA)
+
         // Allocate variable in device and initialize
-        #pragma acc kernels create(currKnode[0:count], offset[0:count]) \ 
-          create(lastKnode[0:count], offset_2[0:count]) \
-          create(recstart[0:count], reclength[0:count])
+        #pragma acc parallel loop
         for(i = 0; i < count; i++){
           currKnode[i] = 0;
           offset[i] = 0;
@@ -2341,10 +2346,8 @@ main(	int argc,
           reclength[i] = 0;
         }
 
-        #pragma acc data present(currKnode, offset, lastKnode, offset_2) \
-          copyin(start[0:count], end[0:count])
-          copyout(recstart[0:count], reclength[0:count])
-        {
+        #pragma acc wait(TRANSFER_KERNEL_DATA)
+        
 				// New kernel, same algorighm across all versions(OpenMP, CUDA, OpenCL) for comparison purposes
 				kernel_cpu_2(	cores_arg,
 
@@ -2363,7 +2366,7 @@ main(	int argc,
 								end,
 								recstart,
 								reclength);
-        } /* end pragma acc data */
+} /* end pragma acc data */
 
 				// Original [CPU] kernel, different algorithm
 				// int k;
