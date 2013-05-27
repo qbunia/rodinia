@@ -86,7 +86,7 @@ kernel_cpu_2(	int cores_arg,
 	int bid;
 
 	// process number of querries
-	#pragma acc kernels
+	//#pragma acc kernels
 	for(bid = 0; bid < count; bid++){
 
 		// process levels of the tree

@@ -2138,7 +2138,7 @@ main(	int argc,
 				// get # of queries from user
 				int count;
 				sscanf(commandPointer, "%d", &count);
-				while(*commandPointer!=32 && commandPointer!='\n')
+				while(*commandPointer!=32 && *commandPointer!='\n')
 				  commandPointer++;
 
 				printf("\n ******command: k count=%d \n",count);
@@ -2178,14 +2178,14 @@ main(	int argc,
 				record *ans = (record *)malloc(sizeof(record)*count);
 
 #pragma acc data create(currKnode[0:count],offset[0:count],ans[0:count]) \
-        create(keys[0:count], records, knodes) \
+        create(keys[0:count],records[0:records_elem],knodes[0:knodes_elem]) \
         copyout(ans[0:count])
 {
-        #pragma acc update device(keys[0:count], records, knodes) \
+        #pragma acc update device(keys[0:count],records[0:records_elem],knodes[0:knodes_elem]) \
             async(TRANSFER_KERNEL_DATA)
 
         // Allocate variable in device and initialize
-        #pragma acc kernels
+        #pragma acc parallel loop
         for(i = 0; i < count; i++) {
           currKnode[i] = 0;
           offset[i] = 0;
@@ -2277,12 +2277,12 @@ main(	int argc,
 				// get # of queries from user
 				int count;
 				sscanf(commandPointer, "%d", &count);
-				while(*commandPointer!=32 && commandPointer!='\n')
+				while(*commandPointer!=32 && *commandPointer!='\n')
 				  commandPointer++;
 
 				int rSize;
 				sscanf(commandPointer, "%d", &rSize);
-				while(*commandPointer!=32 && commandPointer!='\n')
+				while(*commandPointer!=32 && *commandPointer!='\n')
 				  commandPointer++;
 
 				printf("\n******command: j count=%d, rSize=%d \n",count, rSize);
@@ -2330,6 +2330,7 @@ main(	int argc,
 
 #pragma acc data create(currKnode[0:count],offset[0:count]) \
     create(lastKnode[0:count],offset_2[0:count]) \
+    create(start[0:count],end[0:count]) \
     copyout(recstart[0:count],reclength[0:count])
 {
         #pragma acc update device(start[0:count],end[0:count]) \
@@ -2349,7 +2350,7 @@ main(	int argc,
         #pragma acc wait(TRANSFER_KERNEL_DATA)
         
 				// New kernel, same algorighm across all versions(OpenMP, CUDA, OpenCL) for comparison purposes
-				kernel_cpu_2(	cores_arg,
+				/*kernel_cpu_2(	cores_arg,
 
 								knodes,
 								knodes_elem,
@@ -2365,7 +2366,7 @@ main(	int argc,
 								start,
 								end,
 								recstart,
-								reclength);
+								reclength);*/
 } /* end pragma acc data */
 
 				// Original [CPU] kernel, different algorithm
