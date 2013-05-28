@@ -124,20 +124,23 @@ runTest( int argc, char** argv)
 		}
 	}
 
+	#pragma acc data copy(input_itemsets[0:max_rows*max_cols]) \
+	    copyin(referrence[0:max_rows*max_cols])
+	{
+		
+	#pragma acc parallel loop
     for( int i = 1; i< max_rows ; i++)
        input_itemsets[i*max_cols] = -i * penalty;
+	#pragma acc parallel loop
 	for( int j = 1; j< max_cols ; j++)
        input_itemsets[j] = -j * penalty;
 
 
-	
-	#pragma acc data copy(input_itemsets,referrence)
-	{
 	//Compute top-left matrix 
 	printf("Processing top-left matrix\n");
 	
     for( int i = 0 ; i < max_cols-2 ; i++){
-    	#pragma acc kernels present(input_itemsets,referrence)
+    	#pragma acc parallel loop
 		for( idx = 0 ; idx <= i ; idx++){
 		 index = (idx + 1) * max_cols + (i + 1 - idx);
          input_itemsets[index]= MAXIMUM( input_itemsets[index-1-max_cols]+ referrence[index], 
@@ -151,7 +154,7 @@ runTest( int argc, char** argv)
 	printf("Processing bottom-right matrix\n");
     
 	for( int i = max_cols - 4 ; i >= 0 ; i--){
-		#pragma acc kernels present(input_itemsets,referrence) 
+		#pragma acc parallel loop
         for( idx = 0 ; idx <= i ; idx++){
 	      index =  ( max_cols - idx - 2 ) * max_cols + idx + max_cols - i - 2 ;
 		  input_itemsets[index]= MAXIMUM( input_itemsets[index-1-max_cols]+ referrence[index], 
@@ -160,6 +163,7 @@ runTest( int argc, char** argv)
 	      }
 
 	}
+	
 	} /* end pragma acc data */
 
 //#define TRACEBACK
