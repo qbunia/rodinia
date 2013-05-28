@@ -346,6 +346,10 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 	double xe = roundDouble(IszY/2.0);
 	double ye = roundDouble(IszX/2.0);
 	
+	double * weights, * likelihood, * arrayX, * arrayY;
+	double * xj, * yj, * CDF, * u;
+	int * ind;
+	
 	//expected object locations, compared to center
 	int radius = 5;
 	int diameter = radius*2 - 1;
@@ -363,30 +367,30 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 	getneighbors(disk, countOnes, objxy, radius);
 	
 	#pragma acc data copy(I[0:IszX*IszY*Nfr]) copyin(seed[0:Nparticles]) \
-		create(ind[0:countOnes*Nparticles], likelihood[0:Nparticles], CDF[0:Nparticles]) \
-		create(u[0:Nparticles], xj[0:Nparticles], yj[0:Nparticles]) \
-		create(weight[0:Nparticles], arrayX[0:Nparticles], arrayY[0:Nparticles])
+		create(ind[0:countOnes*Nparticles],likelihood[0:Nparticles],CDF[0:Nparticles]) \
+		create(u[0:Nparticles],xj[0:Nparticles],yj[0:Nparticles]) \
+		create(weights[0:Nparticles],arrayX[0:Nparticles],arrayY[0:Nparticles])
 	{
 
 	long long get_neighbors = get_time();
 	printf("TIME TO GET NEIGHBORS TOOK: %f\n", elapsed_time(start, get_neighbors));
 	//initial weights are all equal (1/Nparticles)
-	double * weights = (double *)malloc(sizeof(double)*Nparticles);
-	#pragma acc kernels
+	weights = (double *)malloc(sizeof(double)*Nparticles);
+	#pragma acc parallel loop
 	for(x = 0; x < Nparticles; x++){
 		weights[x] = 1/((double)(Nparticles));
 	}
 	long long get_weights = get_time();
 	printf("TIME TO GET WEIGHTSTOOK: %f\n", elapsed_time(get_neighbors, get_weights));
 	//initial likelihood to 0.0
-	double * likelihood = (double *)malloc(sizeof(double)*Nparticles);
-	double * arrayX = (double *)malloc(sizeof(double)*Nparticles);
-	double * arrayY = (double *)malloc(sizeof(double)*Nparticles);
-	double * xj = (double *)malloc(sizeof(double)*Nparticles);
-	double * yj = (double *)malloc(sizeof(double)*Nparticles);
-	double * CDF = (double *)malloc(sizeof(double)*Nparticles);
-	double * u = (double *)malloc(sizeof(double)*Nparticles);
-	int * ind = (int*)malloc(sizeof(int)*countOnes*Nparticles);
+	likelihood = (double *)malloc(sizeof(double)*Nparticles);
+	arrayX = (double *)malloc(sizeof(double)*Nparticles);
+	arrayY = (double *)malloc(sizeof(double)*Nparticles);
+	xj = (double *)malloc(sizeof(double)*Nparticles);
+	yj = (double *)malloc(sizeof(double)*Nparticles);
+	CDF = (double *)malloc(sizeof(double)*Nparticles);
+	u = (double *)malloc(sizeof(double)*Nparticles);
+	ind = (int*)malloc(sizeof(int)*countOnes*Nparticles);
 	for(x = 0; x < Nparticles; x++){
 		arrayX[x] = xe;
 		arrayY[x] = ye;
@@ -405,17 +409,19 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 			arrayX[x] += 1 + 5*randn(seed, x);
 			arrayY[x] += -2 + 2*randn(seed, x);
 		}
-		#pragma acc update device(arrayX[0:Nparticles], arrayY[0:Nparticles])
+		#pragma acc update device(arrayX[0:Nparticles],arrayY[0:Nparticles])
+		
 		long long error = get_time();
 		printf("TIME TO SET ERROR TOOK: %f\n", elapsed_time(set_arrays, error));
 		//particle filter likelihood
-		#pragma acc kernels
+		#pragma acc parallel loop
 		for(x = 0; x < Nparticles; x++){
 			//compute the likelihood: remember our assumption is that you know
 			// foreground and the background image intensity distribution.
 			// Notice that we consider here a likelihood ratio, instead of
 			// p(z|x). It is possible in this case. why? a hometask for you.		
 			//calc ind
+			#pragma acc loop
 			for(y = 0; y < countOnes; y++){
 				indX = roundDouble(arrayX[x]) + objxy[y*2 + 1];
 				indY = roundDouble(arrayY[x]) + objxy[y*2];
@@ -424,6 +430,8 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 					ind[x*countOnes + y] = 0;
 			}
 			likelihood[x] = 0;
+			// TODO: change to reduction
+			#pragma acc loop seq
 			for(y = 0; y < countOnes; y++)
 				likelihood[x] += (pow((I[ind[x*countOnes + y]] - 100),2) - pow((I[ind[x*countOnes + y]]-228),2))/50.0;
 			likelihood[x] = likelihood[x]/((double) countOnes);
@@ -432,7 +440,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 		printf("TIME TO GET LIKELIHOODS TOOK: %f\n", elapsed_time(error, likelihood_time));
 		// update & normalize weights
 		// using equation (63) of Arulampalam Tutorial
-		#pragma acc kernels
+		#pragma acc parallel loop
 		for(x = 0; x < Nparticles; x++){
 			weights[x] = weights[x] * exp(likelihood[x]);
 		}
@@ -445,7 +453,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 		}
 		long long sum_time = get_time();
 		printf("TIME TO SUM WEIGHTS TOOK: %f\n", elapsed_time(exponential, sum_time));
-		#pragma acc kernels loop
+		#pragma acc parallel loop
 		for(x = 0; x < Nparticles; x++){
 			weights[x] = weights[x]/sumWeights;
 		}
@@ -456,8 +464,9 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 		// estimate the object location by expected values
 		#pragma acc parallel loop vector reduction(+:xe, ye)
 		for(x = 0; x < Nparticles; x++){
-			xe += arrayX[x] * weights[x];
-			ye += arrayY[x] * weights[x];
+			double weight = weights[x];
+			xe += arrayX[x] * weight;
+			ye += arrayY[x] * weight;
 		}
 		long long move_time = get_time();
 		printf("TIME TO MOVE OBJECT TOOK: %f\n", elapsed_time(normalize, move_time));
@@ -483,7 +492,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 		long long cum_sum = get_time();
 		printf("TIME TO CALC CUM SUM TOOK: %f\n", elapsed_time(move_time, cum_sum));
 		double u1 = (1/((double)(Nparticles)))*randu(seed, 0);
-		#pragma acc kernels
+		#pragma acc parallel loop
 		for(x = 0; x < Nparticles; x++){
 			u[x] = u1 + x/((double)(Nparticles));
 		}
@@ -493,7 +502,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 
 		#pragma acc wait(UPDATE_TARGET_CDF)
 		
-		#pragma acc kernels
+		#pragma acc parallel loop
 		for(j = 0; j < Nparticles; j++){
 			FIND_INDEX(i, CDF, Nparticles, u[j]);
 			if(i == -1)
@@ -505,7 +514,7 @@ void particleFilter(int * I, int IszX, int IszY, int Nfr, int * seed, int Nparti
 		long long xyj_time = get_time();
 		printf("TIME TO CALC NEW ARRAY X AND Y TOOK: %f\n", elapsed_time(u_time, xyj_time));
 		//reassign arrayX and arrayY
-		#pragma acc kernels
+		#pragma acc parallel loop
 		for(x = 0; x < Nparticles; x++){
 			//reassign arrayX and arrayY
 			arrayX[x] = xj[x];
