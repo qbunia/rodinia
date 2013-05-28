@@ -86,7 +86,7 @@ kernel_cpu_2(	int cores_arg,
 	int bid;
 
 	// process number of querries
-	//#pragma acc kernels
+	#pragma acc kernels
 	for(bid = 0; bid < count; bid++){
 
 		// process levels of the tree
@@ -119,7 +119,11 @@ kernel_cpu_2(	int cores_arg,
 			lastKnode[bid] = offset_2[bid];
 
 		}
+		
+	}
 
+	#pragma acc kernels
+	for(bid = 0; bid < count; bid++){
 		// process leaves
 		for(thid = 0; thid < threadsPerBlock; thid++){
 
@@ -129,7 +133,11 @@ kernel_cpu_2(	int cores_arg,
 			}
 
 		}
+		
+	}
 
+	#pragma acc kernels
+	for(bid = 0; bid < count; bid++){
 		// process leaves
 		for(thid = 0; thid < threadsPerBlock; thid++){
 

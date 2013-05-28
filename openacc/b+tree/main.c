@@ -2329,8 +2329,8 @@ main(	int argc,
 				int *reclength = (int *)malloc(count*sizeof(int));
 
 #pragma acc data create(currKnode[0:count],offset[0:count]) \
-    create(lastKnode[0:count],offset_2[0:count]) \
     create(start[0:count],end[0:count]) \
+    create(lastKnode[0:count],offset_2[0:count]) \
     copyout(recstart[0:count],reclength[0:count])
 {
         #pragma acc update device(start[0:count],end[0:count]) \
@@ -2350,7 +2350,7 @@ main(	int argc,
         #pragma acc wait(TRANSFER_KERNEL_DATA)
         
 				// New kernel, same algorighm across all versions(OpenMP, CUDA, OpenCL) for comparison purposes
-				/*kernel_cpu_2(	cores_arg,
+				kernel_cpu_2(	cores_arg,
 
 								knodes,
 								knodes_elem,
@@ -2366,7 +2366,7 @@ main(	int argc,
 								start,
 								end,
 								recstart,
-								reclength);*/
+								reclength);
 } /* end pragma acc data */
 
 				// Original [CPU] kernel, different algorithm
