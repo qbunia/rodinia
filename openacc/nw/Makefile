@@ -1,6 +1,6 @@
 # C compiler
-CC = pgcpp
-CC_FLAGS = -acc -Minfo
+CC = pathCC
+CC_FLAGS = -acc
 
 needle: 
 	$(CC) $(CC_FLAGS) needle.cpp -o needle 

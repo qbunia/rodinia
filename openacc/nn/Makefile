@@ -1,6 +1,6 @@
 LOCAL_CC = gcc -g -O3 -Wall
-CC = pgcpp
-CFLAGS = -Minfo -O3 -acc
+CC = pathCC
+CFLAGS = -O3 -acc
 
 
 all : nn

@@ -15,13 +15,13 @@ EXECUTABLE      := lud_openacc
 SOURCES         := lud.c lud_openacc.c ../common/common.c 
 
 # ------------  compiler  ------------------------------------------------------
-CC              := pgcc
-CXX             := pgcpp
+CC              := pathcc
+CXX             := pathCC
 
 # ------------  compiler flags  ------------------------------------------------
 DEBUG_CFLAGS    := -O0 -g
 RELEASE_CFLAGS  := -O3 
-COMMON_CFLAGS   := -acc -Minfo
+COMMON_CFLAGS   := -acc
 
 # ------------  compiler defs  ------------------------------------------------
 DEBUG_CDEFS    := 
