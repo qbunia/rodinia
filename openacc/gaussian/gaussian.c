@@ -25,7 +25,7 @@ float *m;
 FILE *fp;
 
 void InitProblemOnce(char *filename);
-void InitPerRun();
+void InitPerRun(float *m);
 void ForwardSub();
 void BackSub();
 void Fan1(float *m, float *a, int Size, int t);
@@ -39,6 +39,10 @@ unsigned int totalKernelTime = 0;
 
 int main(int argc, char *argv[])
 {
+    struct timeval time_start;
+    struct timeval time_end;
+    unsigned int time_total;
+
     int verbose = 1;
     if (argc < 2) {
         printf("Usage: gaussian matrix.txt [-q]\n\n");
@@ -71,18 +75,16 @@ int main(int argc, char *argv[])
         if (!strcmp(argv[2],"-q")) verbose = 0;
     }
     //InitProblemOnce(filename);
-    InitPerRun();
+    InitPerRun(m);
     //begin timing
-    struct timeval time_start;
     gettimeofday(&time_start, NULL);	
     
     // run kernels
     ForwardSub();
     
     //end timing
-    struct timeval time_end;
     gettimeofday(&time_end, NULL);
-    unsigned int time_total = (time_end.tv_sec * 1000000 + time_end.tv_usec) - (time_start.tv_sec * 1000000 + time_start.tv_usec);
+    time_total = (time_end.tv_sec * 1000000 + time_end.tv_usec) - (time_start.tv_sec * 1000000 + time_start.tv_usec);
     
     if (verbose) {
         printf("Matrix m is: \n");
@@ -100,7 +102,7 @@ int main(int argc, char *argv[])
         PrintAry(finalVec,Size);
     }
     printf("\nTime total (including memory transfers)\t%f sec\n", time_total * 1e-6);
-    printf("Time for CUDA kernels:\t%f sec\n",totalKernelTime * 1e-6);
+    printf("Time for kernels:\t%f sec\n",totalKernelTime * 1e-6);
     
     /*printf("%d,%d\n",size,time_total);
     fprintf(stderr,"%d,%d\n",size,time_total);*/
@@ -150,9 +152,10 @@ void InitProblemOnce(char *filename)
  ** multipier matrix **m
  **------------------------------------------------------
  */
-void InitPerRun() 
+void InitPerRun(float *m) 
 {
 	int i;
+	//#pragma acc kernels present(m)
 	for (i=0; i<Size*Size; i++)
 			*(m+i) = 0.0;
 }
@@ -168,7 +171,7 @@ void InitPerRun()
 void Fan1(float *m, float *a, int Size, int t)
 {   
 	int i;
-	#pragma acc kernels present(m,a)
+	#pragma acc parallel loop present(m,a)
 	for (i=0; i<Size-1-t; i++)
 		m[Size*(i+t+1)+t] = a[Size*(i+t+1)+t] / a[Size*t+t];
 }
@@ -181,11 +184,13 @@ void Fan1(float *m, float *a, int Size, int t)
 void Fan2(float *m, float *a, float *b,int Size, int j1, int t)
 {
 	int i,j;
-	#pragma acc kernels present(m,a)
-	for (i=0; i<Size-1-t; i++)
+	#pragma acc parallel loop present(m,a)
+	for (i=0; i<Size-1-t; i++) {
+	    #pragma acc loop
 		for (j=0; j<Size-t; j++)
 			a[Size*(i+1+t)+(j+t)] -= m[Size*(i+1+t)+t] * a[Size*t+(j+t)];
-	#pragma acc kernels present(m,b)
+	}
+	#pragma acc parallel loop present(m,b)
 	for (i=0; i<Size-1-t; i++)
 		b[i+1+t] -= m[Size*(i+1+t)+t] * b[t];
 }
@@ -199,18 +204,23 @@ void ForwardSub()
 {
 	int t;
 
+#pragma acc data copy(m[0:Size*Size],a[0:Size*Size],b[0:Size])
+{
     // begin timing kernels
     struct timeval time_start;
     gettimeofday(&time_start, NULL);
-#pragma acc data copy(m[0:Size*Size],a[0:Size*Size],b[0:Size])
+
 	for (t=0; t<(Size-1); t++) {
 		Fan1(m,a,Size,t);
 		Fan2(m,a,b,Size,Size-t,t);
 	}
+
 	// end timing kernels
 	struct timeval time_end;
     gettimeofday(&time_end, NULL);
     totalKernelTime = (time_end.tv_sec * 1000000 + time_end.tv_usec) - (time_start.tv_sec * 1000000 + time_start.tv_usec);
+} /* end acc data */
+
 }
 
 /*------------------------------------------------------
