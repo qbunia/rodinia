@@ -1,22 +1,30 @@
 //=====================================================================
 //	MAIN FUNCTION
 //=====================================================================
-fp cam(fp timeinst,
-			fp *initvalu,
-			int initvalu_offset,
-			fp *parameter,
-			int parameter_offset,
-			fp *finavalu,
-			fp Ca){
+inline void cam(	fp timeinst,
+													fp* initvalu,
+													fp *finavalu,
+													int valu_offset,
+													fp* params,
+													int params_offset,
+													fp* com,
+													int com_offset,
+													fp Ca){
 
 	//=====================================================================
 	//	VARIABLES
 	//=====================================================================
 
-	// output
-	fp JCa;
+	// inputs
+	// fp CaMtot;
+	fp Btot;
+	fp CaMKIItot;
+	fp CaNtot;
+	fp PP1tot;
+	fp K;
+	fp Mg;
 
-	// input data and output data variable references
+	// variable references
 	int offset_1;
 	int offset_2;
 	int offset_3;
@@ -33,14 +41,7 @@ fp cam(fp timeinst,
 	int offset_14;
 	int offset_15;
 
-	// parameter variable references
-	int parameter_offset_1;
-	int parameter_offset_2;
-	int parameter_offset_3;
-	int parameter_offset_4;
-	int parameter_offset_5;
-
-	// decoding input initial values
+	// decoding input array
 	fp CaM;
 	fp Ca2CaM;
 	fp Ca4CaM;
@@ -56,17 +57,6 @@ fp cam(fp timeinst,
 	fp CaMCa4CaN;
 	fp Ca2CaMCa4CaN;
 	fp Ca4CaMCa4CaN;
-
-	// decoding input parameters
-	fp CaMtot;
-	fp Btot;
-	fp CaMKIItot;
-	fp CaNtot;
-	fp PP1tot;
-
-	// constants
-	fp K;																			//
-	fp Mg;																			//
 
 	// Ca/CaM parameters
 	fp Kd02;																		// [uM^2]
@@ -164,45 +154,47 @@ fp cam(fp timeinst,
 	fp dCa4CaMB;
 
 	// CaMKII equations
-	fp dPb2;																		// Pb2
-	fp dPb;																			// Pb
-	fp dPt;																			// Pt
-	fp dPt2;																		// Pt2
-	fp dPa;																			// Pa
+	fp dPb2;																					// Pb2
+	fp dPb;																					// Pb
+	fp dPt;																					// Pt
+	fp dPt2;																					// Pt2
+	fp dPa;																					// Pa
 
 	// CaN equations
-	fp dCa4CaN;																		// Ca4CaN
+	fp dCa4CaN;																			// Ca4CaN
 	fp dCaMCa4CaN;																	// CaMCa4CaN
 	fp dCa2CaMCa4CaN;																// Ca2CaMCa4CaN
 	fp dCa4CaMCa4CaN;																// Ca4CaMCa4CaN
 
 	//=====================================================================
-	//	COMPUTATION
+	//	EXECUTION													
 	//=====================================================================
 
-	// input data and output data variable references
-	offset_1  = initvalu_offset;
-	offset_2  = initvalu_offset+1;
-	offset_3  = initvalu_offset+2;
-	offset_4  = initvalu_offset+3;
-	offset_5  = initvalu_offset+4;
-	offset_6  = initvalu_offset+5;
-	offset_7  = initvalu_offset+6;
-	offset_8  = initvalu_offset+7;
-	offset_9  = initvalu_offset+8;
-	offset_10 = initvalu_offset+9;
-	offset_11 = initvalu_offset+10;
-	offset_12 = initvalu_offset+11;
-	offset_13 = initvalu_offset+12;
-	offset_14 = initvalu_offset+13;
-	offset_15 = initvalu_offset+14;
-	
-	// input parameters variable references
-	parameter_offset_1  = parameter_offset;
-	parameter_offset_2  = parameter_offset+1;
-	parameter_offset_3  = parameter_offset+2;
-	parameter_offset_4  = parameter_offset+3;
-	parameter_offset_5  = parameter_offset+4;
+	// inputs
+	// CaMtot = params[params_offset];
+	Btot = params[params_offset+1];
+	CaMKIItot = params[params_offset+2];
+	CaNtot = params[params_offset+3];
+	PP1tot = params[params_offset+4];
+	K = params[16];
+	Mg = params[17];
+
+	// variable references
+	offset_1 = valu_offset;
+	offset_2 = valu_offset+1;
+	offset_3 = valu_offset+2;
+	offset_4 = valu_offset+3;
+	offset_5 = valu_offset+4;
+	offset_6 = valu_offset+5;
+	offset_7 = valu_offset+6;
+	offset_8 = valu_offset+7;
+	offset_9 = valu_offset+8;
+	offset_10 = valu_offset+9;
+	offset_11 = valu_offset+10;
+	offset_12 = valu_offset+11;
+	offset_13 = valu_offset+12;
+	offset_14 = valu_offset+13;
+	offset_15 = valu_offset+14;
 
 	// decoding input array
 	CaM				= initvalu[offset_1];
@@ -220,17 +212,6 @@ fp cam(fp timeinst,
 	CaMCa4CaN		= initvalu[offset_13];
 	Ca2CaMCa4CaN	= initvalu[offset_14];
 	Ca4CaMCa4CaN	= initvalu[offset_15];
-
-	// decoding input parameters
-	CaMtot			= parameter[parameter_offset_1];
-	Btot			= parameter[parameter_offset_2];
-	CaMKIItot		= parameter[parameter_offset_3];
-	CaNtot			= parameter[parameter_offset_4];
-	PP1tot			= parameter[parameter_offset_5];
-
-	// values [CONSTANTS FOR ALL THREADS]
-	K = 135;																			//
-	Mg = 1;																				//
 
 	// Ca/CaM parameters
 	if (Mg <= 1){
@@ -364,9 +345,7 @@ fp cam(fp timeinst,
 	finavalu[offset_15] = dCa4CaMCa4CaN;
 
 	// write to global variables for adjusting Ca buffering in EC coupling model
-	JCa = 1e-3*(2*CaMKIItot*(rcnCKtt2-rcnCKb2b) - 2*(rcn02+rcn24+rcn02B+rcn24B+rcnCa4CaN+rcn02CaN+rcn24CaN)); // [uM/msec]
-
-	// return
-	return JCa;
-
+	finavalu[com_offset] = 1e-3*(2*CaMKIItot*(rcnCKtt2-rcnCKb2b) - 2*(rcn02+rcn24+rcn02B+rcn24B+rcnCa4CaN+rcn02CaN+rcn24CaN)); // [uM/msec]
+	//finavalu[JCa] = 1; // [uM/msec]
+	
 }

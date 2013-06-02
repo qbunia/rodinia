@@ -1,18 +1,20 @@
 //=====================================================================
-//	MAIN FUNCTION
+//	MAIN FUNCTION														
 //=====================================================================
-void ecc(	fp timeinst,
-				fp *initvalu,
-				int initvalu_offset,
-				fp *parameter,
-				int parameter_offset,
-				fp *finavalu){
+inline void ecc(	fp timeinst,
+													fp* initvalu,
+													fp* finavalu,
+													int valu_offset,
+													fp* params){
 
 	//=====================================================================
-	//	VARIABLES
+	//	VARIABLES														
 	//=====================================================================
 
-	// initial data and output data variable references
+	// input parameters
+	fp cycleLength;
+
+	// variable references				// GET VARIABLES FROM MEMORY AND SAVE LOCALLY !!!!!!!!!!!!!!!!!!
 	int offset_1;
 	int offset_2;
 	int offset_3;
@@ -60,10 +62,7 @@ void ecc(	fp timeinst,
 	int offset_45;
 	int offset_46;
 
-	// initial data variable references
-	int parameter_offset_1;
-
-	// decoded input initial data			// GET VARIABLES FROM MEMORY AND SAVE LOCALLY !!!!!!!!!!!!!!!!!!
+	// stored input array
 	fp initvalu_1;
 	fp initvalu_2;
 	fp initvalu_3;
@@ -85,7 +84,7 @@ void ecc(	fp timeinst,
 	fp initvalu_19;
 	fp initvalu_20;
 	fp initvalu_21;
-	fp initvalu_22;
+	// fp initvalu_22;
 	fp initvalu_23;
 	fp initvalu_24;
 	fp initvalu_25;
@@ -104,15 +103,12 @@ void ecc(	fp timeinst,
 	fp initvalu_38;
 	fp initvalu_39;
 	fp initvalu_40;
-	fp initvalu_41;
-	fp initvalu_42;
-	fp initvalu_43;
-	fp initvalu_44;
-	fp initvalu_45;
-	fp initvalu_46;
-
-	// decoded input parameters
-	fp parameter_1;
+	// fp initvalu_41;
+	// fp initvalu_42;
+	// fp initvalu_43;
+	// fp initvalu_44;
+	// fp initvalu_45;
+	// fp initvalu_46;
 
 	// matlab constants undefined in c
 	fp pi;
@@ -128,21 +124,21 @@ void ecc(	fp timeinst,
 	// Cell geometry
 	fp cellLength;																	// cell length [um]
 	fp cellRadius;																	// cell radius [um]
-	fp junctionLength;																// junc length [um]
-	fp junctionRadius;																// junc radius [um]
-	fp distSLcyto;																	// dist. SL to cytosol [um]
-	fp distJuncSL;																	// dist. junc to SL [um]
-	fp DcaJuncSL;																	// Dca junc to SL [cm^2/sec]
-	fp DcaSLcyto;																	// Dca SL to cyto [cm^2/sec]
-	fp DnaJuncSL;																	// Dna junc to SL [cm^2/sec]
-	fp DnaSLcyto;																	// Dna SL to cyto [cm^2/sec] 
+	// fp junctionLength;																// junc length [um]
+	// fp junctionRadius;																// junc radius [um]
+	// fp distSLcyto;																	// dist. SL to cytosol [um]
+	// fp distJuncSL;																	// dist. junc to SL [um]
+	// fp DcaJuncSL;																	// Dca junc to SL [cm^2/sec]
+	// fp DcaSLcyto;																	// Dca SL to cyto [cm^2/sec]
+	// fp DnaJuncSL;																	// Dna junc to SL [cm^2/sec]
+	// fp DnaSLcyto;																	// Dna SL to cyto [cm^2/sec] 
 	fp Vcell;																		// [L]
 	fp Vmyo; 
 	fp Vsr; 
 	fp Vsl; 
 	fp Vjunc; 
-	fp SAjunc;																		// [um^2]
-	fp SAsl;																		// [um^2]
+	// fp SAjunc;																		// [um^2]
+	// fp SAsl;																		// [um^2]
 	fp J_ca_juncsl;																	// [L/msec]
 	fp J_ca_slmyo;																	// [L/msec]
 	fp J_na_juncsl;																	// [L/msec] 
@@ -176,8 +172,8 @@ void ecc(	fp timeinst,
 	fp IbarNaK;																		// [uA/uF]
 	fp KmNaip;																		// [mM]
 	fp KmKo;																		// [mM]
-	fp Q10NaK;  
-	fp Q10KmNai;
+	// fp Q10NaK;  
+	// fp Q10KmNai;
 
 	// K current parameters
 	fp pNaK;      
@@ -194,7 +190,7 @@ void ecc(	fp timeinst,
 	fp pNa;																			// [cm/sec]
 	fp pCa;																			// [cm/sec]
 	fp pK;																			// [cm/sec]
-	fp KmCa;																		// [mM]
+	// fp KmCa;																		// [mM]
 	fp Q10CaL;       
 
 	// Ca transport parameters
@@ -238,9 +234,9 @@ void ecc(	fp timeinst,
 	fp kon_tnchca;																	// [1/mM/ms]
 	fp koff_tnchmg;																	// [1/ms] 
 	fp kon_tnchmg;																	// [1/mM/ms]
-	fp Bmax_CaM;																	// [mM], CaM buffering
-	fp koff_cam;																	// [1/ms] 
-	fp kon_cam;																		// [1/mM/ms]
+	// fp Bmax_CaM;																	// [mM], CaM buffering
+	// fp koff_cam;																	// [1/ms] 
+	// fp kon_cam;																		// [1/mM/ms]
 	fp Bmax_myosin;																	// [mM], Myosin buffering
 	fp koff_myoca;																	// [1/ms]
 	fp kon_myoca;																	// [1/mM/ms]
@@ -270,12 +266,12 @@ void ecc(	fp timeinst,
 	fp bj;
 	fp I_Na_junc;
 	fp I_Na_sl;
-	fp I_Na;
+	// fp I_Na;
 
 	// I_nabk: Na Background Current
 	fp I_nabk_junc;
 	fp I_nabk_sl;
-	fp I_nabk;
+	// fp I_nabk;
 
 	// I_nak: Na/K Pump Current
 	fp sigma;
@@ -354,8 +350,8 @@ void ecc(	fp timeinst,
 	fp I_CaK;
 	fp I_CaNa_junc;
 	fp I_CaNa_sl;
-	fp I_CaNa;
-	fp I_Catot;
+	// fp I_CaNa;
+	// fp I_Catot;
 
 	// I_ncx: Na/Ca Exchanger flux
 	fp Ka_junc;
@@ -412,10 +408,10 @@ void ecc(	fp timeinst,
 	// Calcium Concentrations
 	fp I_Ca_tot_junc;																// [uA/uF]
 	fp I_Ca_tot_sl;																	// [uA/uF]
-	fp junc_sl;
-	fp sl_junc;
-	fp sl_myo;
-	fp myo_sl;
+	// fp junc_sl;
+	// fp sl_junc;
+	// fp sl_myo;
+	// fp myo_sl;
 
 	//	Simulation type													
 	int state;																			// 0-none; 1-pace; 2-vclamp
@@ -425,77 +421,77 @@ void ecc(	fp timeinst,
 	fp V_clamp;
 	fp R_clamp;
 	
-	//	Membrane Potential
+	//	Membrane Potential												
 	fp I_Na_tot;																		// [uA/uF]
 	fp I_Cl_tot;																		// [uA/uF]
 	fp I_Ca_tot;
 	fp I_tot;
 
 	//=====================================================================
-	//	EXECUTION
+	//	EXECUTION														
 	//=====================================================================
 
-	// variable references
-	offset_1  = initvalu_offset;
-	offset_2  = initvalu_offset+1;
-	offset_3  = initvalu_offset+2;
-	offset_4  = initvalu_offset+3;
-	offset_5  = initvalu_offset+4;
-	offset_6  = initvalu_offset+5;
-	offset_7  = initvalu_offset+6;
-	offset_8  = initvalu_offset+7;
-	offset_9  = initvalu_offset+8;
-	offset_10 = initvalu_offset+9;
-	offset_11 = initvalu_offset+10;
-	offset_12 = initvalu_offset+11;
-	offset_13 = initvalu_offset+12;
-	offset_14 = initvalu_offset+13;
-	offset_15 = initvalu_offset+14;
-	offset_16 = initvalu_offset+15;
-	offset_17 = initvalu_offset+16;
-	offset_18 = initvalu_offset+17;
-	offset_19 = initvalu_offset+18;
-	offset_20 = initvalu_offset+19;
-	offset_21 = initvalu_offset+20;
-	offset_22 = initvalu_offset+21;
-	offset_23 = initvalu_offset+22;
-	offset_24 = initvalu_offset+23;
-	offset_25 = initvalu_offset+24;
-	offset_26 = initvalu_offset+25;
-	offset_27 = initvalu_offset+26;
-	offset_28 = initvalu_offset+27;
-	offset_29 = initvalu_offset+28;
-	offset_30 = initvalu_offset+29;
-	offset_31 = initvalu_offset+30;
-	offset_32 = initvalu_offset+31;
-	offset_33 = initvalu_offset+32;
-	offset_34 = initvalu_offset+33;
-	offset_35 = initvalu_offset+34;
-	offset_36 = initvalu_offset+35;
-	offset_37 = initvalu_offset+36;
-	offset_38 = initvalu_offset+37;
-	offset_39 = initvalu_offset+38;
-	offset_40 = initvalu_offset+39;
-	offset_41 = initvalu_offset+40;
-	offset_42 = initvalu_offset+41;
-	offset_43 = initvalu_offset+42;
-	offset_44 = initvalu_offset+43;
-	offset_45 = initvalu_offset+44;
-	offset_46 = initvalu_offset+45;
-	
-	// variable references
-	parameter_offset_1  = parameter_offset;
+	// input parameters
+	cycleLength = params[15];
 
-	// decoded input initial data
-	initvalu_1  = initvalu[offset_1 ];
-	initvalu_2  = initvalu[offset_2 ];
-	initvalu_3  = initvalu[offset_3 ];
-	initvalu_4  = initvalu[offset_4 ];
-	initvalu_5  = initvalu[offset_5 ];
-	initvalu_6  = initvalu[offset_6 ];
-	initvalu_7  = initvalu[offset_7 ];
-	initvalu_8  = initvalu[offset_8 ];
-	initvalu_9  = initvalu[offset_9 ];
+	// variable references
+	offset_1 = valu_offset;
+	offset_2 = valu_offset+1;
+	offset_3 = valu_offset+2;
+	offset_4 = valu_offset+3;
+	offset_5 = valu_offset+4;
+	offset_6 = valu_offset+5;
+	offset_7 = valu_offset+6;
+	offset_8 = valu_offset+7;
+	offset_9 = valu_offset+8;
+	offset_10 = valu_offset+9;
+	offset_11 = valu_offset+10;
+	offset_12 = valu_offset+11;
+	offset_13 = valu_offset+12;
+	offset_14 = valu_offset+13;
+	offset_15 = valu_offset+14;
+	offset_16 = valu_offset+15;
+	offset_17 = valu_offset+16;
+	offset_18 = valu_offset+17;
+	offset_19 = valu_offset+18;
+	offset_20 = valu_offset+19;
+	offset_21 = valu_offset+20;
+	offset_22 = valu_offset+21;
+	offset_23 = valu_offset+22;
+	offset_24 = valu_offset+23;
+	offset_25 = valu_offset+24;
+	offset_26 = valu_offset+25;
+	offset_27 = valu_offset+26;
+	offset_28 = valu_offset+27;
+	offset_29 = valu_offset+28;
+	offset_30 = valu_offset+29;
+	offset_31 = valu_offset+30;
+	offset_32 = valu_offset+31;
+	offset_33 = valu_offset+32;
+	offset_34 = valu_offset+33;
+	offset_35 = valu_offset+34;
+	offset_36 = valu_offset+35;
+	offset_37 = valu_offset+36;
+	offset_38 = valu_offset+37;
+	offset_39 = valu_offset+38;
+	offset_40 = valu_offset+39;
+	offset_41 = valu_offset+40;
+	offset_42 = valu_offset+41;
+	offset_43 = valu_offset+42;
+	offset_44 = valu_offset+43;
+	offset_45 = valu_offset+44;
+	offset_46 = valu_offset+45;
+
+	// stored input array
+	initvalu_1 = initvalu[offset_1];
+	initvalu_2 = initvalu[offset_2];
+	initvalu_3 = initvalu[offset_3];
+	initvalu_4 = initvalu[offset_4];
+	initvalu_5 = initvalu[offset_5];
+	initvalu_6 = initvalu[offset_6];
+	initvalu_7 = initvalu[offset_7];
+	initvalu_8 = initvalu[offset_8];
+	initvalu_9 = initvalu[offset_9];
 	initvalu_10 = initvalu[offset_10];
 	initvalu_11 = initvalu[offset_11];
 	initvalu_12 = initvalu[offset_12];
@@ -508,7 +504,7 @@ void ecc(	fp timeinst,
 	initvalu_19 = initvalu[offset_19];
 	initvalu_20 = initvalu[offset_20];
 	initvalu_21 = initvalu[offset_21];
-	initvalu_22 = initvalu[offset_22];
+	// initvalu_22 = initvalu[offset_22];
 	initvalu_23 = initvalu[offset_23];
 	initvalu_24 = initvalu[offset_24];
 	initvalu_25 = initvalu[offset_25];
@@ -527,15 +523,12 @@ void ecc(	fp timeinst,
 	initvalu_38 = initvalu[offset_38];
 	initvalu_39 = initvalu[offset_39];
 	initvalu_40 = initvalu[offset_40];
-	initvalu_41 = initvalu[offset_41];
-	initvalu_42 = initvalu[offset_42];
-	initvalu_43 = initvalu[offset_43];
-	initvalu_44 = initvalu[offset_44];
-	initvalu_45 = initvalu[offset_45];
-	initvalu_46 = initvalu[offset_46];
-
-	// decoded input parameters
-	parameter_1 = parameter[parameter_offset_1];
+	// initvalu_41 = initvalu[offset_41];
+	// initvalu_42 = initvalu[offset_42];
+	// initvalu_43 = initvalu[offset_43];
+	// initvalu_44 = initvalu[offset_44];
+	// initvalu_45 = initvalu[offset_45];
+	// initvalu_46 = initvalu[offset_46];
 
 	// matlab constants undefined in c
 	pi = 3.1416;
@@ -551,21 +544,21 @@ void ecc(	fp timeinst,
 	// Cell geometry
 	cellLength = 100;																	// cell length [um]
 	cellRadius = 10.25;																	// cell radius [um]
-	junctionLength = 160e-3;															// junc length [um]
-	junctionRadius = 15e-3;																// junc radius [um]
-	distSLcyto = 0.45;																	// dist. SL to cytosol [um]
-	distJuncSL = 0.5;																	// dist. junc to SL [um]
-	DcaJuncSL = 1.64e-6;																// Dca junc to SL [cm^2/sec]
-	DcaSLcyto = 1.22e-6;																// Dca SL to cyto [cm^2/sec]
-	DnaJuncSL = 1.09e-5;																// Dna junc to SL [cm^2/sec]
-	DnaSLcyto = 1.79e-5;																// Dna SL to cyto [cm^2/sec] 
+	// junctionLength = 160e-3;															// junc length [um]
+	// junctionRadius = 15e-3;																// junc radius [um]
+	// distSLcyto = 0.45;																	// dist. SL to cytosol [um]
+	// distJuncSL = 0.5;																	// dist. junc to SL [um]
+	// DcaJuncSL = 1.64e-6;																// Dca junc to SL [cm^2/sec]
+	// DcaSLcyto = 1.22e-6;																// Dca SL to cyto [cm^2/sec]
+	// DnaJuncSL = 1.09e-5;																// Dna junc to SL [cm^2/sec]
+	// DnaSLcyto = 1.79e-5;																// Dna SL to cyto [cm^2/sec] 
 	Vcell = pi*pow(cellRadius,2)*cellLength*1e-15;											// [L]
 	Vmyo = 0.65*Vcell; 
 	Vsr = 0.035*Vcell; 
 	Vsl = 0.02*Vcell; 
 	Vjunc = 0.0539*0.01*Vcell; 
-	SAjunc = 20150*pi*2*junctionLength*junctionRadius;									// [um^2]
-	SAsl = pi*2*cellRadius*cellLength;													// [um^2]
+	// SAjunc = 20150*pi*2*junctionLength*junctionRadius;									// [um^2]
+	// SAsl = pi*2*cellRadius*cellLength;													// [um^2]
 	J_ca_juncsl = 1/1.2134e12;															// [L/msec]
 	J_ca_slmyo = 1/2.68510e11;															// [L/msec]
 	J_na_juncsl = 1/(1.6382e12/3*100);													// [L/msec] 
@@ -599,8 +592,8 @@ void ecc(	fp timeinst,
 	IbarNaK = 1.90719;																	// [uA/uF]
 	KmNaip = 11;																		// [mM]
 	KmKo = 1.5;																			// [mM]
-	Q10NaK = 1.63;  
-	Q10KmNai = 1.39;
+	// Q10NaK = 1.63;  
+	// Q10KmNai = 1.39;
 
 	// K current parameters
 	pNaK = 0.01833;      
@@ -617,7 +610,7 @@ void ecc(	fp timeinst,
 	pNa = 1.5e-8;																		// [cm/sec]
 	pCa = 5.4e-4;																		// [cm/sec]
 	pK = 2.7e-7;																		// [cm/sec]
-	KmCa = 0.6e-3;																		// [mM]
+	// KmCa = 0.6e-3;																		// [mM]
 	Q10CaL = 1.8;       
 
 	// Ca transport parameters
@@ -661,9 +654,9 @@ void ecc(	fp timeinst,
 	kon_tnchca = 2.37;																	// [1/mM/ms]
 	koff_tnchmg = 3.33e-3;																// [1/ms] 
 	kon_tnchmg = 3e-3;																	// [1/mM/ms]
-	Bmax_CaM = 24e-3;																	// [mM], CaM buffering
-	koff_cam = 238e-3;																	// [1/ms] 
-	kon_cam = 34;																		// [1/mM/ms]
+	// Bmax_CaM = 24e-3;																	// [mM], CaM buffering
+	// koff_cam = 238e-3;																	// [1/ms] 
+	// kon_cam = 34;																		// [1/mM/ms]
 	Bmax_myosin = 140e-3;																// [mM], Myosin buffering
 	koff_myoca = 0.46e-3;																// [1/ms]
 	kon_myoca = 13.8;																	// [1/mM/ms]
@@ -703,12 +696,12 @@ void ecc(	fp timeinst,
 	finavalu[offset_3] = aj*(1-initvalu_3)-bj*initvalu_3;
 	I_Na_junc = Fjunc*GNa*pow(initvalu_1,3)*initvalu_2*initvalu_3*(initvalu_39-ena_junc);
 	I_Na_sl = Fsl*GNa*pow(initvalu_1,3)*initvalu_2*initvalu_3*(initvalu_39-ena_sl);
-	I_Na = I_Na_junc+I_Na_sl;
+	// I_Na = I_Na_junc+I_Na_sl;
 
 	// I_nabk: Na Background Current
 	I_nabk_junc = Fjunc*GNaB*(initvalu_39-ena_junc);
 	I_nabk_sl = Fsl*GNaB*(initvalu_39-ena_sl);
-	I_nabk = I_nabk_junc+I_nabk_sl;
+	// I_nabk = I_nabk_junc+I_nabk_sl;
 
 	// I_nak: Na/K Pump Current
 	sigma = (exp(Nao/67.3)-1)/7;
@@ -799,8 +792,8 @@ void ecc(	fp timeinst,
 	I_CaK = (ibark*initvalu_4*initvalu_5*(Fjunc_CaL*(1-initvalu_6)+Fsl_CaL*(1-initvalu_7))*pow(Q10CaL,Qpow))*0.45;
 	I_CaNa_junc = (Fjunc_CaL*ibarna_j*initvalu_4*initvalu_5*(1-initvalu_6)*pow(Q10CaL,Qpow))*0.45;
 	I_CaNa_sl = (Fsl_CaL*ibarna_sl*initvalu_4*initvalu_5*(1-initvalu_7)*pow(Q10CaL,Qpow))*0.45;
-	I_CaNa = I_CaNa_junc+I_CaNa_sl;
-	I_Catot = I_Ca+I_CaK+I_CaNa;
+	// I_CaNa = I_CaNa_junc+I_CaNa_sl;
+	// I_Catot = I_Ca+I_CaK+I_CaNa;
 
 	// I_ncx: Na/Ca Exchanger flux
 	Ka_junc = 1/(1+pow((Kdact/initvalu_36),3));
@@ -817,16 +810,8 @@ void ecc(	fp timeinst,
 	finavalu[offset_45]=2*I_ncx*Cmem/(Vmyo*2*Frdy)*1e3;
 
 	// I_pca: Sarcolemmal Ca Pump Current
-	I_pca_junc = 	Fjunc * 
-					pow(Q10SLCaP,Qpow) * 
-					IbarSLCaP * 
-					pow(initvalu_36,1.6) /
-					(pow(KmPCa,1.6) + pow(initvalu_36,1.6));
-	I_pca_sl = 	Fsl * 
-				pow(Q10SLCaP,Qpow) * 
-				IbarSLCaP * 
-				pow(initvalu_37,1.6) / 
-				(pow(KmPCa,1.6) + pow(initvalu_37,1.6));
+	I_pca_junc = Fjunc*pow(Q10SLCaP,Qpow)*IbarSLCaP*pow(initvalu_36,1.6f)/(pow(KmPCa,1.6f)+pow(initvalu_36,1.6f));
+	I_pca_sl = Fsl*pow(Q10SLCaP,Qpow)*IbarSLCaP*pow(initvalu_37,1.6f)/(pow(KmPCa,1.6f)+pow(initvalu_37,1.6f));
 	I_pca = I_pca_junc+I_pca_sl;
 	finavalu[offset_44]=-I_pca*Cmem/(Vmyo*2*Frdy)*1e3;
 
@@ -839,7 +824,7 @@ void ecc(	fp timeinst,
 	// SR fluxes: Calcium Release, SR Ca pump, SR Ca leak														
 	MaxSR = 15; 
 	MinSR = 1;
-	kCaSR = MaxSR - (MaxSR-MinSR)/(1+pow(ec50SR/initvalu_31,2.5));
+	kCaSR = MaxSR - (MaxSR-MinSR)/(1+pow(ec50SR/initvalu_31,2.5f));
 	koSRCa = koCa/kCaSR;
 	kiSRCa = kiCa*kCaSR;
 	RI = 1-initvalu_14-initvalu_15-initvalu_16;
@@ -898,10 +883,10 @@ void ecc(	fp timeinst,
 	finavalu[offset_37] = -I_Ca_tot_sl*Cmem/(Vsl*2*Frdy)+J_ca_juncsl/Vsl*(initvalu_36-initvalu_37)
 	         + J_ca_slmyo/Vsl*(initvalu_38-initvalu_37)-J_CaB_sl;									// Ca_sl
 	finavalu[offset_38] = -J_serca-J_CaB_cytosol +J_ca_slmyo/Vmyo*(initvalu_37-initvalu_38);
-	junc_sl=J_ca_juncsl/Vsl*(initvalu_36-initvalu_37);
-	sl_junc=J_ca_juncsl/Vjunc*(initvalu_37-initvalu_36);
-	sl_myo=J_ca_slmyo/Vsl*(initvalu_38-initvalu_37);
-	myo_sl=J_ca_slmyo/Vmyo*(initvalu_37-initvalu_38);
+	// junc_sl=J_ca_juncsl/Vsl*(initvalu_36-initvalu_37);
+	// sl_junc=J_ca_juncsl/Vjunc*(initvalu_37-initvalu_36);
+	// sl_myo=J_ca_slmyo/Vsl*(initvalu_38-initvalu_37);
+	// myo_sl=J_ca_slmyo/Vmyo*(initvalu_37-initvalu_38);
 
 	// Simulation type													
 	state = 1;																			
@@ -910,7 +895,7 @@ void ecc(	fp timeinst,
 			I_app = 0;
 			break;
 		case 1:																			// pace w/ current injection at cycleLength 'cycleLength'
-			if(fmod(timeinst,parameter_1) <= 5){
+			if(fmod(timeinst,cycleLength) <= 5){
 				I_app = 9.5;
 			}
 			else{

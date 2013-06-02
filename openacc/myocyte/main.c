@@ -148,6 +148,8 @@ int main(int argc, char *argv []){
 	fp** err;
 	fp** scale;
 	fp** yy;
+	//fp** initvalu_temp;
+	//fp** finavalu_temp;
 
 	//================================================================================80
 	// 	GET INPUT PARAMETERS
@@ -194,7 +196,7 @@ int main(int argc, char *argv []){
 
 		mode = 0;
 		mode = atoi(argv[3]);
-		if(mode != 0 && mode != 1){1
+		if(mode != 0 && mode != 1){
 			printf("ERROR: %d is the incorrect mode, it should be omitted or equal to 0 or 1\n", mode);
 			return 0;
 		}
@@ -262,6 +264,10 @@ int main(int argc, char *argv []){
 		yy[i] = yy[i-1] + EQUATIONS;
 	}
 
+	fp com[workload][3];
+	fp initvalu_temp[workload][EQUATIONS];
+	fp finavalu_temp[workload][EQUATIONS][13];
+
 	time2 = get_time();
 
 	//================================================================================80
@@ -296,7 +302,8 @@ int main(int argc, char *argv []){
 	#pragma acc data copy(y[0:workload][0:(1+xmax)][0:EQUATIONS]) \
 		copyin(params[0:workload][0:PARAMETERS]) \
 		create(x[0:workload][0:(1+xmax)],err[0:workload][0:EQUATIONS]) \
-		create(scale[0:workload][0:EQUATIONS],yy[0:workload][0:EQUATIONS])
+		create(scale[0:workload][0:EQUATIONS],yy[0:workload][0:EQUATIONS]) \
+		create(com[0:workload][0:3])
 	status = solver(	y,
 						x,
 						xmax,
@@ -304,6 +311,10 @@ int main(int argc, char *argv []){
 						err,
 						scale,
 						yy,
+						initvalu_temp,
+						finavalu_temp,
+						com,
+						workload,
 						mode);
 
 	// if(status !=0){

@@ -2,208 +2,127 @@
 //	MAIN FUNCTION
 //=====================================================================
 
-void master(fp timeinst,
+inline void master(fp timeinst,
 					fp* initvalu,
-					fp* parameter,
+					fp* params,
 					fp* finavalu,
-					int mode){
+					fp* com){
 
-	//=====================================================================
-	//	VARIABLES
-	//=====================================================================
+	//======================================================================================================================================================
+	// 	VARIABLES
+	//======================================================================================================================================================
 
-	// counters
-	int i;
+	// pointers
+	int valu_offset_ecc;															// inivalu and finavalu offset
+	int valu_offset_Dyad;														// Dyad value offset
+	int valu_offset_SL;																// SL value offset
+	int valu_offset_Cyt;															// Cyt value offset
 
-	// intermediate output on host
-	fp JCaDyad;
-	fp JCaSL;
-	fp JCaCyt;
+	int params_offset_Dyad;													// Dyad parameters offset
+	int params_offset_SL;														// SL parameters offset
+	int params_offset_Cyt;														// Cyt parameters offset
 
-	// offset pointers
-	int initvalu_offset_batch;															//
-	int initvalu_offset_ecc;																// 46 points
-	int parameter_offset_ecc;
-	int initvalu_offset_Dyad;															// 15 points
-	int parameter_offset_Dyad;
-	int initvalu_offset_SL;																// 15 points
-	int parameter_offset_SL;
-	int initvalu_offset_Cyt;																// 15 poitns
-	int parameter_offset_Cyt;
+	int com_offset_Dyad;															// kernel1-kernel2 Dyad communication offset
+	int com_offset_SL;																// kernel1-kernel2 SL communication offset
+	int com_offset_Cyt;															// kernel-kernel Cyt communication offset
 
 	// module parameters
-	fp CaDyad;																					// from ECC model, *** Converting from [mM] to [uM] ***
-	fp CaSL;																						// from ECC model, *** Converting from [mM] to [uM] ***
-	fp CaCyt;																					// from ECC model, *** Converting from [mM] to [uM] ***
+	fp CaDyad;																			// from ECC model, *** Converting from [mM] to [uM] ***
+	fp CaSL;																				// from ECC model, *** Converting from [mM] to [uM] ***
+	fp CaCyt;																			// from ECC model, *** Converting from [mM] to [uM] ***
 
-		// thread counters
-		int th_id, nthreads;
-		int th_count[4];
-		int temp;
+	// counter
+	int i;
 
-	//=====================================================================
-	//	KERNELS FOR 1 WORKLOAD - PARALLEL
-	//=====================================================================
+	//======================================================================================================================================================
+	// 	COMPUTATION
+	//======================================================================================================================================================
 
-	nthreads = omp_get_max_threads();
+	valu_offset_ecc = 0;
+	valu_offset_Dyad = 46;
+	valu_offset_SL = 61;
+	valu_offset_Cyt = 76;
 
-	if(mode == 1){
+	params_offset_Dyad = 0;
+	params_offset_SL = 5;
+	params_offset_Cyt = 10;
 
-		// partition workload between threads
-		temp = 0;
-		for(i=0; i<4; i++){													// do for all 4 pieces of work
-			if(temp>=nthreads){											// limit according to number of threads
-				temp = 0;
-			}
-			th_count[i] = temp;												// assign thread to piece of work
-			temp = temp +1;
-		}
+	com_offset_Dyad = 0;
+	com_offset_SL = 1;
+	com_offset_Cyt = 2;
 
-		// run pieces of work in parallel
-		#pragma omp parallel private(th_id)
-		{
+	//==================================================
+	//		ECC
+	//==================================================
 
-			if (th_id == th_count[1]) {
+	// ecc function
+	ecc(	timeinst,
+							initvalu,
+							finavalu,
+							valu_offset_ecc,
+							params);
 
-				// ecc function
-				initvalu_offset_ecc = 0;												// 46 points
-				parameter_offset_ecc = 0;
-				ecc(						timeinst,
-											initvalu,
-											initvalu_offset_ecc,
-											parameter,
-											parameter_offset_ecc,
-											finavalu);
+	//==================================================
+	//		3xCAM
+	//==================================================
 
-			}
-
-			if (th_id == th_count[2]) {
-
-				// cam function for Dyad
-				initvalu_offset_Dyad = 46;											// 15 points
-				parameter_offset_Dyad = 1;
-				CaDyad = initvalu[35]*1e3;											// from ECC model, *** Converting from [mM] to [uM] ***
-				JCaDyad = cam(timeinst,
-											initvalu,
-											initvalu_offset_Dyad,
-											parameter,
-											parameter_offset_Dyad,
-											finavalu,
-											CaDyad);
-
-			}
-
-			if (th_id == th_count[3]) {
-
-				// cam function for SL
-				initvalu_offset_SL = 61;											// 15 points
-				parameter_offset_SL = 6;
-				CaSL = initvalu[36]*1e3;											// from ECC model, *** Converting from [mM] to [uM] ***
-				JCaSL = cam(		timeinst,
-											initvalu,
-											initvalu_offset_SL,
-											parameter,
-											parameter_offset_SL,
-											finavalu,
-											CaSL);
-
-			}
-
-			if (th_id == th_count[4]) {
-
-				// cam function for Cyt
-				initvalu_offset_Cyt = 76;												// 15 poitns
-				parameter_offset_Cyt = 11;
-				CaCyt = initvalu[37]*1e3;											// from ECC model, *** Converting from [mM] to [uM] ***
-				JCaCyt = cam(	timeinst,
-											initvalu,
-											initvalu_offset_Cyt,
-											parameter,
-											parameter_offset_Cyt,
-											finavalu,
-											CaCyt);
-
-			}
-
-		}
-
-	}
-
-	//=====================================================================
-	//	KERNELS FOR MANY WORKLOAD - SERIAL
-	//=====================================================================
-
-	else{
-
-		// ecc function
-		initvalu_offset_ecc = 0;												// 46 points
-		parameter_offset_ecc = 0;
-		ecc(						timeinst,
-									initvalu,
-									initvalu_offset_ecc,
-									parameter,
-									parameter_offset_ecc,
-									finavalu);
-
-		// cam function for Dyad
-		initvalu_offset_Dyad = 46;											// 15 points
-		parameter_offset_Dyad = 1;
-		CaDyad = initvalu[35]*1e3;											// from ECC model, *** Converting from [mM] to [uM] ***
-		JCaDyad = cam(timeinst,
-									initvalu,
-									initvalu_offset_Dyad,
-									parameter,
-									parameter_offset_Dyad,
-									finavalu,
-									CaDyad);
-
-		// cam function for SL
-		initvalu_offset_SL = 61;											// 15 points
-		parameter_offset_SL = 6;
-		CaSL = initvalu[36]*1e3;											// from ECC model, *** Converting from [mM] to [uM] ***
-		JCaSL = cam(		timeinst,
-									initvalu,
-									initvalu_offset_SL,
-									parameter,
-									parameter_offset_SL,
-									finavalu,
-									CaSL);
-
-		// cam function for Cyt
-		initvalu_offset_Cyt = 76;												// 15 poitns
-		parameter_offset_Cyt = 11;
-		CaCyt = initvalu[37]*1e3;											// from ECC model, *** Converting from [mM] to [uM] ***
-		JCaCyt = cam(	timeinst,
-									initvalu,
-									initvalu_offset_Cyt,
-									parameter,
-									parameter_offset_Cyt,
-									finavalu,
-									CaCyt);
-
-	}
-
-	//=====================================================================
-	//	FINAL KERNEL
-	//=====================================================================
-
-	// final adjustments
-	fin(						initvalu,
-								initvalu_offset_ecc,
-								initvalu_offset_Dyad,
-								initvalu_offset_SL,
-								initvalu_offset_Cyt,
-								parameter,
+	// specific
+	CaDyad = initvalu[35]*1e3;							// from ECC model, *** Converting from [mM] to [uM] ***
+	// cam function for Dyad
+	cam(	timeinst,
+								initvalu,
 								finavalu,
-								JCaDyad,
-								JCaSL,
-								JCaCyt);
+								valu_offset_Dyad,
+								params,
+								params_offset_Dyad,
+								com,
+								com_offset_Dyad,
+								CaDyad);
 
-	//=====================================================================
-	//	COMPENSATION FOR NANs and INFs
-	//=====================================================================
+	// specific
+	CaSL = initvalu[36]*1e3;								// from ECC model, *** Converting from [mM] to [uM] ***
+	// cam function for Dyad
+	cam(	timeinst,
+								initvalu,
+								finavalu,
+								valu_offset_SL,
+								params,
+								params_offset_SL,
+								com,
+								com_offset_SL,
+								CaSL);
 
-	// make sure function does not return NANs and INFs
+	// specific
+	CaCyt = initvalu[37]*1e3;							// from ECC model, *** Converting from [mM] to [uM] ***
+	// cam function for Dyad
+	cam(	timeinst,
+								initvalu,
+								finavalu,
+								valu_offset_Cyt,
+								params,
+								params_offset_Cyt,
+								com,
+								com_offset_Cyt,
+								CaCyt);
+
+	//====================================================================================================
+	//		SEGMENT HAPPENING 2ND IN TIME: FINAL
+	//====================================================================================================
+
+	fin(	timeinst,
+							initvalu,
+							finavalu,
+							valu_offset_ecc,
+							valu_offset_Dyad,
+							valu_offset_SL,
+							valu_offset_Cyt,
+							params,
+							com);
+
+	//====================================================================================================
+	//		make sure function does not return NANs and INFs
+	//====================================================================================================
+
 	for(i=0; i<EQUATIONS; i++){
 		if (isnan(finavalu[i]) == 1){ 
 			finavalu[i] = 0.0001;												// for NAN set rate of change to 0.0001

@@ -75,123 +75,103 @@
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
+#define c_1_11   (41.0/840.0)
+#define c6       (34.0/105.0)
+#define c_7_8    (9.0/35.0)
+#define c_9_10   (9.0/280.0)
+
+#define a2       (2.0/27.0)
+#define a3       (1.0/9.0)
+#define a4       (1.0/6.0)
+#define a5       (5.0/12.0)
+#define a6       (1.0/2.0)
+#define a7       (5.0/6.0)
+#define a8       (1.0/6.0)
+#define a9       (2.0/3.0)
+#define a10      (1.0/3.0)
+
+#define b31      (1.0/36.0)
+#define b32      (3.0/36.0)
+#define b41      (1.0/24.0)
+#define b43      (3.0/24.0)
+#define b51      (20.0/48.0)
+#define b53      (-75.0/48.0)
+#define b54      (75.0/48.0)
+#define b61      (1.0/20.0)
+#define b64      (5.0/20.0)
+#define b65      (4.0/20.0)
+#define b71      (-25.0/108.0)
+#define b74      (125.0/108.0)
+#define b75      (-260.0/108.0)
+#define b76      (250.0/108.0)
+#define b81      (31.0/300.0)
+#define b85      (61.0/225.0)
+#define b86      (-2.0/9.0)
+#define b87      (13.0/900.0)
+#define b91      (2.0)
+#define b94      (-53.0/6.0)
+#define b95      (704.0/45.0)
+#define b96      (-107.0/9.0)
+#define b97      (67.0/90.0)
+#define b98      (3.0)
+#define b10_1    (-91.0/108.0)
+#define b10_4    (23.0/108.0)
+#define b10_5    (-976.0/135.0)
+#define b10_6    (311.0/54.0)
+#define b10_7    (-19.0/60.0)
+#define b10_8    (17.0/6.0)
+#define b10_9    (-1.0/12.0)
+#define b11_1    (2383.0/4100.0)
+#define b11_4    (-341.0/164.0)
+#define b11_5    (4496.0/1025.0)
+#define b11_6    (-301.0/82.0)
+#define b11_7    (2133.0/4100.0)
+#define b11_8    (45.0/82.0)
+#define b11_9    (45.0/164.0)
+#define b11_10   (18.0/41.0)
+#define b12_1    (3.0/205.0)
+#define b12_6    (-6.0/41.0)
+#define b12_7    (-3.0/205.0)
+#define b12_8    (-3.0/41.0)
+#define b12_9    (3.0/41.0)
+#define b12_10   (6.0/41.0)
+#define b13_1    (-1777.0/4100.0)
+#define b13_4    (-341.0/164.0)
+#define b13_5    (4496.0/1025.0)
+#define b13_6    (-289.0/82.0)
+#define b13_7    (2193.0/4100.0)
+#define b13_8    (51.0/82.0)
+#define b13_9    (33.0/164.0)
+#define b13_10   (12.0/41.0)
+
+#define err_factor (-41.0/840.0)
+
 //===============================================================================================================================================================================================================
 //===============================================================================================================================================================================================================
 //		PARTICULAR SOLVER FUNCTION
 //===============================================================================================================================================================================================================
 //===============================================================================================================================================================================================================
 
-static fp embedded_fehlberg_7_8(	fp timeinst,
+inline fp embedded_fehlberg_7_8(	fp timeinst,
 															fp h,
 															fp* initvalu,
 															fp* finavalu,
 															fp* error,
 															fp* parameter,
+															fp* initvalu_temp,
+															fp** finavalu_temp,
+															fp* com,
 															int mode) {
-
-	// printf("initvalu[0] = %f\n", initvalu[0]);
-	// printf("initvalu[10] = %f\n", initvalu[10]);
-	// printf("initvalu[50] = %f\n", initvalu[50]);
-	// printf("initvalu[90] = %f\n", initvalu[90]);
-
-	// printf("finavalu[0] = %f\n", finavalu[0]);
-	// printf("finavalu[10] = %f\n", finavalu[10]);
-	// printf("finavalu[50] = %f\n", finavalu[50]);
-	// printf("finavalu[90] = %f\n", finavalu[90]);
 
 	//======================================================================================================================================================
 	//	VARIABLES
 	//======================================================================================================================================================
 
-	static const fp c_1_11 = 41.0 / 840.0;
-	static const fp c6 = 34.0 / 105.0;
-	static const fp c_7_8= 9.0 / 35.0;
-	static const fp c_9_10 = 9.0 / 280.0;
-
-	static const fp a2 = 2.0 / 27.0;
-	static const fp a3 = 1.0 / 9.0;
-	static const fp a4 = 1.0 / 6.0;
-	static const fp a5 = 5.0 / 12.0;
-	static const fp a6 = 1.0 / 2.0;
-	static const fp a7 = 5.0 / 6.0;
-	static const fp a8 = 1.0 / 6.0;
-	static const fp a9 = 2.0 / 3.0;
-	static const fp a10 = 1.0 / 3.0;
-
-	static const fp b31 = 1.0 / 36.0;
-	static const fp b32 = 3.0 / 36.0;
-	static const fp b41 = 1.0 / 24.0;
-	static const fp b43 = 3.0 / 24.0;
-	static const fp b51 = 20.0 / 48.0;
-	static const fp b53 = -75.0 / 48.0;
-	static const fp b54 = 75.0 / 48.0;
-	static const fp b61 = 1.0 / 20.0;
-	static const fp b64 = 5.0 / 20.0;
-	static const fp b65 = 4.0 / 20.0;
-	static const fp b71 = -25.0 / 108.0;
-	static const fp b74 =  125.0 / 108.0;
-	static const fp b75 = -260.0 / 108.0;
-	static const fp b76 =  250.0 / 108.0;
-	static const fp b81 = 31.0/300.0;
-	static const fp b85 = 61.0/225.0;
-	static const fp b86 = -2.0/9.0;
-	static const fp b87 = 13.0/900.0;
-	static const fp b91 = 2.0;
-	static const fp b94 = -53.0/6.0;
-	static const fp b95 = 704.0 / 45.0;
-	static const fp b96 = -107.0 / 9.0;
-	static const fp b97 = 67.0 / 90.0;
-	static const fp b98 = 3.0;
-	static const fp b10_1 = -91.0 / 108.0;
-	static const fp b10_4 = 23.0 / 108.0;
-	static const fp b10_5 = -976.0 / 135.0;
-	static const fp b10_6 = 311.0 / 54.0;
-	static const fp b10_7 = -19.0 / 60.0;
-	static const fp b10_8 = 17.0 / 6.0;
-	static const fp b10_9 = -1.0 / 12.0;
-	static const fp b11_1 = 2383.0 / 4100.0;
-	static const fp b11_4 = -341.0 / 164.0;
-	static const fp b11_5 = 4496.0 / 1025.0;
-	static const fp b11_6 = -301.0 / 82.0;
-	static const fp b11_7 = 2133.0 / 4100.0;
-	static const fp b11_8 = 45.0 / 82.0;
-	static const fp b11_9 = 45.0 / 164.0;
-	static const fp b11_10 = 18.0 / 41.0;
-	static const fp b12_1 = 3.0 / 205.0;
-	static const fp b12_6 = - 6.0 / 41.0;
-	static const fp b12_7 = - 3.0 / 205.0;
-	static const fp b12_8 = - 3.0 / 41.0;
-	static const fp b12_9 = 3.0 / 41.0;
-	static const fp b12_10 = 6.0 / 41.0;
-	static const fp b13_1 = -1777.0 / 4100.0;
-	static const fp b13_4 = -341.0 / 164.0;
-	static const fp b13_5 = 4496.0 / 1025.0;
-	static const fp b13_6 = -289.0 / 82.0;
-	static const fp b13_7 = 2193.0 / 4100.0;
-	static const fp b13_8 = 51.0 / 82.0;
-	static const fp b13_9 = 33.0 / 164.0;
-	static const fp b13_10 = 12.0 / 41.0;
-
-	static const fp err_factor  = -41.0 / 840.0;
-
 	fp h2_7 = a2 * h;
 
 	fp timeinst_temp;
-	fp* initvalu_temp;
-	fp** finavalu_temp;
 
 	int i;
-
-	//======================================================================================================================================================
-	//		TEMPORARY STORAGE ALLOCATION
-	//======================================================================================================================================================
-
-	initvalu_temp= (fp *) malloc(EQUATIONS* sizeof(fp));
-
-	finavalu_temp= (fp **) malloc(13* sizeof(fp *));
-	for (i= 0; i<13; i++){
-		finavalu_temp[i]= (fp *) malloc(EQUATIONS* sizeof(fp));
-	}
 
 	//======================================================================================================================================================
 	//		EVALUATIONS
@@ -204,18 +184,13 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 	timeinst_temp = timeinst;
 	for(i=0; i<EQUATIONS; i++){
 		initvalu_temp[i] = initvalu[i] ;
-		// printf("initvalu[%d] = %f\n", i, initvalu[i]);
 	}
 
 	master(	timeinst_temp,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[0],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[0][%d] = %f\n", i, finavalu_temp[0][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		2
@@ -230,11 +205,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[1],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[1][%d] = %f\n", i, finavalu_temp[1][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		3
@@ -249,11 +220,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[2],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[2][%d] = %f\n", i, finavalu_temp[2][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		4
@@ -268,11 +235,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[3],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[3][%d] = %f\n", i, finavalu_temp[3][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		5
@@ -287,11 +250,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[4],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[4][%d] = %f\n", i, finavalu_temp[4][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		6
@@ -306,11 +265,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[5],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[5][%d] = %f\n", i, finavalu_temp[5][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		7
@@ -325,11 +280,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[6],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[6][%d] = %f\n", i, finavalu_temp[6][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		8
@@ -344,11 +295,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[7],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[7][%d] = %f\n", i, finavalu_temp[7][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		9
@@ -363,11 +310,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[8],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[8][%d] = %f\n", i, finavalu_temp[8][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		10
@@ -382,11 +325,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[9],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[9][%d] = %f\n", i, finavalu_temp[9][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		11
@@ -401,11 +340,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[10],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[10][%d] = %f\n", i, finavalu_temp[10][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		12
@@ -420,11 +355,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[11],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[11][%d] = %f\n", i, finavalu_temp[11][i]);
-	// }
+					com);
 
 	//===================================================================================================
 	//		13
@@ -439,11 +370,7 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 					initvalu_temp,
 					parameter,
 					finavalu_temp[12],
-					mode);
-
-	// for(i=0; i<EQUATIONS; i++){
-		// printf("finavalu_temp[12][%d] = %f\n", i, finavalu_temp[12][i]);
-	// }
+					com);
 
 	//======================================================================================================================================================
 	//		FINAL VALUE
@@ -451,14 +378,6 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 
 	for(i=0; i<EQUATIONS; i++){
 		finavalu[i]= initvalu[i] +  h * (c_1_11 * (finavalu_temp[0][i] + finavalu_temp[10][i])  + c6 * finavalu_temp[5][i] + c_7_8 * (finavalu_temp[6][i] + finavalu_temp[7][i]) + c_9_10 * (finavalu_temp[8][i] + finavalu_temp[9][i]) );
-		// printf("finavalu_temp[0][%d] = %f\n", i, finavalu_temp[0][i]);
-		// printf("finavalu_temp[10][%d] = %f\n", i, finavalu_temp[10][i]);
-		// printf("finavalu_temp[5][%d] = %f\n", i, finavalu_temp[5][i]);
-		// printf("finavalu_temp[6][%d] = %f\n", i, finavalu_temp[6][i]);
-		// printf("finavalu_temp[7][%d] = %f\n", i, finavalu_temp[7][i]);
-		// printf("finavalu_temp[8][%d] = %f\n", i, finavalu_temp[8][i]);
-		// printf("finavalu_temp[9][%d] = %f\n", i, finavalu_temp[9][i]);
-		// printf("finavalu[%d] = %f\n", i, finavalu[i]);
 	}
 
 	//======================================================================================================================================================
@@ -467,14 +386,6 @@ static fp embedded_fehlberg_7_8(	fp timeinst,
 
 	for(i=0; i<EQUATIONS; i++){
 		error[i] = fabs(err_factor * (finavalu_temp[0][i] + finavalu_temp[10][i] - finavalu_temp[11][i] - finavalu_temp[12][i]));
-		// printf("Error[%d] = %f\n", i, error[i]);
 	}
-
-	//======================================================================================================================================================
-	//		DEALLOCATION
-	//======================================================================================================================================================
-
-	free(initvalu_temp);
-	free(finavalu_temp);
 
 }

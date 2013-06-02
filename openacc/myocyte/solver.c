@@ -77,6 +77,10 @@ int solver(	fp*** y,
 					fp** err,
 					fp** scale,
 					fp** yy,
+					fp** initvalu_temp,
+					fp*** finavalu_temp,
+					fp** com,
+					int workload,
 					int mode /* 0 is serial */) {
 
 	//========================================================================================================================
@@ -177,10 +181,13 @@ int solver(	fp*** y,
 
 				embedded_fehlberg_7_8(	x[i][k],
 															h,
-															y[k-1],
-															y[k],
+															y[i][k-1],
+															y[i][k],
 															err[i],
 															params[i],
+															initvalu_temp[i],
+															finavalu_temp[i],
+															com[i],
 															mode);
 
 				//============================================================
@@ -202,11 +209,11 @@ int solver(	fp*** y,
 				//============================================================
 
 				for(e=0; e<EQUATIONS; e++){
-					if(y[k-1][e] == 0.0){
+					if(y[i][k-1][e] == 0.0){
 						yy[i][e] = tolerance;
 					}
 					else{
-						yy[i][e] = fabs(y[k-1][e]);
+						yy[i][e] = fabs(y[i][k-1][e]);
 					}
 					scale[i][e] = 0.8 * pow( tolerance * yy[i][e] / err[i][e] , err_exponent );
 					if(scale[i][e]<scale_min){
@@ -242,7 +249,7 @@ int solver(	fp*** y,
 
 				// if instance+step exceeds range limit, limit to that range
 				if ( x[i][k] + h > (fp)xmax ){
-					h = (fp)xmax - x[y][k];
+					h = (fp)xmax - x[i][k];
 				}
 
 				// if getting closer to range limit, decrease step
