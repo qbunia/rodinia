@@ -83,6 +83,20 @@ void BFSGraph( int argc, char** argv)
 	//read the source node from the file
 	fscanf(fp,"%d",&source);
 	source=0;
+	
+	fscanf(fp,"%d",&edge_list_size);
+	
+	int id,cost;
+	h_graph_edges = (int*) malloc(sizeof(int)*edge_list_size);
+	for(int i=0; i < edge_list_size ; i++)
+	{
+		fscanf(fp,"%d",&id);
+		fscanf(fp,"%d",&cost);
+		h_graph_edges[i] = id;
+	}
+
+	if(fp)
+		fclose(fp); 
 
 #pragma acc data create(h_updating_graph_mask[0:no_of_nodes]) \
 	create(h_graph_mask[0:no_of_nodes],h_graph_visited[0:no_of_nodes]) \
@@ -105,21 +119,6 @@ void BFSGraph( int argc, char** argv)
 	    h_graph_mask[source]=true;
 		h_graph_visited[source]=true;
 	}
-
-	fscanf(fp,"%d",&edge_list_size);
-
-	int id,cost;
-	h_graph_edges = (int*) malloc(sizeof(int)*edge_list_size);
-	for(int i=0; i < edge_list_size ; i++)
-	{
-		fscanf(fp,"%d",&id);
-		fscanf(fp,"%d",&cost);
-		h_graph_edges[i] = id;
-	}
-
-	if(fp)
-		fclose(fp);    
-
 
 	// allocate mem for the result on host side
 	h_cost = (int*) malloc( sizeof(int)*no_of_nodes);
