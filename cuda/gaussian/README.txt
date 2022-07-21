@@ -39,13 +39,14 @@ Additional input files can be created with the matrixGenerator.py file in the da
 
 Gaussian Elimination Usage
 
-    gaussianElimination [filename] [-hqt] [-p [int] -d [int]]
+    gaussianElimination -f [filename] -s [size] [-hqt] [-p [int] -d [int]]
     
     example:
     $ ./gaussianElimination ../../data/gaussian/matrix4.txt
     
-    filename     the filename that holds the matrix data
-    
+    -f filename  the filename that holds the matrix data
+    -s size      generate input matrix internally
+      
     -h, --help   Display the help file
     -q           Quiet mode. Suppress all text output.
     -t           Print timing information.
@@ -58,3 +59,10 @@ Gaussian Elimination Usage
            2. If you declare either the device or the platform,
               you must declare both.
 
+******Adjustable work group size*****
+The kernel 2 has square shape 
+The actually dimension = RD_WG_SIZE_1_0 * RD_WG_SIZE_1_1
+
+USAGE:
+make clean
+make KERNEL_DIM="-DRD_WG_SIZE_0=128 -DRD_WG_SIZE_1=16 "

@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include "OpenCL.h"
 
 OpenCL::OpenCL(int displayOutput)
@@ -120,9 +121,10 @@ void OpenCL::buildKernel()
 	source_size = ftell(theFile);
 	rewind(theFile);
 	// Read in the file.
-	source_str = (char*) malloc(sizeof(char) * source_size);
+	source_str = (char*) malloc(sizeof(char) * (source_size + 1));
 	fread(source_str, 1, source_size, theFile);
 	fclose(theFile);
+	source_str[source_size] = '\0';
 
 	// Create a program from the kernel source.
 	program = clCreateProgramWithSource(context,

@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include <fstream>
+#include <stdint.h> 
 
 #define ulong4 uint32_t
 #define int2 int32_t
@@ -45,7 +46,7 @@ static const int maxdim = 4096;
 #define RESULT_SPAN 1
 #define MATCH_BASE(match_coords, qryid) (MatchCoord*)match_coords + qryAddr - (qryid * (min_match_len + 1))
 
-#define GETRCHAR(refpos) getRef(refpos, ref)
+#define GETRCHAR(refpos) getRefGold(refpos, ref)
 
 
 
@@ -87,10 +88,10 @@ static const int maxdim = 4096;
 #define SHIFT_QUERIES(queries, qryAddr) queries += qryAddr
 #define SET_RESULT(c, r, e, q, m, rc) set_result(c, r, e, q, m, rc)
 //////////////////////////////////
-/// getRef
+/// getRefGold
 //////////////////////////////////
 
-char getRef(int refpos, char* ref)
+char getRefGold(int refpos, char* ref)
 {
 	return ref[refpos];
 }
@@ -544,7 +545,7 @@ int kernel_gold(int qryid,
 
 		 while (refpos <= node.end && c != '\0')
 		 { 
-            //char r = getRef(refpos);
+            //char r = getRefGold(refpos);
 			char r = refstr[refpos];
 			XPRINTF(" Edge cmp ref: %d %c, qry: %d %c\n", refpos, r, qry_match_len, c);
 						
@@ -740,7 +741,7 @@ rc_kernel_gold(int qryid,
 
 		 while (refpos <= node.end && c != '\0')
 		 { 
-            //char r = getRef(refstr, refpos);
+            //char r = getRefGold(refstr, refpos);
 			char r = refstr[refpos];
 			XPRINTF(" Edge cmp ref: %d %c, qry: %d %c\n", refpos, r, qry_match_len, c);
 						

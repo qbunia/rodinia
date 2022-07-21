@@ -181,6 +181,20 @@ void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np,
 			m_free(IE[cell_num]);
 			m_free(IMGVF[cell_num]);
 	    }
+
+#ifdef OUTPUT
+		if (frame_num == Nf)
+		  {
+		    FILE * pFile;
+		    pFile = fopen ("result.txt","w+");
+	
+		    for (cell_num = 0; cell_num < Nc; cell_num++)		
+		      fprintf(pFile,"\n%d,%f,%f", cell_num, xci[cell_num], yci[cell_num]);
+
+		    fclose (pFile);
+		  }
+		
+#endif
 		
 		free(IMGVF);
 		

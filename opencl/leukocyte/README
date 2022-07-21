@@ -2,3 +2,7 @@ To run the program:
 cd OpenCL
 ./run
 
+######OUTPUT FOR VALIDATION########
+USAGE:
+make clean
+make OUTPUT=Y

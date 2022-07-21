@@ -9,6 +9,7 @@ extern "C" {
 //======================================================================================================================================================150
 //	LIBRARIES
 //======================================================================================================================================================150
+#include <string.h>
 
 #include <CL/cl.h>					// (in library path provided to compiler)	needed by OpenCL types and functions
 
@@ -191,11 +192,26 @@ kernel_gpu_opencl_wrapper(	par_str par_cpu,
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
 
+	// parameterized kernel dimension
+	char clOptions[110];
+	//  sprintf(clOptions,"-I../../src");                                                                                 
+	sprintf(clOptions,"-I.");
+#ifdef RD_WG_SIZE
+	sprintf(clOptions + strlen(clOptions), " -DRD_WG_SIZE=%d", RD_WG_SIZE);
+#endif
+#ifdef RD_WG_SIZE_0
+	sprintf(clOptions + strlen(clOptions), " -DRD_WG_SIZE_0=%d", RD_WG_SIZE_0);
+#endif
+#ifdef RD_WG_SIZE_0_0
+	sprintf(clOptions + strlen(clOptions), " -DRD_WG_SIZE_0_0=%d", RD_WG_SIZE_0_0);
+#endif
+
+
 	// Compile the program
 	error = clBuildProgram(	program, 
 							1, 
 							&device, 
-							"-I./../", 
+							clOptions, 
 							NULL, 
 							NULL);
 	// Print warnings and errors from compilation

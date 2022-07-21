@@ -26,9 +26,10 @@ struct neighbor {
 * REC_WINDOW has been arbitrarily assigned; A larger value would allow more work for the threads
 */
 int main(int argc, char* argv[]) {
-	FILE   *flist,*fp;
+	long long time0 = clock();
+    FILE   *flist,*fp;
 	int    i=0,j=0, k=0, rec_count=0, done=0;
-	char   sandbox[REC_LENGTH * REC_WINDOW], *rec_iter, dbname[64];
+	char   sandbox[REC_LENGTH * REC_WINDOW], *rec_iter,*rec_iter2, dbname[64];
 	struct neighbor *neighbors = NULL;
 	float target_lat, target_long, tmp_lat=0, tmp_long=0;
 
@@ -102,15 +103,28 @@ int main(int argc, char* argv[]) {
 		}
 
 		/* Launch threads to  */
-		#pragma omp parallel for shared(z, target_lat, target_long) private(i, rec_iter, tmp_lat, tmp_long)
-		for( i = 0 ; i < rec_count ; i++ ) {
+        // Lingjie Zhang modificated on 11/08/2015
+        // original code 
+		// #pragma omp parallel for shared(z, target_lat, target_long) private(i, rec_iter, tmp_lat, tmp_long)
+		// for( i = 0 ; i < rec_count ; i++ ) {
+			// rec_iter = sandbox+(i * REC_LENGTH + LATITUDE_POS - 1);
+			// sscanf(rec_iter, "%f %f", &tmp_lat, &tmp_long);
+			// z[i] = sqrt(( (tmp_lat-target_lat) * (tmp_lat-target_lat) )+( (tmp_long-target_long) * (tmp_long-target_long) ));
+		// } /* omp end parallel */
+		// #pragma omp barrier
+       
+        #pragma omp parallel for shared (z, target_lat, target_long) private(i,rec_iter)
+        for (i = 0; i < rec_count; i++){
 			rec_iter = sandbox+(i * REC_LENGTH + LATITUDE_POS - 1);
-			sscanf(rec_iter, "%f %f", &tmp_lat, &tmp_long);
+            float tmp_lat = atof(rec_iter);
+            float tmp_long = atof(rec_iter+5);
 			z[i] = sqrt(( (tmp_lat-target_lat) * (tmp_lat-target_lat) )+( (tmp_long-target_long) * (tmp_long-target_long) ));
-		} /* omp end parallel */
-		#pragma omp barrier
+        }
+        #pragma omp barrier
+        // end of Lingjie Zhang's modification
 
-		for( i = 0 ; i < rec_count ; i++ ) {
+		
+        for( i = 0 ; i < rec_count ; i++ ) {
 			float max_dist = -1;
 			int max_idx = 0;
 			// find a neighbor with greatest dist and take his spot if allowed!
@@ -136,6 +150,10 @@ int main(int argc, char* argv[]) {
 	}
 
 	fclose(flist);
-	return 0;
+	
+
+    long long time1 = clock();
+    printf("total time : %15.12f s", (float) (time1 - time0) / 1000000);
+    return 0;
 }
 

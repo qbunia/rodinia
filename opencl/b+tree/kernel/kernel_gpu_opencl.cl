@@ -11,8 +11,11 @@
 //======================================================================================================================================================150
 
 // double precision support (switch between as needed for NVIDIA/AMD)
+#ifdef AMDAPP
+#pragma OPENCL EXTENSION cl_amd_fp64 : enable
+#else
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-// #pragma OPENCL EXTENSION cl_amd_fp64 : enable
+#endif
 
 // clBuildProgram compiler cannot link this file for some reason, so had to redefine constants and structures below
 // #include ../common.h						// (in directory specified to compiler)			main function header
@@ -24,7 +27,7 @@
 // change to double if double precision needed
 #define fp float
 
-#define DEFAULT_ORDER 508
+//#define DEFAULT_ORDER 256
 
 //======================================================================================================================================================150
 //	STRUCTURES (had to bring from ../common.h here because feature of including headers in clBuildProgram does not work for some reason)
@@ -78,13 +81,14 @@ findK(	long height,
 				offsetD[bid] = knodesD[offsetD[bid]].indices[thid];
 			}
 		}
-		__syncthreads();
-
+		//__syncthreads();
+		barrier(CLK_LOCAL_MEM_FENCE);
 		// set for next tree level
 		if(thid==0){
 			currKnodeD[bid] = offsetD[bid];
 		}
-		__syncthreads();
+		//__syncthreads();
+		barrier(CLK_LOCAL_MEM_FENCE);
 
 	}
 

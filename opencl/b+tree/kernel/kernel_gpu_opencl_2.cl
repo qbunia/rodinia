@@ -7,8 +7,11 @@
 //======================================================================================================================================================150
 
 // double precision support (switch between as needed for NVIDIA/AMD)
+#ifdef AMDAPP
+#pragma OPENCL EXTENSION cl_amd_fp64 : enable
+#else
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
-// #pragma OPENCL EXTENSION cl_amd_fp64 : enable
+#endif
 
 // clBuildProgram compiler cannot link this file for some reason, so had to redefine constants and structures below
 // #include ../common.h						// (in directory specified to compiler)			main function header
@@ -20,7 +23,7 @@
 // change to double if double precision needed
 #define fp float
 
-#define DEFAULT_ORDER 508
+//#define DEFAULT_ORDER_2 256
 
 //======================================================================================================================================================150
 //	STRUCTURES (had to bring from ../common.h here because feature of including headers in clBuildProgram does not work for some reason)
@@ -29,8 +32,8 @@
 // ???
 typedef struct knode {
 	int location;
-	int indices [DEFAULT_ORDER + 1];
-	int  keys [DEFAULT_ORDER + 1];
+	int indices [DEFAULT_ORDER_2 + 1];
+	int  keys [DEFAULT_ORDER_2 + 1];
 	bool is_leaf;
 	int num_keys;
 } knode; 
@@ -78,21 +81,23 @@ findRangeK(	long height,
 				offset_2D[bid] = knodesD[lastKnodeD[bid]].indices[thid];
 			}
 		}
-		__syncthreads();
-
+		//__syncthreads();
+		barrier(CLK_LOCAL_MEM_FENCE);
 		// set for next tree level
 		if(thid==0){
 			currKnodeD[bid] = offsetD[bid];
 			lastKnodeD[bid] = offset_2D[bid];
 		}
-		__syncthreads();
+		//	__syncthreads();
+		barrier(CLK_LOCAL_MEM_FENCE);
 	}
 
 	// Find the index of the starting record
 	if(knodesD[currKnodeD[bid]].keys[thid] == startD[bid]){
 		RecstartD[bid] = knodesD[currKnodeD[bid]].indices[thid];
 	}
-	__syncthreads();
+	//	__syncthreads();
+	barrier(CLK_LOCAL_MEM_FENCE);
 
 	// Find the index of the ending record
 	if(knodesD[lastKnodeD[bid]].keys[thid] == endD[bid]){

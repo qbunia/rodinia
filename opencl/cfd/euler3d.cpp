@@ -118,7 +118,7 @@ void dump(cl_mem variables, int nel, int nelr){
 void initialize_variables(int nelr, cl_mem variables, cl_mem ff_variable) throw(string){
 
 	int work_items = nelr;
-	int work_group_size = block_length;
+	int work_group_size = BLOCK_SIZE_1;
 	int kernel_id = 1;
 	int arg_idx = 0;	
 	_clSetArgs(kernel_id, arg_idx++, variables);
@@ -130,7 +130,7 @@ void initialize_variables(int nelr, cl_mem variables, cl_mem ff_variable) throw(
 void compute_step_factor(int nelr, cl_mem variables, cl_mem areas, cl_mem step_factors){
 
 	int work_items = nelr;
-	int work_group_size = block_length;
+	int work_group_size = BLOCK_SIZE_2;
 	int kernel_id = 2;
 	int arg_idx = 0;
 	_clSetArgs(kernel_id, arg_idx++, variables);
@@ -147,7 +147,7 @@ void compute_flux(int nelr, cl_mem elements_surrounding_elements, cl_mem normals
 			cl_mem ff_flux_contribution_momentum_z){
 
 	int work_items = nelr;
-	int work_group_size = block_length;
+	int work_group_size = BLOCK_SIZE_3;
 	int kernel_id = 3;
 	int arg_idx = 0;
 	_clSetArgs(kernel_id, arg_idx++, elements_surrounding_elements);
@@ -166,7 +166,7 @@ void compute_flux(int nelr, cl_mem elements_surrounding_elements, cl_mem normals
 void time_step(int j, int nelr, cl_mem old_variables, cl_mem variables, cl_mem step_factors, cl_mem fluxes){
 
 	int work_items = nelr;
-	int work_group_size = block_length;
+	int work_group_size = BLOCK_SIZE_4;
 	int kernel_id = 4;
 	int arg_idx = 0;
 	_clSetArgs(kernel_id, arg_idx++, &j, sizeof(int));
@@ -203,6 +203,8 @@ inline void compute_flux_contribution(float& density, float3& momentum, float& d
  * Main function
  */
 int main(int argc, char** argv){
+  printf("WG size of kernel:initialize = %d, WG size of kernel:compute_step_factor = %d, WG size of kernel:compute_flux = %d, WG size of kernel:time_step = %d\n", BLOCK_SIZE_1, BLOCK_SIZE_2, BLOCK_SIZE_3, BLOCK_SIZE_4);
+
 	if (argc < 2){
 		std::cout << "specify data file name and [device type] [device id]" << std::endl;
 		return 0;

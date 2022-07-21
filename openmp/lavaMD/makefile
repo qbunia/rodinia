@@ -6,6 +6,9 @@
           # .
           # .
 	# command n
+ifdef OUTPUT
+override OUTPUT = -DOUTPUT
+endif
 
 C_C = gcc
 OMP_LIB = -lgomp
@@ -32,7 +35,7 @@ main.o:		main.h \
 			./util/num/num.c \
 			./util/timer/timer.h \
 			./util/timer/timer.c
-	$(C_C)	main.c \
+	$(C_C)	${OUTPUT} main.c \
 			-c \
 			-o main.o \
 			-O3

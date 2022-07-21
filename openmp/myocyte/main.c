@@ -314,28 +314,17 @@ int main(int argc, char *argv []){
 
 	}
 
-
-	  FILE * pFile;
-	  pFile = fopen ("output.txt","w");
-	  if (pFile==NULL)
-	    {
-	  fputs ("fopen example",pFile);
-	  return -1;
-	}
-	  // print results
-	  int k;
-	  for(i=0; i<workload; i++){
-	  fprintf(pFile, "WORKLOAD %d:\n", i);
-	  for(j=0; j<(xmax+1); j++){
-	  fprintf(pFile, "\tTIME %d:\n", j);
-	  for(k=0; k<EQUATIONS; k++){
-	  fprintf(pFile, "\t\ty[%d][%d][%d]=%10.7e\n", i, j, k, y[i][j][k]);
-	}
-	}
-	}
-
-	  fclose (pFile);
-	  
+	// // print results
+	// int k;
+	// for(i=0; i<workload; i++){
+		// printf("WORKLOAD %d:\n", i);
+		// for(j=0; j<(xmax+1); j++){
+			// printf("\tTIME %d:\n", j);
+			// for(k=0; k<EQUATIONS; k++){
+				// printf("\t\ty[%d][%d][%d]=%13.10f\n", i, j, k, y[i][j][k]);
+			// }
+		// }
+	// }
 
 	time4 = get_time();
 

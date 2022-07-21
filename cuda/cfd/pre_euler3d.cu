@@ -1,7 +1,10 @@
 // Copyright 2009, Andrew Corrigan, acorriga@gmu.edu
 // This code is from the AIAA-2009-4001 paper
 
-#include <cutil.h>
+// #include <cutil.h>
+#include <helper_cuda.h>
+#include <helper_timer.h>
+
 #include <iostream>
 #include <fstream>
 
@@ -47,32 +50,32 @@ template <typename T>
 T* alloc(int N)
 {
 	T* t;
-	CUDA_SAFE_CALL(cudaMalloc((void**)&t, sizeof(T)*N));
+	checkCudaErrors(cudaMalloc((void**)&t, sizeof(T)*N));
 	return t;
 }
 
 template <typename T>
 void dealloc(T* array)
 {
-	CUDA_SAFE_CALL(cudaFree((void*)array));
+	checkCudaErrors(cudaFree((void*)array));
 }
 
 template <typename T>
 void copy(T* dst, T* src, int N)
 {
-	CUDA_SAFE_CALL(cudaMemcpy((void*)dst, (void*)src, N*sizeof(T), cudaMemcpyDeviceToDevice));
+	checkCudaErrors(cudaMemcpy((void*)dst, (void*)src, N*sizeof(T), cudaMemcpyDeviceToDevice));
 }
 
 template <typename T>
 void upload(T* dst, T* src, int N)
 {
-	CUDA_SAFE_CALL(cudaMemcpy((void*)dst, (void*)src, N*sizeof(T), cudaMemcpyHostToDevice));
+	checkCudaErrors(cudaMemcpy((void*)dst, (void*)src, N*sizeof(T), cudaMemcpyHostToDevice));
 }
 
 template <typename T>
 void download(T* dst, T* src, int N)
 {
-	CUDA_SAFE_CALL(cudaMemcpy((void*)dst, (void*)src, N*sizeof(T), cudaMemcpyDeviceToHost));
+	checkCudaErrors(cudaMemcpy((void*)dst, (void*)src, N*sizeof(T), cudaMemcpyDeviceToHost));
 }
 
 void dump(float* variables, int nel, int nelr)
@@ -124,8 +127,15 @@ __global__ void cuda_initialize_variables(int nelr, float* variables)
 void initialize_variables(int nelr, float* variables)
 {
 	dim3 Dg(nelr / block_length), Db(block_length);
+	cudaError_t error;
 	cuda_initialize_variables<<<Dg, Db>>>(nelr, variables);
-	CUT_CHECK_ERROR("initialize_variables failed");
+	error = cudaGetLastError();
+		    if (error != cudaSuccess) 
+		      {
+			fprintf(stderr,"GPUassert: %s initialize variables \n", cudaGetErrorString(error));
+			exit(-1);
+		      }
+
 }
 
 __device__ __host__ inline void compute_flux_contribution(float& density, float3& momentum, float& density_energy, float& pressure, float3& velocity, float3& fc_momentum_x, float3& fc_momentum_y, float3& fc_momentum_z, float3& fc_density_energy)
@@ -193,9 +203,15 @@ __global__ void cuda_compute_step_factor(int nelr, float* variables, float* area
 }
 void compute_step_factor(int nelr, float* variables, float* areas, float* step_factors)
 {
+  	cudaError_t error;
 	dim3 Dg(nelr / block_length), Db(block_length);
-	cuda_compute_step_factor<<<Dg, Db>>>(nelr, variables, areas, step_factors);		
-	CUT_CHECK_ERROR("compute_step_factor failed");
+	cuda_compute_step_factor<<<Dg, Db>>>(nelr, variables, areas, step_factors);			    error = cudaGetLastError();
+		    if (error != cudaSuccess) 
+		      {
+			fprintf(stderr,"GPUassert: %s compute_step_factor failed\n", cudaGetErrorString(error));
+			exit(-1);
+		      }
+	
 }
 
 __global__ void cuda_compute_flux_contributions(int nelr, float* variables, float* fc_momentum_x, float* fc_momentum_y, float* fc_momentum_z, float* fc_density_energy)
@@ -239,8 +255,15 @@ __global__ void cuda_compute_flux_contributions(int nelr, float* variables, floa
 void compute_flux_contributions(int nelr, float* variables, float* fc_momentum_x, float* fc_momentum_y, float* fc_momentum_z, float* fc_density_energy)
 {
 	dim3 Dg(nelr / block_length), Db(block_length);
+	cudaError_t error;
 	cuda_compute_flux_contributions<<<Dg,Db>>>(nelr, variables, fc_momentum_x, fc_momentum_y, fc_momentum_z, fc_density_energy);
-	CUT_CHECK_ERROR("compute_flux_contributions failed");
+		    error = cudaGetLastError();
+		    if (error != cudaSuccess) 
+		      {
+			fprintf(stderr,"GPUassert: %s compute_flux_contribution failed\n", cudaGetErrorString(error));
+			exit(-1);
+		      }
+
 }
 
 
@@ -407,9 +430,16 @@ __global__ void cuda_compute_flux(int nelr, int* elements_surrounding_elements, 
 }
 void compute_flux(int nelr, int* elements_surrounding_elements, float* normals, float* variables, float* fc_momentum_x, float* fc_momentum_y, float* fc_momentum_z, float* fc_density_energy, float* fluxes)
 {
+	cudaError_t error;
 	dim3 Dg(nelr / block_length), Db(block_length);
 	cuda_compute_flux<<<Dg,Db>>>(nelr, elements_surrounding_elements, normals, variables, fc_momentum_x, fc_momentum_y, fc_momentum_z, fc_density_energy, fluxes);
-	CUT_CHECK_ERROR("compute_flux failed");
+		    error = cudaGetLastError();
+		    if (error != cudaSuccess) 
+		      {
+			fprintf(stderr,"GPUassert: %s compute_flux failed\n", cudaGetErrorString(error));
+			exit(-1);
+		      }
+
 }
 
 __global__ void cuda_time_step(int j, int nelr, float* old_variables, float* variables, float* step_factors, float* fluxes)
@@ -426,9 +456,16 @@ __global__ void cuda_time_step(int j, int nelr, float* old_variables, float* var
 }
 void time_step(int j, int nelr, float* old_variables, float* variables, float* step_factors, float* fluxes)
 {
+	cudaError_t error;
 	dim3 Dg(nelr / block_length), Db(block_length);
 	cuda_time_step<<<Dg,Db>>>(j, nelr, old_variables, variables, step_factors, fluxes);
-	CUT_CHECK_ERROR("update failed");
+		    error = cudaGetLastError();
+		    if (error != cudaSuccess) 
+		      {
+			fprintf(stderr,"GPUassert: %s update failed\n", cudaGetErrorString(error));
+			exit(-1);
+		      }
+
 }
 
 /*
@@ -446,9 +483,9 @@ int main(int argc, char** argv)
 	cudaDeviceProp prop;
 	int dev;
 	
-	CUDA_SAFE_CALL(cudaSetDevice(0));
-	CUDA_SAFE_CALL(cudaGetDevice(&dev));
-	CUDA_SAFE_CALL(cudaGetDeviceProperties(&prop, dev));
+	checkCudaErrors(cudaSetDevice(0));
+	checkCudaErrors(cudaGetDevice(&dev));
+	checkCudaErrors(cudaGetDeviceProperties(&prop, dev));
 	
 	printf("Name:                     %s\n", prop.name);
 
@@ -485,12 +522,12 @@ int main(int argc, char** argv)
 		compute_flux_contribution(h_ff_variable[VAR_DENSITY], h_ff_momentum, h_ff_variable[VAR_DENSITY_ENERGY], ff_pressure, ff_velocity, h_ff_fc_momentum_x, h_ff_fc_momentum_y, h_ff_fc_momentum_z, h_ff_fc_density_energy);
 
 		// copy far field conditions to the gpu
-		CUDA_SAFE_CALL( cudaMemcpyToSymbol(ff_variable,          h_ff_variable,          NVAR*sizeof(float)) );
-		CUDA_SAFE_CALL( cudaMemcpyToSymbol(ff_fc_momentum_x, &h_ff_fc_momentum_x, sizeof(float3)) );
-		CUDA_SAFE_CALL( cudaMemcpyToSymbol(ff_fc_momentum_y, &h_ff_fc_momentum_y, sizeof(float3)) );
-		CUDA_SAFE_CALL( cudaMemcpyToSymbol(ff_fc_momentum_z, &h_ff_fc_momentum_z, sizeof(float3)) );
+		checkCudaErrors( cudaMemcpyToSymbol(ff_variable,          h_ff_variable,          NVAR*sizeof(float)) );
+		checkCudaErrors( cudaMemcpyToSymbol(ff_fc_momentum_x, &h_ff_fc_momentum_x, sizeof(float3)) );
+		checkCudaErrors( cudaMemcpyToSymbol(ff_fc_momentum_y, &h_ff_fc_momentum_y, sizeof(float3)) );
+		checkCudaErrors( cudaMemcpyToSymbol(ff_fc_momentum_z, &h_ff_fc_momentum_z, sizeof(float3)) );
 		
-		CUDA_SAFE_CALL( cudaMemcpyToSymbol(ff_fc_density_energy, &h_ff_fc_density_energy, sizeof(float3)) );		
+		checkCudaErrors( cudaMemcpyToSymbol(ff_fc_density_energy, &h_ff_fc_density_energy, sizeof(float3)) );		
 	}
 	int nel;
 	int nelr;
@@ -578,31 +615,59 @@ int main(int argc, char** argv)
 	// these need to be computed the first time in order to compute time step
 	std::cout << "Starting..." << std::endl;
 
+	StopWatchInterface *timer = NULL;
+	sdkCreateTimer(&timer);
+	sdkStartTimer(&timer);
 
-	unsigned int timer = 0;
-	CUT_SAFE_CALL( cutCreateTimer( &timer));
-	CUT_SAFE_CALL( cutStartTimer( timer));
-
+	cudaError_t error;
 	// Begin iterations
 	for(int i = 0; i < iterations; i++)
-	{
-		copy<float>(old_variables, variables, nelr*NVAR);
+	  {
+	    copy<float>(old_variables, variables, nelr*NVAR);
 		
-		// for the first iteration we compute the time step
-		compute_step_factor(nelr, variables, areas, step_factors);
-		
-		for(int j = 0; j < RK; j++)
-		{
-			compute_flux_contributions(nelr, variables, fc_momentum_x, fc_momentum_y, fc_momentum_z, fc_density_energy);
-			compute_flux(nelr, elements_surrounding_elements, normals, variables, fc_momentum_x, fc_momentum_y, fc_momentum_z, fc_density_energy, fluxes);
-			time_step(j, nelr, old_variables, variables, step_factors, fluxes);
-		}
-	}
+	    // for the first iteration we compute the time step
+	    compute_step_factor(nelr, variables, areas, step_factors);
+	    error = cudaGetLastError();
+	    if (error != cudaSuccess) 
+	      {
+		fprintf(stderr,"GPUassert: %s compute_step_factor failed\n", cudaGetErrorString(error));
+		exit(-1);
+	      }
+
+
+	    for(int j = 0; j < RK; j++)
+	      {
+		compute_flux_contributions(nelr, variables, fc_momentum_x, fc_momentum_y, fc_momentum_z, fc_density_energy);
+		error = cudaGetLastError();
+		if (error != cudaSuccess) 
+		  {
+		    fprintf(stderr,"GPUassert: %s compute_flux_contributions failed\n", cudaGetErrorString(error));
+		    exit(-1);
+		  }
+
+		compute_flux(nelr, elements_surrounding_elements, normals, variables, fc_momentum_x, fc_momentum_y, fc_momentum_z, fc_density_energy, fluxes);
+		error = cudaGetLastError();
+		if (error != cudaSuccess) 
+		  {
+		    fprintf(stderr,"GPUassert: %s compute_flux failed\n", cudaGetErrorString(error));
+		    exit(-1);
+		  }
+
+		time_step(j, nelr, old_variables, variables, step_factors, fluxes);
+		error = cudaGetLastError();
+		if (error != cudaSuccess) 
+		  {
+		    fprintf(stderr,"GPUassert: %s time_step\n", cudaGetErrorString(error));
+		    exit(-1);
+		  }
+
+	      }
+	  }
 
 	cudaThreadSynchronize();
-	CUT_SAFE_CALL( cutStopTimer(timer) );  
+	sdkStopTimer(&timer);  
 
-	std::cout  << (cutGetAverageTimerValue(timer)/1000.0)  / iterations << " seconds per iteration" << std::endl;
+	std::cout  << (sdkGetAverageTimerValue(&timer)/1000.0)  / iterations << " seconds per iteration" << std::endl;
 
 	std::cout << "Saving solution..." << std::endl;
 	dump(variables, nel, nelr);

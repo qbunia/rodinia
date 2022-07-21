@@ -3,6 +3,12 @@
 //========================================================================================================================================================================================================200
 
 //======================================================================================================================================================150
+//	LIBRARIES
+//======================================================================================================================================================150
+
+#include <CL/cl.h>									// (in directory specified to compiler)		needed by OpenCL types and functions
+
+//======================================================================================================================================================150
 //	MAIN FUNCTION HEADER
 //======================================================================================================================================================150
 
@@ -11,12 +17,6 @@
 //======================================================================================================================================================150
 //	DEFINE
 //======================================================================================================================================================150
-
-//======================================================================================================================================================150
-//	LIBRARIES
-//======================================================================================================================================================150
-
-#include <CL/cl.h>									// (in directory specified to compiler)		needed by OpenCL types and functions
 
 //======================================================================================================================================================150
 //	UTILITIES
@@ -69,21 +69,22 @@ kernel_gpu_opencl_wrapper(	params_common common,
 	//====================================================================================================100
 
 	// common variables
-	cl_int error;
+	int error;
 
 	//====================================================================================================100
 	//	GET PLATFORMS (Intel, AMD, NVIDIA, based on provided library), SELECT ONE
 	//====================================================================================================100
 
-	// Get the number of available platforms
+	// Get number of available platforms
 	cl_uint num_platforms;
 	error = clGetPlatformIDs(	0, 
 								NULL, 
-								&num_platforms);
+								&num_platforms);		// # of platforms
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
+	printf("# of platforms %d\n", num_platforms);
 
-	// Get the list of available platforms
+	// Get list of available platforms
 	cl_platform_id *platforms = (cl_platform_id *)malloc(sizeof(cl_platform_id) * num_platforms);
 	error = clGetPlatformIDs(	num_platforms, 
 								platforms, 
@@ -91,19 +92,29 @@ kernel_gpu_opencl_wrapper(	params_common common,
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
 
-	// Select the 1st platform
-	cl_platform_id platform = platforms[0];
+	// Get names of platforms and print them
+	cl_char pbuf[100];
+	int plat_count;
+	cl_platform_id platform;
+	for(plat_count = 0; plat_count < num_platforms; plat_count++){
 
-	// Get the name of the selected platform and print it (if there are multiple platforms, choose the first one)
-	char pbuf[100];
-	error = clGetPlatformInfo(	platform, 
-								CL_PLATFORM_VENDOR, 
-								sizeof(pbuf), 
-								pbuf, 
-								NULL);
-	if (error != CL_SUCCESS) 
-		fatal_CL(error, __LINE__);
-	printf("Platform: %s\n", pbuf);
+		platform = platforms[plat_count];
+
+		error = clGetPlatformInfo(	platform, 
+							CL_PLATFORM_VENDOR, 
+							sizeof(pbuf), 
+							pbuf, 
+							NULL);
+		if (error != CL_SUCCESS) 
+			fatal_CL(error, __LINE__);
+		printf("\tPlatform %d: %s\n", plat_count, pbuf);
+
+	}
+
+	// Select platform
+	int plat = 0;
+	platform = platforms[plat];
+	printf("Selecting platform %d\n", plat);
 
 	//====================================================================================================100
 	//	CREATE CONTEXT FOR THE PLATFORM
@@ -128,18 +139,20 @@ kernel_gpu_opencl_wrapper(	params_common common,
 	//	GET DEVICES AVAILABLE FOR THE CONTEXT, SELECT ONE
 	//====================================================================================================100
 
-	// Get the number of devices (previousely selected for the context)
+	// Get number of devices (previousely selected for the context)
 	size_t devices_size;
 	error = clGetContextInfo(	context, 
 								CL_CONTEXT_DEVICES, 
 								0, 
 								NULL, 
-								&devices_size);
+								&devices_size);		// number of bytes (devices * sizeof(cl_device_id))
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
+	int num_devices = devices_size / sizeof(cl_device_id);
+	printf("# of devices %d\n", num_devices);
 
 	// Get the list of devices (previousely selected for the context)
-	cl_device_id *devices = (cl_device_id *) malloc(devices_size);
+	cl_device_id* devices = (cl_device_id*)malloc(num_devices*sizeof(cl_device_id));
 	error = clGetContextInfo(	context, 
 								CL_CONTEXT_DEVICES, 
 								devices_size, 
@@ -148,19 +161,29 @@ kernel_gpu_opencl_wrapper(	params_common common,
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
 
-	// Select the first device (previousely selected for the context) (if there are multiple devices, choose the first one)
+	// Get names of devices and print them
+	cl_char dbuf[100];
+	int devi_count;
 	cl_device_id device;
-	device = devices[0];
+	for(devi_count = 0; devi_count < num_devices; devi_count++){
 
-	// Get the name of the selected device (previousely selected for the context) and print it
-	error = clGetDeviceInfo(device, 
-							CL_DEVICE_NAME, 
-							sizeof(pbuf), 
-							pbuf, 
-							NULL);
-	if (error != CL_SUCCESS) 
-		fatal_CL(error, __LINE__);
-	printf("Device: %s\n", pbuf);
+		device = devices[devi_count];
+
+		error = clGetDeviceInfo(device, 
+								CL_DEVICE_NAME, 
+								sizeof(dbuf), 
+								dbuf, 
+								NULL);
+		if (error != CL_SUCCESS) 
+			fatal_CL(error, __LINE__);
+		printf("\tDevice %d: %s\n", devi_count, dbuf);
+
+	}
+
+	// Select device (previousely selected for the context) (if there are multiple devices, choose the first one)
+	int devi = 0;
+	device = devices[devi];
+	printf("Selecting device %d\n", devi);
 
 	//====================================================================================================100
 	//	CREATE COMMAND QUEUE FOR THE DEVICE
@@ -192,15 +215,28 @@ kernel_gpu_opencl_wrapper(	params_common common,
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
 
+
+  char clOptions[150];
+//  sprintf(clOptions,"-I../../src");                                                    
+  sprintf(clOptions,"-I.");
+#ifdef RD_WG_SIZE
+  sprintf(clOptions + strlen(clOptions), " -DRD_WG_SIZE=%d", RD_WG_SIZE);
+#endif
+#ifdef RD_WG_SIZE_0
+  sprintf(clOptions + strlen(clOptions), " -DRD_WG_SIZE_0=%d", RD_WG_SIZE_0);
+#endif
+#ifdef RD_WG_SIZE_0_0
+  sprintf(clOptions + strlen(clOptions), " -DRD_WG_SIZE_0_0=%d", RD_WG_SIZE_0_0);
+#endif
 	// Compile the program
 	error = clBuildProgram(	program, 
 							1, 
 							&device, 
-							"-I./", 
+							clOptions, 
 							NULL, 
 							NULL);
 	// Print warnings and errors from compilation
-	static char log[65536]; 
+	static cl_char log[65536]; 
 	memset(log, 0, sizeof(log));
 	clGetProgramBuildInfo(	program, 
 							device, 
@@ -362,7 +398,7 @@ kernel_gpu_opencl_wrapper(	params_common common,
 	common.in_mem = sizeof(fp) * common.in_elem;
 
 	//==================================================50
-	// endo points
+	// endo points templates
 	//==================================================50
 
 	// common
@@ -376,7 +412,7 @@ kernel_gpu_opencl_wrapper(	params_common common,
 		fatal_CL(error, __LINE__);
 
 	//==================================================50
-	// epi points
+	// epi points templates
 	//==================================================50
 
 	// common
@@ -932,47 +968,186 @@ kernel_gpu_opencl_wrapper(	params_common common,
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
 
-	// shared
-	int local_size_one;
-	local_size_one = common.in_rows;
+	// // local
+	// // int local_size_one;
+	// // local_size_one = common.in_rows;
+	// error = clSetKernelArg(	kernel, 
+							// 25, 
+							// // sizeof(fp) * local_size_one, 	// size 51
+							// sizeof(fp) * common.in_elem,
+							// NULL);
+	// if (error != CL_SUCCESS) 
+		// fatal_CL(error, __LINE__);
+	// error = clSetKernelArg(	kernel, 
+							// 26, 
+							// // sizeof(fp) * local_size_one, 	// size 51
+							// sizeof(fp) * common.in_cols,
+							// NULL);
+	// if (error != CL_SUCCESS) 
+		// fatal_CL(error, __LINE__);
+	// // int local_size_two;
+	// // local_size_two = common.in_rows + common.in2_rows - 1;
+	// error = clSetKernelArg(	kernel, 
+							// 27, 
+							// // sizeof(fp) * local_size_two, 	// size 51+81-1=131
+							// sizeof(fp) * common.in_sqr_rows,
+							// NULL);
+	// if (error != CL_SUCCESS) 
+		// fatal_CL(error, __LINE__);
+	// error = clSetKernelArg(	kernel, 
+							// 28, 
+							// // sizeof(fp) * local_size_two, 	// size 51+81-1=131
+							// sizeof(fp) * common.mask_conv_rows,
+							// NULL);
+	// if (error != CL_SUCCESS) 
+		// fatal_CL(error, __LINE__);
+	// // int local_size_three;
+	// // local_size_three = common.in_rows * common.in_rows;
+	// error = clSetKernelArg(	kernel, 
+							// 29, 
+							// // sizeof(fp) * local_size_three, 	// size 51*51=2601
+							// sizeof(int) * common.mask_conv_rows,
+							// NULL);
+	// if (error != CL_SUCCESS) 
+		// fatal_CL(error, __LINE__);
+
+	// int local_size;
+	// local_size = (common.in_elem + common.in_cols + common.in_sqr_rows + common.mask_conv_rows) * 4 + common.mask_conv_rows * 2;
+	// printf("size of used local memory/workgroup = %dB (ensure that device can handle)\n", local_size);
+
+	cl_mem d_in_mod_temp;
+	d_in_mod_temp = clCreateBuffer(	context, 
+									CL_MEM_READ_WRITE, 
+									sizeof(fp) * common.in_elem * common.allPoints, 
+									NULL, 
+									&error );
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	cl_mem in_partial_sum;
+	in_partial_sum = clCreateBuffer(context, 
+										CL_MEM_READ_WRITE, 
+										sizeof(fp) * common.in_cols * common.allPoints, 
+										NULL, 
+										&error );
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	cl_mem in_sqr_partial_sum;
+	in_sqr_partial_sum = clCreateBuffer(context, 
+										CL_MEM_READ_WRITE, 
+										sizeof(fp) * common.in_sqr_rows * common.allPoints, 
+										NULL, 
+										&error );
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	cl_mem par_max_val;
+	par_max_val = clCreateBuffer(	context, 
+									CL_MEM_READ_WRITE, 
+									sizeof(fp) * common.mask_conv_rows * common.allPoints, 
+									NULL, 
+									&error );
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	cl_mem par_max_coo;
+	par_max_coo = clCreateBuffer(	context, 
+									CL_MEM_READ_WRITE, 
+									sizeof(int) * common.mask_conv_rows * common.allPoints, 
+									NULL, 
+									&error );
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	cl_mem in_final_sum;
+	in_final_sum = clCreateBuffer(	context, 
+									CL_MEM_READ_WRITE, 
+									sizeof(fp) * common.allPoints, 
+									NULL, 
+									&error );
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	cl_mem in_sqr_final_sum;
+	in_sqr_final_sum = clCreateBuffer(	context, 
+										CL_MEM_READ_WRITE, 
+										sizeof(fp) * common.allPoints, 
+										NULL, 
+										&error );
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	cl_mem denomT;
+	denomT = clCreateBuffer(context, 
+							CL_MEM_READ_WRITE, 
+							sizeof(fp) * common.allPoints, 
+							NULL, 
+							&error );
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+
+
+
 	error = clSetKernelArg(	kernel, 
 							25, 
-							sizeof(fp) * local_size_one, 	// size 51
-							NULL);
+							sizeof(cl_mem),
+							(void *) &d_in_mod_temp);
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
 	error = clSetKernelArg(	kernel, 
 							26, 
-							sizeof(fp) * local_size_one, 	// size 51
-							NULL);
+							sizeof(cl_mem),
+							(void *) &in_partial_sum);
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
-	int local_size_two;
-	local_size_two = common.in_rows + common.in2_rows - 1;
 	error = clSetKernelArg(	kernel, 
 							27, 
-							sizeof(fp) * local_size_two, 	// size 51+81-1=131
-							NULL);
+							sizeof(cl_mem),
+							(void *) &in_sqr_partial_sum);
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
 	error = clSetKernelArg(	kernel, 
 							28, 
-							sizeof(fp) * local_size_two, 	// size 51+81-1=131
-							NULL);
+							sizeof(cl_mem),
+							(void *) &par_max_val);
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
-	int local_size_three;
-	local_size_three = common.in_rows * common.in_rows;
 	error = clSetKernelArg(	kernel, 
 							29, 
-							sizeof(fp) * local_size_three, 	// size 51*51=2601
-							NULL);
+							sizeof(cl_mem),
+							(void *) &par_max_coo);
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	error = clSetKernelArg(	kernel, 
+							30, 
+							sizeof(cl_mem),
+							(void *) &in_final_sum);
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	error = clSetKernelArg(	kernel, 
+							31, 
+							sizeof(cl_mem),
+							(void *) &in_sqr_final_sum);
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+	error = clSetKernelArg(	kernel, 
+							32, 
+							sizeof(cl_mem),
+							(void *) &denomT);
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
 
-	int local_size;
-	local_size = 2*local_size_one + 2*local_size_two + local_size_three;
-	printf("size of used local memory/workgroup = %dB (ensure that device can handle)\n", local_size);
+
+
+	cl_mem d_checksum;
+	d_checksum = clCreateBuffer(context, 
+								CL_MEM_READ_WRITE, 
+								sizeof(fp) * CHECK, 
+								NULL, 
+								&error );
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
+
+	error = clSetKernelArg(	kernel, 
+							33, 
+							sizeof(cl_mem),
+							(void *) &d_checksum);
+	if (error != CL_SUCCESS) 
+		fatal_CL(error, __LINE__);
 
 	//====================================================================================================100
 	//	PRINT FRAME PROGRESS START
@@ -1028,7 +1203,7 @@ kernel_gpu_opencl_wrapper(	params_common common,
 			fatal_CL(error, __LINE__);
 		error = clSetKernelArg(	kernel, 
 								2, 
-								sizeof(cl_int), 
+								sizeof(int), 
 								(void *) &frame_no);
 		if (error != CL_SUCCESS) 
 			fatal_CL(error, __LINE__);
@@ -1062,12 +1237,41 @@ kernel_gpu_opencl_wrapper(	params_common common,
 		free(frame);
 
 		//==================================================50
-		//	launch GPU kernel
+		//	print frame progress
 		//==================================================50
 
 		// print frame progress
 		printf("%d ", frame_no);
 		fflush(NULL);
+
+		//==================================================50
+		//	DISPLAY CHECKSUM (TESTING)
+		//==================================================50
+
+#ifdef TEST_CHECKSUM
+		fp* checksum;
+		checksum = (fp*)malloc(sizeof(fp) * CHECK);
+		error = clEnqueueReadBuffer(command_queue,
+									d_checksum,
+									CL_TRUE,
+									0,
+									sizeof(fp)*CHECK,
+									checksum,
+									0,
+									NULL,
+									NULL);
+		if (error != CL_SUCCESS) 
+			fatal_CL(error, __LINE__);
+		printf("CHECKSUM:\n");
+		for(i=0; i<CHECK; i++){
+				printf("%f ", checksum[i]);
+		}
+		printf("\n\n");
+#endif
+
+		//==================================================50
+		//	End
+		//==================================================50
 
 	}
 
@@ -1099,13 +1303,16 @@ kernel_gpu_opencl_wrapper(	params_common common,
 		fatal_CL(error, __LINE__);
 
 	// for testing of the output
-	// int j;
-	// for(i=0; i<common.frames_processed; i++){
-		// for(j=0; j<common.endo_mem; j++){
-			// printf("%d ", tEndoRowLoc[i*common.endoPoints+j]);
-		// }
-		// printf("\n");
-	// }
+#ifdef TEST_OUTPUT
+	int j;
+	for(i=0; i<common.frames_processed; i++){
+		printf("%d: ", i);
+		for(j=0; j<common.endoPoints; j++){
+			printf("%d ", tEndoRowLoc[j*common.no_frames+i]);
+		}
+		printf("\n\n");
+	}
+#endif
 
 	error = clEnqueueReadBuffer(command_queue,
 								d_tEndoColLoc,
@@ -1251,7 +1458,6 @@ kernel_gpu_opencl_wrapper(	params_common common,
 
 }
 
-
 //========================================================================================================================================================================================================200
-//	DEFINE/INCLUDE
+//	END
 //========================================================================================================================================================================================================200

@@ -5,11 +5,11 @@ DEBUGFLAGS = -g
 # by inserting the correct path to the OpenCL
 # lib and inc directories.
 CXXFLAGS = -I$(OPENCL_INC) -c $(DEBUGFLAGS)
-LINKFLAGS = -L$(OPENCL_LIB) -lOpenCL
+LINKFLAGS = -L$(OPENCL_LIB)
 
 # link objects(binaries) together
 a.out: main.o OpenCL.o
-	$(CXX) $(LINKFLAGS) main.o OpenCL.o -o pathfinder
+	$(CXX) main.o OpenCL.o $(LINKFLAGS) -o pathfinder
 
 # compile main function file into object (binary)
 main.o: main.cpp OpenCL.cpp kernels.cl

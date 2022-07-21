@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #define BLOCK_X 16
 #define BLOCK_Y 16
-#define PI acos(-1)
+#define PI 3.1415926535897932
 
 const int threads_per_block = 512;
 

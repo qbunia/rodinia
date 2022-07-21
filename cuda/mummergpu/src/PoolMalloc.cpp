@@ -1,5 +1,6 @@
 #include "PoolMalloc.hh"
 //#include "CUtilities.h"
+#include <stdio.h>
 #include <iostream>
 #include <cstring>
 using namespace std;

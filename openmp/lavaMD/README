@@ -37,3 +37,8 @@ The code takes the followint parameters:
 
 The code can be run as follows:
 ./lavaMD -cores 4 -boxes1d 10
+
+######OUTPUT FOR VALIDATION########
+USAGE:
+make clean
+make OUTPUT=Y

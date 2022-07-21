@@ -110,7 +110,7 @@ char kernel_file[100]  = "Kernels.cl";
 int total_kernels = 5;
 //string kernel_names[9] = {"memset_kernel", "initialize_variables", "compute_step_factor", "compute_flux", "time_step", "compute_speed_sqd", "compute_velocity", "compute_pressure", "compute_speed_of_sound"};
 string kernel_names[5] = {"memset_kernel", "initialize_variables", "compute_step_factor", "compute_flux", "time_step"};
-int work_group_size = 192;
+int work_group_size = BLOCK_SIZE_0;
 int device_id_inused = 0; //deviced id used (default : 0)
 int number_devices = 0;
 
@@ -397,7 +397,8 @@ void _clInit(string device_type, int device_id)throw(string){
 #endif
 	number_devices = deviceListSize;
     // Now, allocate the device list 
-    oclHandles.devices = (cl_device_id *)malloc(deviceListSize);
+	//    oclHandles.devices = (cl_device_id *)malloc(deviceListSize);
+    oclHandles.devices = (cl_device_id *)malloc(sizeof(cl_device_id) * deviceListSize);
 
     if (oclHandles.devices == 0)
         throw(string("InitCL()::Error: Could not allocate memory."));
@@ -1218,7 +1219,7 @@ void _clInvokeKernel(int kernel_id, int work_items, int work_group_size) throw(s
 	}
 	#endif
 	//_clFinish();
-	oclHandles.cl_status = clWaitForEvents(1, &e[0]);
+	//	oclHandles.cl_status = clWaitForEvents(1, &e[0]);
 	#ifdef ERRMSG
     if (oclHandles.cl_status!= CL_SUCCESS){
     	oclHandles.error_str = "excpetion in _clEnqueueNDRange() -> clWaitForEvents ->";
@@ -1349,7 +1350,7 @@ void _clInvokeKernel2D(int kernel_id, int range_x, int range_y, int group_x, int
 	}
 	#endif
 		
-	oclHandles.cl_status = clWaitForEvents(1, &e[0]);
+	//	oclHandles.cl_status = clWaitForEvents(1, &e[0]);
 
 #ifdef ERRMSG
         if (oclHandles.cl_status!= CL_SUCCESS)

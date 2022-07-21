@@ -3,7 +3,7 @@
 #
 
 # DEBUG can be set to YES to include debugging info, or NO otherwise
-DEBUG          := YES
+DEBUG          := NO
 
 # PROFILE can be set to YES to include profiling info, or NO otherwise
 PROFILE        := NO
@@ -31,7 +31,7 @@ COMMON_CDEFS   :=
 # ------------  linker flags  --------------------------------------------------
 DEBUG_LDFLAGS    := -g
 RELEASE_LDFLAGS  := 
-COMMON_LDFLAGS   := -fopenmp
+COMMON_LDFLAGS   := -fopenmp 
 
 ifeq (YES, ${DEBUG})
   CFLAGS       := ${DEBUG_CFLAGS} ${DEBUG_CDEFS}
@@ -60,7 +60,7 @@ GLOBAL_INC_DIR  =
 LOCAL_INC_DIR   = ../common
 
 # ------------  system libraries  (e.g. -lm )  ---------------------------------
-SYS_LIBS        = 
+SYS_LIBS        = -lm
 
 # ------------  additional system library directories  -------------------------
 GLOBAL_LIB_DIR  =

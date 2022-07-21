@@ -94,6 +94,11 @@ reduce_kernel(	long d_Ne,													// number of elements in array
 
 	}
 
+    // Lingjie Zhang modificated at Nov 1, 2015
+	//	barrier(CLK_LOCAL_MEM_FENCE);
+	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); // Lukasz proposed, Ke modified 2015/12/12 22:31:00
+    // end Lingjie Zhang modification
+
 	// reduction of sums if all blocks are full (rare case)	
 	if(nf == NUMBER_THREADS){
 		// sum of every 2, 4, ..., NUMBER_THREADS elements

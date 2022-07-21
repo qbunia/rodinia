@@ -10,7 +10,7 @@ CC_FLAGS = -g -O3
 EXE = gaussian
 
 release:
-	$(CC) $(CC_FLAGS) -lOpenCL  -fopenmp $(SRC) -o $(EXE) -I$(OPENCL_INC) -L$(OPENCL_LIB)
+	$(CC) $(KERNEL_DIM) $(CC_FLAGS) -lOpenCL  -fopenmp $(SRC) -o $(EXE) -I$(OPENCL_INC) -L$(OPENCL_LIB)
 	
 clean: 
 	rm -f $(EXE) 

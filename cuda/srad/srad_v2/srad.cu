@@ -3,13 +3,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include <srad.h>
+#include "srad.h"
 
 // includes, project
 #include <cuda.h>
 
 // includes, kernels
-#include <srad_kernel.cu>
+#include "srad_kernel.cu"
 
 void random_matrix(float *I, int rows, int cols);
 void runTest( int argc, char** argv);
@@ -33,6 +33,7 @@ void usage(int argc, char **argv)
 int
 main( int argc, char** argv) 
 {
+  printf("WG size of kernel = %d X %d\n", BLOCK_SIZE, BLOCK_SIZE);
     runTest( argc, argv);
 
     return EXIT_SUCCESS;

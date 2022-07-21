@@ -156,7 +156,7 @@ MAT *GICOV(MAT *grad_x, MAT *grad_y) {
 	// Cleanup memory
 	free(host_grad_x);
 	free(host_grad_y);
-	free(host_gicov);
+	/* free(host_gicov); */
 
 	return gicov;
 }

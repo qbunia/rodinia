@@ -1845,6 +1845,7 @@ main(	int argc,
 		char** argv ) 
 {
 
+  printf("WG size of kernel 1 = %d WG size of kernel 2 = %d \n", DEFAULT_ORDER, DEFAULT_ORDER_2);
 	// ------------------------------------------------------------60
 	// figure out and display whether 32-bit or 64-bit architecture
 	// ------------------------------------------------------------60
@@ -1959,7 +1960,7 @@ main(	int argc,
 	record *r;
 	int input;
 	char instruction;
-	order = DEFAULT_ORDER;
+	order = DEFAULT_ORDER_2;
 	verbose_output = false;
 
 	//usage_1();  

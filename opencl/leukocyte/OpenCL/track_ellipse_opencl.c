@@ -19,7 +19,8 @@ size_t total_mem_size;
 // The number of work items per work group
 const size_t local_work_size = 256;
 
-
+cl_bool compiled = FALSE;
+cl_kernel IMGVF_kernel;
 
 // Host function that launches an OpenCL kernel to compute the MGVF matrices for the specified cells
 void IMGVF_OpenCL(MAT **I, MAT **IMGVF, double vx, double vy, double e, int max_iterations, double cutoff, int num_cells) {
@@ -29,23 +30,28 @@ void IMGVF_OpenCL(MAT **I, MAT **IMGVF, double vx, double vy, double e, int max_
 	// Initialize the data on the GPU
 	IMGVF_OpenCL_init(I, num_cells);
 	
-	// Load the kernel source from the file
-	const char *source = load_kernel_source("track_ellipse_kernel.cl");
-	size_t sourceSize = strlen(source);
-	
-	// Compile the kernel
-	cl_program program = clCreateProgramWithSource(context, 1, &source, &sourceSize, &error);
-    check_error(error, __FILE__, __LINE__);
-	error = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
-	// Show compiler warnings/errors
-	static char log[65536]; memset(log, 0, sizeof(log));
-	clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(log)-1, log, NULL);
-	if (strstr(log,"warning:") || strstr(log, "error:")) printf("<<<<\n%s\n>>>>\n", log);
-    check_error(error, __FILE__, __LINE__);
-	
-	// Create the IMGVF kernels
-    cl_kernel IMGVF_kernel = clCreateKernel(program, "IMGVF_kernel", &error);
-    check_error(error, __FILE__, __LINE__);
+	if (! compiled) {
+		// Load the kernel source from the file
+		const char *source = load_kernel_source("track_ellipse_kernel.cl");
+		size_t sourceSize = strlen(source);
+
+		// Compile the kernel
+		cl_program program = clCreateProgramWithSource(context, 1, &source, &sourceSize, &error);
+		check_error(error, __FILE__, __LINE__);
+		error = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+		// Show compiler warnings/errors
+		static char log[65536]; memset(log, 0, sizeof(log));
+		clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(log)-1, log, NULL);
+		if (strstr(log,"warning:") || strstr(log, "error:")) printf("<<<<\n%s\n>>>>\n", log);
+		check_error(error, __FILE__, __LINE__);
+
+		// Create the IMGVF kernels
+		IMGVF_kernel = clCreateKernel(program, "IMGVF_kernel", &error);
+		check_error(error, __FILE__, __LINE__);
+
+		// Record that compiling has already completed
+		compiled = TRUE;
+	}
 	
 	// Setup execution parameters
 	size_t num_work_groups = num_cells;

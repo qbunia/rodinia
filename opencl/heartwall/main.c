@@ -16,17 +16,17 @@
 #include <string.h>								// (in directory known to compiler)
 
 //======================================================================================================================================================150
+//	MAIN FUNCTION HEADER
+//======================================================================================================================================================150
+
+#include "./main.h"								// (in the main program folder)	needed to recognized input parameters
+
+//======================================================================================================================================================150
 //	UTILITIES
 //======================================================================================================================================================150
 
 #include "./util/avi/avilib.h"					// (in directory)							needed by avi functions
 #include "./util/avi/avimod.h"					// (in directory)							needed by avi functions
-
-//======================================================================================================================================================150
-//	MAIN FUNCTION HEADER
-//======================================================================================================================================================150
-
-#include "./main.h"								// (in the main program folder)	needed to recognized input parameters
 
 //======================================================================================================================================================150
 //	KERNEL
@@ -46,6 +46,8 @@ int
 main(	int argc, 
 		char* argv []){
 
+
+  printf("WG size of kernel = %d \n", NUMBER_THREADS);
 	//======================================================================================================================================================150
 	//	VARIABLES
 	//======================================================================================================================================================150
@@ -210,6 +212,26 @@ main(	int argc,
 
 	time4 = get_time();
 
+	//==================================================50
+	//	DUMP DATA TO FILE
+	//==================================================50
+#ifdef OUTPUT
+	write_data(	"result.txt",
+			common.no_frames,
+			common.frames_processed,		
+				common.endoPoints,
+				tEndoRowLoc,
+				tEndoColLoc,
+				common.epiPoints,
+				tEpiRowLoc,
+				tEpiColLoc);
+
+#endif
+	//==================================================50
+	//	End
+	//==================================================50
+
+
 	//======================================================================================================================================================150
 	//	DEALLOCATION
 	//======================================================================================================================================================150
@@ -243,13 +265,13 @@ main(	int argc,
 	//======================================================================================================================================================150
 
 	printf("Time spent in different stages of the application:\n");
-	printf("%15.12f s, %15.12f % : READ INITIAL VIDEO FRAME\n",												(float) (time1-time0) / 1000000, (float) (time1-time0) / (float) (time5-time0) * 100);
-	printf("%15.12f s, %15.12f % : READ COMMAND LINE PARAMETERS\n",											(float) (time2-time1) / 1000000, (float) (time2-time1) / (float) (time5-time0) * 100);
-	printf("%15.12f s, %15.12f % : READ INPUTS FROM FILE\n",												(float) (time3-time2) / 1000000, (float) (time3-time2) / (float) (time5-time0) * 100);
-	printf("%15.12f s, %15.12f % : GPU ALLOCATION, COPYING, COMPUTATION\n",									(float) (time4-time3) / 1000000, (float) (time4-time3) / (float) (time5-time0) * 100);
-	printf("%15.12f s, %15.12f % : FREE MEMORY\n", 															(float) (time5-time4) / 1000000, (float) (time5-time4) / (float) (time5-time0) * 100);
+	printf("%15.12f s, %15.12f % : READ INITIAL VIDEO FRAME\n",												(fp) (time1-time0) / 1000000, (fp) (time1-time0) / (fp) (time5-time0) * 100);
+	printf("%15.12f s, %15.12f % : READ COMMAND LINE PARAMETERS\n",											(fp) (time2-time1) / 1000000, (fp) (time2-time1) / (fp) (time5-time0) * 100);
+	printf("%15.12f s, %15.12f % : READ INPUTS FROM FILE\n",												(fp) (time3-time2) / 1000000, (fp) (time3-time2) / (fp) (time5-time0) * 100);
+	printf("%15.12f s, %15.12f % : GPU ALLOCATION, COPYING, COMPUTATION\n",									(fp) (time4-time3) / 1000000, (fp) (time4-time3) / (fp) (time5-time0) * 100);
+	printf("%15.12f s, %15.12f % : FREE MEMORY\n", 															(fp) (time5-time4) / 1000000, (fp) (time5-time4) / (fp) (time5-time0) * 100);
 	printf("Total time:\n");
-	printf("%15.12f s\n", 																					(float) (time5-time0) / 1000000);
+	printf("%15.12f s\n", 																					(fp) (time5-time0) / 1000000);
 
 	//======================================================================================================================================================150
 	//	End

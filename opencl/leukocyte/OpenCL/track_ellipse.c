@@ -173,6 +173,8 @@ void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np,
 			
 			// Output the updated center of each cell
 			// printf("\n%d,%f,%f", cell_num, xci[cell_num], yci[cell_num]);
+
+
 			
 			// Free temporary memory
 			m_free(Isub[cell_num]);
@@ -181,6 +183,21 @@ void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np,
 			m_free(IE[cell_num]);
 			m_free(IMGVF[cell_num]);
 	    }
+
+#ifdef OUTPUT
+		if (frame_num == Nf)
+		  {
+		    FILE * pFile;
+		    pFile = fopen ("result.txt","w+");
+	
+		    for (cell_num = 0; cell_num < Nc; cell_num++)		
+		      fprintf(pFile,"\n%d,%f,%f", cell_num, xci[cell_num], yci[cell_num]);
+
+		    fclose (pFile);
+		  }
+		
+#endif
+
 		
 		free(IMGVF);
 		
@@ -341,8 +358,16 @@ void ellipseevolve(MAT *f, double *xc0, double *yc0, double *r0, double *t, int 
 			double temp_x = m_get_val(fx, i, j);
 			double temp_y = m_get_val(fy, i, j);
 			double fmag = sqrt((temp_x * temp_x) + (temp_y * temp_y));
-			m_set_val(fx, i, j, temp_x / fmag);
-			m_set_val(fy, i, j, temp_y / fmag);
+			// Fix 0/0 error
+			if (fmag > 1E-15) {
+				m_set_val(fx, i, j, temp_x / fmag);
+				m_set_val(fy, i, j, temp_y / fmag);
+			}	else {
+				m_set_val(fx, i, j, 0.0);
+				m_set_val(fy, i, j, 0.0);
+			}
+			/* m_set_val(fx, i, j, temp_x / fmag); */
+			/* m_set_val(fy, i, j, temp_y / fmag); */
 		}
 	}
 	

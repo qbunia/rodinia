@@ -1,5 +1,9 @@
 include ../../../common/make.config
 
+ifdef OUTPUT
+override OUTPUT = -DOUTPUT
+endif
+
 # C compiler
 CC = gcc
 CC_FLAGS = -g -O3 -Wall -I$(MATRIX_DIR)
@@ -28,7 +32,7 @@ leukocyte: detect_main.o avilib.o find_ellipse.o find_ellipse_kernel.o track_ell
 	$(CC) $(CC_FLAGS) -lm avilib.o find_ellipse.o find_ellipse_kernel.o track_ellipse.o track_ellipse_kernel.o misc_math.o detect_main.o -o leukocyte $(MATRIX_DIR)/meschach.a -L$(CUDA_LIB_DIR) -lm -lcuda -lcudart
 
 %.o: %.[ch]
-	$(CC) $(CC_FLAGS) $< -c
+	$(CC)  $(OUTPUT) $(CC_FLAGS) $< -c
 
 detect_main.o: detect_main.c find_ellipse.h track_ellipse.h avilib.h 
 	$(CC) $(CC_FLAGS) detect_main.c -c

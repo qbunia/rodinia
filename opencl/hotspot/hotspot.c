@@ -143,6 +143,7 @@ void usage(int argc, char **argv) {
 
 int main(int argc, char** argv) {
 
+  printf("WG size of kernel = %d X %d\n", BLOCK_SIZE, BLOCK_SIZE);
 
 	cl_int error;
 	cl_uint num_platforms;
@@ -235,8 +236,15 @@ int main(int argc, char** argv) {
     cl_program program = clCreateProgramWithSource(context, 1, &source, &sourceSize, &error);
     if (error != CL_SUCCESS) fatal_CL(error, __LINE__);
 	
+	char clOptions[110];
+	//  sprintf(clOptions,"-I../../src"); 
+	sprintf(clOptions," ");
+#ifdef BLOCK_SIZE
+	sprintf(clOptions + strlen(clOptions), " -DBLOCK_SIZE=%d", BLOCK_SIZE);
+#endif
+
     // Create an executable from the kernel
-	error = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+	error = clBuildProgram(program, 1, &device, clOptions, NULL, NULL);
 	// Show compiler warnings/errors
 	static char log[65536]; memset(log, 0, sizeof(log));
 	clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(log)-1, log, NULL);
@@ -253,8 +261,13 @@ int main(int argc, char** argv) {
 	// Create input memory buffers on device
 	MatrixTemp[0] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, sizeof(float) * size, FilesavingTemp, &error);
 	if (error != CL_SUCCESS) fatal_CL(error, __LINE__);
-	MatrixTemp[1] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sizeof(float) * size, NULL, &error);
-	if (error != CL_SUCCESS) fatal_CL(error, __LINE__);
+    
+    // Lingjie Zhang modifited at Nov 1, 2015
+    //MatrixTemp[1] = clCreateBuffer(context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, sizeof(float) * size, NULL, &error);
+    MatrixTemp[1] = clCreateBuffer(context, CL_MEM_READ_WRITE , sizeof(float) * size, NULL, &error);
+    // end Lingjie Zhang modification
+    
+    if (error != CL_SUCCESS) fatal_CL(error, __LINE__);
 	
 	// Copy the power input data
 	cl_mem MatrixPower = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR, sizeof(float) * size, FilesavingPower, &error);
@@ -281,5 +294,7 @@ int main(int argc, char** argv) {
 	clReleaseMemObject(MatrixTemp[1]);
 	clReleaseMemObject(MatrixPower);
 	
+        clReleaseContext(context);
+
 	return 0;
 }

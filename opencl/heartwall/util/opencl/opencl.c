@@ -126,7 +126,7 @@ fatal_CL(cl_int error, int line_no) {
 		#ifdef CL_VERSION_1_1
 		case CL_MISALIGNED_SUB_BUFFER_OFFSET: 				printf("CL_MISALIGNED_SUB_BUFFER_OFFSET\n"); break;
 		case CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST:	printf("CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST\n"); break;
-		case CL_INVALID_PROPERTY: 							printf("CL_INVALID_PROPERTY\n"); break;
+		/* case CL_INVALID_PROPERTY: 							printf("CL_INVALID_PROPERTY\n"); break; */
 		#endif
 
 		default:											printf("Invalid OpenCL error code\n");

@@ -3,12 +3,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
-#include <needle.h>
+#include "needle.h"
 #include <cuda.h>
 #include <sys/time.h>
 
 // includes, kernels
-#include <needle_kernel.cu>
+#include "needle_kernel.cu"
 
 ////////////////////////////////////////////////////////////////////////////////
 // declaration, forward
@@ -54,6 +54,9 @@ double gettime() {
 int
 main( int argc, char** argv) 
 {
+
+  printf("WG size of kernel = %d \n", BLOCK_SIZE);
+
     runTest( argc, argv);
 
     return EXIT_SUCCESS;
@@ -71,7 +74,7 @@ void runTest( int argc, char** argv)
 {
     int max_rows, max_cols, penalty;
     int *input_itemsets, *output_itemsets, *referrence;
-	int *matrix_cuda, *matrix_cuda_out, *referrence_cuda;
+	int *matrix_cuda,  *referrence_cuda;
 	int size;
 	
     
@@ -137,7 +140,6 @@ void runTest( int argc, char** argv)
     size = max_cols * max_rows;
 	cudaMalloc((void**)& referrence_cuda, sizeof(int)*size);
 	cudaMalloc((void**)& matrix_cuda, sizeof(int)*size);
-	cudaMalloc((void**)& matrix_cuda_out, sizeof(int)*size);
 	
 	cudaMemcpy(referrence_cuda, referrence, sizeof(int) * size, cudaMemcpyHostToDevice);
 	cudaMemcpy(matrix_cuda, input_itemsets, sizeof(int) * size, cudaMemcpyHostToDevice);
@@ -151,7 +153,7 @@ void runTest( int argc, char** argv)
 	for( int i = 1 ; i <= block_width ; i++){
 		dimGrid.x = i;
 		dimGrid.y = 1;
-		needle_cuda_shared_1<<<dimGrid, dimBlock>>>(referrence_cuda, matrix_cuda, matrix_cuda_out
+		needle_cuda_shared_1<<<dimGrid, dimBlock>>>(referrence_cuda, matrix_cuda
 		                                      ,max_cols, penalty, i, block_width); 
 	}
 	printf("Processing bottom-right matrix\n");
@@ -159,7 +161,7 @@ void runTest( int argc, char** argv)
 	for( int i = block_width - 1  ; i >= 1 ; i--){
 		dimGrid.x = i;
 		dimGrid.y = 1;
-		needle_cuda_shared_2<<<dimGrid, dimBlock>>>(referrence_cuda, matrix_cuda, matrix_cuda_out
+		needle_cuda_shared_2<<<dimGrid, dimBlock>>>(referrence_cuda, matrix_cuda
 		                                      ,max_cols, penalty, i, block_width); 
 	}
 
@@ -229,7 +231,6 @@ void runTest( int argc, char** argv)
 
 	cudaFree(referrence_cuda);
 	cudaFree(matrix_cuda);
-	cudaFree(matrix_cuda_out);
 
 	free(referrence);
 	free(input_itemsets);

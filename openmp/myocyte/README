@@ -4,6 +4,6 @@
 // 3) Method of parallelization. Need to be 0 for parallelization inside each simulation instance, or 1 for parallelization across instances.
 // 4) Number of threads to use. Needs to be integer > 0.
 // Example:
-// myocyte.out 100 100 1 4
+// a.out 100 100 1 4
 //
 // for more information see main.c

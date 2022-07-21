@@ -12,7 +12,7 @@
 #define BLOCKS_PER_DIM 16
 #define THREADS_PER_BLOCK THREADS_PER_DIM*THREADS_PER_DIM
 
-#include <kmeans_cuda_kernel.cu>
+#include "kmeans_cuda_kernel.cu"
 
 
 //#define BLOCK_DELTA_REDUCE

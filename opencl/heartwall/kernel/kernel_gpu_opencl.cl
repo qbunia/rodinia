@@ -16,55 +16,67 @@
 //	KERNEL
 //========================================================================================================================================================================================================200
 
-// #pragma OPENCL EXTENSION cl_amd_printf : enable
-
 __kernel void 
 kernel_gpu_opencl(	// structures
-					params_common d_common,
+					params_common d_common,					// 0
 
 					// common_change
-					__global fp* d_frame,
-					int d_frame_no,
+					__global fp* d_frame,					// 1	INPUT
+					int d_frame_no,							// 2	INPUT
 
 					// common
-					__global int* d_endoRow,
-					__global int* d_endoCol,
-					__global int* d_tEndoRowLoc,
-					__global int* d_tEndoColLoc,
-					__global int* d_epiRow,
-					__global int* d_epiCol,
-					__global int* d_tEpiRowLoc,
-					__global int* d_tEpiColLoc,
+					__global int* d_endoRow,				// 3	INPUT
+					__global int* d_endoCol,				// 4	INPUT
+					__global int* d_tEndoRowLoc,			// 5	OUTPUT	common.endoPoints * common.no_frames
+					__global int* d_tEndoColLoc,			// 6	OUTPUT	common.endoPoints * common.no_frames
+					__global int* d_epiRow,					// 7	INPUT
+					__global int* d_epiCol,					// 8	INPUT
+					__global int* d_tEpiRowLoc,				// 9	OUTPUT	common.epiPoints * common.no_frames
+					__global int* d_tEpiColLoc,				// 10	OUTPUT	common.epiPoints * common.no_frames
 
 					// common_unique
-					__global fp* d_endoT,
-					__global fp* d_epiT,
-					__global fp* d_in2_all,
-					__global fp* d_conv_all,
-					__global fp* d_in2_pad_cumv_all,
-					__global fp* d_in2_pad_cumv_sel_all,
-					__global fp* d_in2_sub_cumh_all,
-					__global fp* d_in2_sub_cumh_sel_all,
-					__global fp* d_in2_sub2_all,
-					__global fp* d_in2_sqr_all,
-					__global fp* d_in2_sqr_sub2_all,
-					__global fp* d_in_sqr_all,
-					__global fp* d_tMask_all,
-					__global fp* d_mask_conv_all,
+					__global fp* d_endoT,					// 11	OUTPUT	common.in_elem * common.endoPoints
+					__global fp* d_epiT,					// 12	OUTPUT	common.in_elem * common.epiPoints
+					__global fp* d_in2_all,					// 13	OUTPUT	common.in2_elem * common.allPoints
+					__global fp* d_conv_all,				// 14	OUTPUT	common.conv_elem * common.allPoints
+					__global fp* d_in2_pad_cumv_all,		// 15	OUTPUT	common.in2_pad_cumv_elem * common.allPoints
+					__global fp* d_in2_pad_cumv_sel_all,	// 16	OUTPUT	common.in2_pad_cumv_sel_elem * common.allPoints
+					__global fp* d_in2_sub_cumh_all,		// 17	OUTPUT	common.in2_sub_cumh_elem * common.allPoints
+					__global fp* d_in2_sub_cumh_sel_all,	// 18	OUTPUT	common.in2_sub_cumh_sel_elem * common.allPoints
+					__global fp* d_in2_sub2_all,			// 19	OUTPUT	common.in2_sub2_elem * common.allPoints
+					__global fp* d_in2_sqr_all,				// 20	OUTPUT	common.in2_elem * common.allPoints
+					__global fp* d_in2_sqr_sub2_all,		// 21	OUTPUT	common.in2_sub2_elem * common.allPoints
+					__global fp* d_in_sqr_all,				// 22	OUTPUT	common.in_elem * common.allPoints
+					__global fp* d_tMask_all,				// 23	OUTPUT	common.tMask_elem * common.allPoints
+					__global fp* d_mask_conv_all,			// 24	OUTPUT	common.mask_conv_elem * common.allPoints
+
+					// // local
+					// __local fp* d_in_mod_temp,			// 25	OUTPUT	common.in_elem
+					// __local fp* in_partial_sum,			// 26	OUTPUT	common.in_cols
+					// __local fp* in_sqr_partial_sum,		// 27	OUTPUT	common.in_sqr_rows
+					// __local fp* par_max_val,				// 28	OUTPUT	common.mask_conv_rows
+					// __local int* par_max_coo)			// 29	OUTPUT	common.mask_conv_rows
 
 					// local
-					__local fp* d_in_mod_temp,
-					__local fp* in_partial_sum,
-					__local fp* in_sqr_partial_sum,
-					__local fp* par_max_val,
-					__local int* par_max_coo)
+					__global fp* d_in_mod_temp_all,			// 25	OUTPUT	common.in_elem * common.allPoints
+					__global fp* in_partial_sum_all,		// 26	OUTPUT	common.in_cols * common.allPoints
+					__global fp* in_sqr_partial_sum_all,	// 27	OUTPUT	common.in_sqr_rows * common.allPoints
+					__global fp* par_max_val_all,			// 28	OUTPUT	common.mask_conv_rows * common.allPoints
+					__global int* par_max_coo_all,			// 29	OUTPUT	common.mask_conv_rows * common.allPoints
+
+					__global fp* in_final_sum_all,			// 30	OUTPUT	common.allPoints
+					__global fp* in_sqr_final_sum_all,		// 31	OUTPUT	common.allPoints
+					__global fp* denomT_all,				// 32	OUTPUT	common.allPoints
+
+					__global fp* checksum)					// 33	OUTPUT	100
+
 {
 
 	//======================================================================================================================================================150
 	//	COMMON VARIABLES
 	//======================================================================================================================================================150
 
-	__global fp* d_in;
+	// __global fp* d_in;
 	int rot_row;
 	int rot_col;
 	int in2_rowlow;
@@ -111,9 +123,9 @@ kernel_gpu_opencl(	// structures
 	int ori_pointer;
 	int loc_pointer;
 
-	__local fp in_final_sum;
-	__local fp in_sqr_final_sum;
-	__local fp denomT;
+	// __local fp in_final_sum;
+	// __local fp in_sqr_final_sum;
+	// __local fp denomT;
 
 	//======================================================================================================================================================150
 	//	BLOCK/THREAD IDs
@@ -123,37 +135,38 @@ kernel_gpu_opencl(	// structures
 	int tx = get_local_id(0);															// get current horizontal thread index (0-n)
 	int ei_new;
 
-	//====================================================================================================100
+	//======================================================================================================================================================150
 	//	UNIQUE STRUCTURE RECONSTRUCTED HERE
-	//====================================================================================================100
+	//======================================================================================================================================================150
 
+	// common
 	__global fp* d_common_change_d_frame = &d_frame[0];
 
+	// offsets for either endo or epi points (separate arrays for endo and epi points)
 	int d_unique_point_no;
 	__global int* d_unique_d_Row;
 	__global int* d_unique_d_Col;
 	__global int* d_unique_d_tRowLoc;
 	__global int* d_unique_d_tColLoc;
-	__global fp* d_unique_d_T;
+	__global fp* d_in;
 	if(bx < d_common.endoPoints){
-		d_unique_point_no = bx;
-		d_unique_d_Row = d_endoRow;
-		d_unique_d_Col = d_endoCol;
-		d_unique_d_tRowLoc = d_tEndoRowLoc;
-		d_unique_d_tColLoc = d_tEndoColLoc;
-		d_unique_d_T = d_endoT;
+		d_unique_point_no = bx;													// endo point number 0-???
+		d_unique_d_Row = d_endoRow;												// initial endo row coordinates
+		d_unique_d_Col = d_endoCol;												// initial endo col coordinates
+		d_unique_d_tRowLoc = d_tEndoRowLoc;										// all endo row coordinates
+		d_unique_d_tColLoc = d_tEndoColLoc;										// all endo col coordinates
+		d_in = &d_endoT[d_unique_point_no * d_common.in_elem];					// endo templates
 	}
 	else{
-		d_unique_point_no = bx-d_common.endoPoints;
-		d_unique_d_Row = d_epiRow;
-		d_unique_d_Col = d_epiCol;
-		d_unique_d_tRowLoc = d_tEpiRowLoc;
-		d_unique_d_tColLoc = d_tEpiColLoc;
-		d_unique_d_T = d_epiT;
+		d_unique_point_no = bx-d_common.endoPoints;								// epi point number 0-???
+		d_unique_d_Row = d_epiRow;												// initial epi row coordinates
+		d_unique_d_Col = d_epiCol;												// initial epi col coordinates
+		d_unique_d_tRowLoc = d_tEpiRowLoc;										// all epi row coordinates
+		d_unique_d_tColLoc = d_tEpiColLoc;										// all epi col coordinates
+		d_in = &d_epiT[d_unique_point_no * d_common.in_elem];					// epi templates
 	}
 
-	int d_unique_in_pointer = d_unique_point_no * d_common.in_elem;
-
+	// offsets for all points (one array for all points)
 	__global fp* d_unique_d_in2 = &d_in2_all[bx*d_common.in2_elem];
 	__global fp* d_unique_d_conv = &d_conv_all[bx*d_common.conv_elem];
 	__global fp* d_unique_d_in2_pad_cumv = &d_in2_pad_cumv_all[bx*d_common.in2_pad_cumv_elem];
@@ -167,23 +180,65 @@ kernel_gpu_opencl(	// structures
 	__global fp* d_unique_d_tMask = &d_tMask_all[bx*d_common.tMask_elem];
 	__global fp* d_unique_d_mask_conv = &d_mask_conv_all[bx*d_common.mask_conv_elem];
 
-	//====================================================================================================100
-	//	END
-	//====================================================================================================100
+	// used to be local
+	__global fp* d_in_mod_temp = &d_in_mod_temp_all[bx*d_common.in_elem];
+	__global fp* in_partial_sum = &in_partial_sum_all[bx*d_common.in_cols];
+	__global fp* in_sqr_partial_sum = &in_sqr_partial_sum_all[bx*d_common.in_sqr_rows];
+	__global fp* par_max_val = &par_max_val_all[bx*d_common.mask_conv_rows];
+	__global int* par_max_coo = &par_max_coo_all[bx*d_common.mask_conv_rows];
+
+	__global fp* in_final_sum = &in_final_sum_all[bx];
+	__global fp* in_sqr_final_sum = &in_sqr_final_sum_all[bx];
+	__global fp* denomT = &denomT_all[bx];
 
 	//======================================================================================================================================================150
-	//	GENERATE TEMPLATE
+	//	END
+	//======================================================================================================================================================150
+
+	//======================================================================================================================================================150
+	//	Initialize checksum
+	//======================================================================================================================================================150
+#ifdef TEST_CHECKSUM
+	if(bx==0 && tx==0){
+
+		for(i=0; i<CHECK; i++){
+			checksum[i] = 0;
+		}
+
+	}
+#endif
+	//======================================================================================================================================================150
+	//	INITIAL COORDINATE AND TEMPLATE UPDATE
 	//======================================================================================================================================================150
 
 	// generate templates based on the first frame only
 	if(d_frame_no == 0){
 
 		//====================================================================================================100
-		// GET POINTER TO TEMPLATE FOR THE POINT
+		//	Initialize cross-frame variables
+		//====================================================================================================100
+#ifdef INIT
+		// only the first thread initializes
+		if(tx==0){
+
+			// this block and for all frames
+			for(i=0; i<d_common.no_frames; i++){
+				d_unique_d_tRowLoc[d_unique_point_no*d_common.no_frames+i] = 0;
+				d_unique_d_tColLoc[d_unique_point_no*d_common.no_frames+i] = 0;
+			}
+
+			// this block
+			for(i=0; i<d_common.in_elem; i++){
+				d_in[i] = 0;
+			}
+
+		}
+#endif
+		//====================================================================================================100
+		//	SYNCHRONIZE THREADS
 		//====================================================================================================100
 
-		// pointers to: current template for current point
-		d_in = &d_unique_d_T[d_unique_in_pointer];
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
 		//====================================================================================================100
 		//	UPDATE ROW LOC AND COL LOC
@@ -230,6 +285,28 @@ kernel_gpu_opencl(	// structures
 		}
 
 		//====================================================================================================100
+		//	SYNCHRONIZE THREADS
+		//====================================================================================================100
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//====================================================================================================100
+		//	CHECKSUM
+		//====================================================================================================100
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in_elem; i++){
+				checksum[0] = checksum[0]+d_in[i];
+			}
+		}
+
+		//====================================================================================================100
+		//	SYNCHRONIZE THREADS
+		//====================================================================================================100
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//====================================================================================================100
 		//	End
 		//====================================================================================================100
 
@@ -241,6 +318,79 @@ kernel_gpu_opencl(	// structures
 
 	// process points in all frames except for the first one
 	if(d_frame_no != 0){
+
+		//====================================================================================================100
+		//	Initialize frame-specific variables
+		//====================================================================================================100
+#ifdef INIT
+		// only the first thread initializes
+		if(tx==0){
+
+			// this block
+			for(i=0; i<d_common.in2_elem; i++){
+				d_unique_d_in2[i] = 0;
+			}
+			for(i=0; i<d_common.conv_elem; i++){
+				d_unique_d_conv[i] = 0;
+			}
+			for(i=0; i<d_common.in2_pad_cumv_elem; i++){
+				d_unique_d_in2_pad_cumv[i] = 0;
+			}
+			for(i=0; i<d_common.in2_pad_cumv_sel_elem; i++){
+				d_unique_d_in2_pad_cumv_sel[i] = 0;
+			}
+			for(i=0; i<d_common.in2_sub_cumh_elem; i++){
+				d_unique_d_in2_sub_cumh[i] = 0;
+			}
+			for(i=0; i<d_common.in2_sub_cumh_sel_elem; i++){
+				d_unique_d_in2_sub_cumh_sel[i] = 0;
+			}
+			for(i=0; i<d_common.in2_sub2_elem; i++){
+				d_unique_d_in2_sub2[i] = 0;
+			}
+			for(i=0; i<d_common.in2_sqr_elem; i++){
+				d_unique_d_in2_sqr[i] = 0;
+			}
+			for(i=0; i<d_common.in2_sqr_sub2_elem; i++){
+				d_unique_d_in2_sqr_sub2[i] = 0;
+			}
+			for(i=0; i<d_common.in_sqr_elem; i++){
+				d_unique_d_in_sqr[i] = 0;
+			}
+			for(i=0; i<d_common.tMask_elem; i++){
+				d_unique_d_tMask[i] = 0;
+			}
+			for(i=0; i<d_common.mask_conv_elem; i++){
+				d_unique_d_mask_conv[i] = 0;
+			}
+
+			for(i=0; i<d_common.in_elem; i++){
+				d_in_mod_temp[i] = 0;
+			}
+			for(i=0; i<d_common.in_cols; i++){
+				in_partial_sum[i] = 0;
+			}
+			for(i=0; i<d_common.in_sqr_rows; i++){
+				in_sqr_partial_sum[i] = 0;
+			}
+			for(i=0; i<d_common.mask_conv_rows; i++){
+				par_max_val[i] = 0;
+			}
+			for(i=0; i<d_common.mask_conv_rows; i++){
+				par_max_coo[i] = 0;
+			}
+
+			in_final_sum[0] = 0;
+			in_sqr_final_sum[0] = 0;
+			denomT[0] = 0;
+
+		}
+#endif
+		//====================================================================================================100
+		//	SYNCHRONIZE THREADS
+		//====================================================================================================100
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
 		//====================================================================================================100
 		//	SELECTION
@@ -275,8 +425,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//====================================================================================================100
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//====================================================================================================100
+		//	CHECKSUM
+		//====================================================================================================100
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_elem; i++){
+				checksum[1] = checksum[1]+d_unique_d_in2[i];
+			}
+		}
+
+		//====================================================================================================100
+		//	SYNCHRONIZE THREADS
+		//====================================================================================================100
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//====================================================================================================100
 		//	CONVOLUTION
 		//====================================================================================================100
@@ -284,9 +450,6 @@ kernel_gpu_opencl(	// structures
 		//==================================================50
 		//	ROTATION
 		//==================================================50
-
-		// variables
-		d_in = &d_unique_d_T[d_unique_in_pointer];
 
 		// work
 		ei_new = tx;
@@ -333,8 +496,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in_elem; i++){
+				checksum[2] = checksum[2]+d_in_mod_temp[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	ACTUAL CONVOLUTION
 		//==================================================50
@@ -401,23 +580,39 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//====================================================================================================100
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//====================================================================================================100
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.conv_elem; i++){
+				checksum[3] = checksum[3]+d_unique_d_conv[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
+		//	End
+		//==================================================50
 
 		//====================================================================================================100
-		//	CUMULATIVE SUM
+		// 	CUMULATIVE SUM	(LOCAL)
 		//====================================================================================================100
 
 		//==================================================50
-		//	PAD ARRAY, VERTICAL CUMULATIVE SUM
-		//==================================================50
-
-		//==================================================
 		//	PADD ARRAY
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -449,15 +644,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//==================================================
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//==================================================
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-		//==================================================
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_pad_cumv_elem; i++){
+				checksum[4] = checksum[4]+d_unique_d_in2_pad_cumv[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	VERTICAL CUMULATIVE SUM
-		//==================================================
+		//==================================================50
 
 		//work
 		ei_new = tx;
@@ -484,8 +695,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_pad_cumv_cols; i++){
+				checksum[5] = checksum[5]+d_unique_d_in2_pad_cumv[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	SELECTION
 		//==================================================50
@@ -516,15 +743,27 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
 		//==================================================50
-		//	SELECTION 2, SUBTRACTION, HORIZONTAL CUMULATIVE SUM
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_pad_cumv_sel_elem; i++){
+				checksum[6] = checksum[6]+d_unique_d_in2_pad_cumv_sel[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		//==================================================
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	SELECTION 2
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -548,16 +787,32 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//==================================================
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//==================================================
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-		//==================================================
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub_cumh_elem; i++){
+				checksum[7] = checksum[7]+d_unique_d_in2_sub_cumh[i];
+			}
+		}
+#endif
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//==================================================50
 		//	SUBTRACTION
-		//==================================================
-		
+		//==================================================50
+
 		// work
 		ei_new = tx;
 		while(ei_new < d_common.in2_sub_cumh_elem){
@@ -570,15 +825,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//==================================================
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//==================================================
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-		//==================================================
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub_cumh_elem; i++){
+				checksum[8] = checksum[8]+d_unique_d_in2_sub_cumh[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	HORIZONTAL CUMULATIVE SUM
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -605,8 +876,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub_cumh_elem; i++){
+				checksum[9] = checksum[9]+d_unique_d_in2_sub_cumh[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	SELECTION
 		//==================================================50
@@ -637,15 +924,27 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
 		//==================================================50
-		//	SELECTION 2, SUBTRACTION
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub_cumh_sel_elem; i++){
+				checksum[10] = checksum[10]+d_unique_d_in2_sub_cumh_sel[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		//==================================================
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	SELECTION 2
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -669,15 +968,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//==================================================
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//==================================================
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-		//==================================================
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub2_elem; i++){
+				checksum[11] = checksum[11]+d_unique_d_in2_sub2[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	SUBTRACTION
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -691,11 +1006,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//====================================================================================================100
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//====================================================================================================100
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub2_elem; i++){
+				checksum[12] = checksum[12]+d_unique_d_in2_sub2[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
+		//	End
+		//==================================================50
 
 		//====================================================================================================100
 		//	CUMULATIVE SUM 2
@@ -721,15 +1056,31 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sqr_elem; i++){
+				checksum[13] = checksum[13]+d_unique_d_in2_sqr[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	PAD ARRAY, VERTICAL CUMULATIVE SUM
 		//==================================================50
 
-		//==================================================
+		//==================================================50
 		//	PAD ARRAY
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -761,15 +1112,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//==================================================
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//==================================================
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-		//==================================================
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_pad_cumv_elem; i++){
+				checksum[14] = checksum[14]+d_unique_d_in2_pad_cumv[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	VERTICAL CUMULATIVE SUM
-		//==================================================
+		//==================================================50
 
 		//work
 		ei_new = tx;
@@ -796,8 +1163,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_pad_cumv_elem; i++){
+				checksum[15] = checksum[15]+d_unique_d_in2_pad_cumv[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	SELECTION
 		//==================================================50
@@ -828,15 +1211,27 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
 		//==================================================50
-		//	SELECTION 2, SUBTRACTION, HORIZONTAL CUMULATIVE SUM
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_pad_cumv_sel_elem; i++){
+				checksum[16] = checksum[16]+d_unique_d_in2_pad_cumv_sel[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		//==================================================
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	SELECTION 2
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -860,15 +1255,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//==================================================
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//==================================================
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-		//==================================================
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub_cumh_elem; i++){
+				checksum[17] = checksum[17]+d_unique_d_in2_sub_cumh[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	SUBTRACTION
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -882,9 +1293,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//==================================================
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub_cumh_elem; i++){
+				checksum[18] = checksum[18]+d_unique_d_in2_sub_cumh[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	HORIZONTAL CUMULATIVE SUM
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -911,8 +1344,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub_cumh_rows; i++){
+				checksum[19] = checksum[19]+d_unique_d_in2_sub_cumh[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	SELECTION
 		//==================================================50
@@ -943,15 +1392,27 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
 		//==================================================50
-		//	SELECTION 2, SUBTRACTION
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub_cumh_sel_elem; i++){
+				checksum[20] = checksum[20]+d_unique_d_in2_sub_cumh_sel[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		//==================================================
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	SELECTION 2
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -975,15 +1436,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//==================================================
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//==================================================
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-		//==================================================
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub2_elem; i++){
+				checksum[21] = checksum[21]+d_unique_d_in2_sqr_sub2[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
 		//	SUBTRACTION
-		//==================================================
+		//==================================================50
 
 		// work
 		ei_new = tx;
@@ -997,11 +1474,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//====================================================================================================100
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//====================================================================================================100
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub2_elem; i++){
+				checksum[22] = checksum[22]+d_unique_d_in2_sqr_sub2[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
+		//	End
+		//==================================================50
 
 		//====================================================================================================100
 		//	FINAL
@@ -1032,8 +1529,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub2_elem; i++){
+				checksum[23] = checksum[23]+d_unique_d_in2_sqr_sub2[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	MULTIPLICATION
 		//==================================================50
@@ -1054,8 +1567,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in_sqr_elem; i++){
+				checksum[24] = checksum[24]+d_unique_d_in_sqr[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	IN SUM
 		//==================================================50
@@ -1081,8 +1610,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in_cols; i++){
+				checksum[25] = checksum[25]+in_partial_sum[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	IN_SQR SUM
 		//==================================================50
@@ -1107,24 +1652,42 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in_sqr_rows; i++){
+				checksum[26] = checksum[26]+in_sqr_partial_sum[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	FINAL SUMMATION
 		//==================================================50
 
 		if(tx == 0){
 
-			in_final_sum = 0;
+			in_final_sum[0] = 0;
 			for(i = 0; i<d_common.in_cols; i++){
-				in_final_sum = in_final_sum + in_partial_sum[i];
+				// in_final_sum = in_final_sum + in_partial_sum[i];
+				in_final_sum[0] = in_final_sum[0] + in_partial_sum[i];
 			}
 
 		}else if(tx == 1){
 
-			in_sqr_final_sum = 0;
+			in_sqr_final_sum[0] = 0;
 			for(i = 0; i<d_common.in_sqr_cols; i++){
-				in_sqr_final_sum = in_sqr_final_sum + in_sqr_partial_sum[i];
+				// in_sqr_final_sum = in_sqr_final_sum + in_sqr_partial_sum[i];
+				in_sqr_final_sum[0] = in_sqr_final_sum[0] + in_sqr_partial_sum[i];
 			}
 
 		}
@@ -1133,20 +1696,37 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			checksum[27] = checksum[27]+in_final_sum[0]+in_sqr_final_sum[0];
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	DENOMINATOR T
 		//==================================================50
 
 		if(tx == 0){
 
-			mean = in_final_sum / d_common.in_elem;													// gets mean (average) value of element in ROI
+			// mean = in_final_sum / d_common.in_elem;													// gets mean (average) value of element in ROI
+			mean = in_final_sum[0] / d_common.in_elem;													// gets mean (average) value of element in ROI
 			mean_sqr = mean * mean;
-			variance  = (in_sqr_final_sum / d_common.in_elem) - mean_sqr;							// gets variance of ROI
+			// variance  = (in_sqr_final_sum / d_common.in_elem) - mean_sqr;							// gets variance of ROI
+			variance  = (in_sqr_final_sum[0] / d_common.in_elem) - mean_sqr;							// gets variance of ROI
 			deviation = sqrt(variance);																// gets standard deviation of ROI
 
-			denomT = sqrt((float)(d_common.in_elem-1))*deviation;
+			// denomT = sqrt((float)(d_common.in_elem-1))*deviation;
+			denomT[0] = sqrt((float)(d_common.in_elem-1))*deviation;
 
 		}
 
@@ -1154,8 +1734,22 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			checksum[28] = checksum[28]+denomT[i];
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	DENOMINATOR		SAVE RESULT IN CUMULATIVE SUM A2
 		//==================================================50
@@ -1164,7 +1758,8 @@ kernel_gpu_opencl(	// structures
 		ei_new = tx;
 		while(ei_new < d_common.in2_sub2_elem){
 
-			d_unique_d_in2_sqr_sub2[ei_new] = d_unique_d_in2_sqr_sub2[ei_new] * denomT;
+			// d_unique_d_in2_sqr_sub2[ei_new] = d_unique_d_in2_sqr_sub2[ei_new] * denomT;
+			d_unique_d_in2_sqr_sub2[ei_new] = d_unique_d_in2_sqr_sub2[ei_new] * denomT[0];
 
 			// go for second round
 			ei_new = ei_new + NUMBER_THREADS;
@@ -1175,8 +1770,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub2_elem; i++){
+				checksum[29] = checksum[29]+d_unique_d_in2_sqr_sub2[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	NUMERATOR	SAVE RESULT IN CONVOLUTION
 		//==================================================50
@@ -1185,7 +1796,8 @@ kernel_gpu_opencl(	// structures
 		ei_new = tx;
 		while(ei_new < d_common.conv_elem){
 
-			d_unique_d_conv[ei_new] = d_unique_d_conv[ei_new] - d_unique_d_in2_sub2[ei_new] * in_final_sum / d_common.in_elem;
+			// d_unique_d_conv[ei_new] = d_unique_d_conv[ei_new] - d_unique_d_in2_sub2[ei_new] * in_final_sum / d_common.in_elem;
+			d_unique_d_conv[ei_new] = d_unique_d_conv[ei_new] - d_unique_d_in2_sub2[ei_new] * in_final_sum[0] / d_common.in_elem;
 
 			// go for second round
 			ei_new = ei_new + NUMBER_THREADS;
@@ -1196,8 +1808,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.conv_elem; i++){
+				checksum[30] = checksum[30]+d_unique_d_conv[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	CORRELATION	SAVE RESULT IN CUMULATIVE SUM A2
 		//==================================================50
@@ -1213,15 +1841,33 @@ kernel_gpu_opencl(	// structures
 
 		}
 
+
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in2_sub2_elem; i++){
+				checksum[31] = checksum[31]+d_unique_d_in2_sqr_sub2[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	End
 		//==================================================50
-
-		//====================================================================================================100
-		//	SYNCHRONIZE THREADS
-		//====================================================================================================100
-
-		barrier(CLK_LOCAL_MEM_FENCE);
 
 		//====================================================================================================100
 		//	TEMPLATE MASK CREATE
@@ -1233,7 +1879,7 @@ kernel_gpu_opencl(	// structures
 			tMask_col = cent + d_unique_d_Col[d_unique_point_no] - d_unique_d_Col[d_unique_point_no] - 1;
 		}
 		else{
-			pointer = d_frame_no-1+d_unique_point_no*d_common.no_frames;
+			pointer = d_unique_point_no*d_common.no_frames+d_frame_no-1;
 			tMask_row = cent + d_unique_d_tRowLoc[pointer] - d_unique_d_Row[d_unique_point_no] - 1;
 			tMask_col = cent + d_unique_d_tColLoc[pointer] - d_unique_d_Col[d_unique_point_no] - 1;
 		}
@@ -1256,11 +1902,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//====================================================================================================100
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//====================================================================================================100
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.tMask_elem; i++){
+				checksum[32] = checksum[32]+d_unique_d_tMask[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
+		//	End
+		//==================================================50
 
 		//====================================================================================================100
 		//	MASK CONVOLUTION
@@ -1328,11 +1994,31 @@ kernel_gpu_opencl(	// structures
 
 		}
 
-		//====================================================================================================100
+		//==================================================50
 		//	SYNCHRONIZE THREADS
-		//====================================================================================================100
+		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.mask_conv_elem; i++){
+				checksum[33] = checksum[33]+d_unique_d_mask_conv[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
+		//	End
+		//==================================================50
 
 		//====================================================================================================100
 		//	MAXIMUM VALUE
@@ -1365,8 +2051,24 @@ kernel_gpu_opencl(	// structures
 		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.mask_conv_rows; i++){
+				checksum[34] = checksum[34]+par_max_coo[i]+par_max_val[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 		//==================================================50
 		//	FINAL SEARCH
 		//==================================================50
@@ -1393,21 +2095,35 @@ kernel_gpu_opencl(	// structures
 			largest_col = largest_col + 1;																	// compensate to match MATLAB format (1-n)
 			offset_row = largest_row - d_common.in_rows - (d_common.sSize - d_common.tSize);
 			offset_col = largest_col - d_common.in_cols - (d_common.sSize - d_common.tSize);
-			pointer = d_frame_no+d_unique_point_no*d_common.no_frames;
+			pointer = d_unique_point_no*d_common.no_frames+d_frame_no;
 			d_unique_d_tRowLoc[pointer] = d_unique_d_Row[d_unique_point_no] + offset_row;
 			d_unique_d_tColLoc[pointer] = d_unique_d_Col[d_unique_point_no] + offset_col;
 
 		}
 
 		//==================================================50
-		//	End
+		//	SYNCHRONIZE THREADS
 		//==================================================50
 
-		//====================================================================================================100
-		//	SYNCHRONIZE THREADS
-		//====================================================================================================100
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
-		barrier(CLK_LOCAL_MEM_FENCE);
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			checksum[35] = checksum[35]+d_unique_d_tRowLoc[pointer]+d_unique_d_tColLoc[pointer];
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
+		//	End
+		//==================================================50
 
 		//====================================================================================================100
 		//	End
@@ -1416,14 +2132,38 @@ kernel_gpu_opencl(	// structures
 	}
 
 	//======================================================================================================================================================150
-	//	COORDINATE AND TEMPLATE UPDATE
+	//	PERIODIC COORDINATE AND TEMPLATE UPDATE
 	//======================================================================================================================================================150
 
-	// if the last frame in the bath, update template
 	if(d_frame_no != 0 && (d_frame_no)%10 == 0){
+
+		//====================================================================================================100
+		// initialize cross-frame variables
+		//====================================================================================================100
+#ifdef INIT
+		// only the first thread initializes
+		if(tx==0){
+
+			// this block
+			for(i=0; i<d_common.in_elem; i++){
+				d_in[i] = 0;
+			}
+
+		}
+#endif
+		//====================================================================================================100
+		//	SYNCHRONIZE THREADS
+		//====================================================================================================100
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//====================================================================================================100
+		// if the last frame in the bath, update template
+		//====================================================================================================100
 
 		// update coordinate
 		loc_pointer = d_unique_point_no*d_common.no_frames+d_frame_no;
+
 		d_unique_d_Row[d_unique_point_no] = d_unique_d_tRowLoc[loc_pointer];
 		d_unique_d_Col[d_unique_point_no] = d_unique_d_tColLoc[loc_pointer];
 
@@ -1445,12 +2185,42 @@ kernel_gpu_opencl(	// structures
 			ori_pointer = ori_col*d_common.frame_rows+ori_row;
 
 			// update template
-			d_in[ei_new] = d_common.alpha*d_in[ei_new] + (1.00-d_common.alpha)*d_common_change_d_frame[ori_pointer];
+			d_in[ei_new] = d_common.alpha*d_in[ei_new] + (1-d_common.alpha)*d_common_change_d_frame[ori_pointer];
 
 			// go for second round
 			ei_new = ei_new + NUMBER_THREADS;
 
 		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+
+		//==================================================50
+		//	CHECKSUM
+		//==================================================50
+#ifdef TEST_CHECKSUM
+		if(bx==0 && tx==0){
+			for(i=0; i<d_common.in_elem; i++){
+				checksum[36] = checksum[36]+d_in[i];
+			}
+		}
+
+		//==================================================50
+		//	SYNCHRONIZE THREADS
+		//==================================================50
+
+		barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
+		//==================================================50
+		//	End
+		//==================================================50
+
+		//====================================================================================================100
+		//	End
+		//====================================================================================================100
 
 	}
 

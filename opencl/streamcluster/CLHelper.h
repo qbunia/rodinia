@@ -368,7 +368,8 @@ void _clInit(string device_type, int device_id)throw(string){
 #endif
 	number_devices = deviceListSize;
     // Now, allocate the device list 
-    oclHandles.devices = (cl_device_id *)malloc(deviceListSize);
+	//    oclHandles.devices = (cl_device_id *)malloc(deviceListSize);
+    oclHandles.devices = (cl_device_id *)malloc(sizeof(cl_device_id)*deviceListSize);
 
     if (oclHandles.devices == 0)
         throw(string("InitCL()::Error: Could not allocate memory."));

@@ -28,7 +28,15 @@
 
 #include <string.h>
 #include <string>
-#define BLOCK_SIZE 16
+#ifdef RD_WG_SIZE_0_0
+        #define BLOCK_SIZE RD_WG_SIZE_0_0
+#elif defined(RD_WG_SIZE_0)
+        #define BLOCK_SIZE RD_WG_SIZE_0
+#elif defined(RD_WG_SIZE)
+        #define BLOCK_SIZE RD_WG_SIZE
+#else
+        #define BLOCK_SIZE 16
+#endif
 
  double gettime() {
   struct timeval t;
@@ -103,6 +111,7 @@ static struct option long_options[] = {
 int
 main ( int argc, char *argv[] )
 {
+  printf("WG size of kernel = %d X %d\n", BLOCK_SIZE, BLOCK_SIZE);
 	int matrix_dim = 32; /* default matrix_dim */
 	int opt, option_index=0;
 	func_ret_t ret;
@@ -121,9 +130,11 @@ main ( int argc, char *argv[] )
 			break;
         case 's':
 			matrix_dim = atoi(optarg);
-			fprintf(stderr, "Currently not supported, use -i instead\n");
-			fprintf(stderr, "Usage: %s [-v] [-s matrix_size|-i input_file]\n", argv[0]);
-			exit(EXIT_FAILURE);
+			printf("Generate input matrix internally, size =%d\n", matrix_dim);
+			// fprintf(stderr, "Currently not supported, use -i instead\n");
+			// fprintf(stderr, "Usage: %s [-v] [-s matrix_size|-i input_file]\n", argv[0]);
+			// exit(EXIT_FAILURE);
+			break;
         case '?':
 			fprintf(stderr, "invalid option\n");
 			break;
@@ -150,14 +161,26 @@ main ( int argc, char *argv[] )
 			fprintf(stderr, "error create matrix from file %s\n", input_file);
 			exit(EXIT_FAILURE);
 		}
-	} else {
-		printf("No input file specified!\n");
-		exit(EXIT_FAILURE);
+	} 
+	
+	else if (matrix_dim) {
+	  printf("Creating matrix internally size=%d\n", matrix_dim);
+	  ret = create_matrix(&m, matrix_dim);
+	  if (ret != RET_SUCCESS) {
+	    m = NULL;
+	    fprintf(stderr, "error create matrix internally size=%d\n", matrix_dim);
+	    exit(EXIT_FAILURE);
+	  }
+	}
+
+	else {
+	  printf("No input file specified!\n");
+	  exit(EXIT_FAILURE);
 	}
 
 	if (do_verify){
 		printf("Before LUD\n");
-		print_matrix(m, matrix_dim);
+		// print_matrix(m, matrix_dim);
 		matrix_duplicate(m, &mm, matrix_dim);
 	}
 	
@@ -182,7 +205,14 @@ main ( int argc, char *argv[] )
 	const char * slist[2] = { source, 0 };
 	cl_program prog = clCreateProgramWithSource(context, 1, slist, NULL, &err);
 	if(err != CL_SUCCESS) { printf("ERROR: clCreateProgramWithSource() => %d\n", err); return -1; }
-	err = clBuildProgram(prog, 0, NULL, NULL, NULL, NULL);
+	char clOptions[110];
+	//  sprintf(clOptions,"-I../../src"); 
+	sprintf(clOptions," ");
+#ifdef BLOCK_SIZE
+	sprintf(clOptions + strlen(clOptions), " -DBLOCK_SIZE=%d", BLOCK_SIZE);
+#endif
+
+	err = clBuildProgram(prog, 0, NULL, clOptions, NULL, NULL);
 	{ // show warnings/errors
 		//static char log[65536]; memset(log, 0, sizeof(log));
 		//cl_device_id device_id = 0;
@@ -273,7 +303,7 @@ main ( int argc, char *argv[] )
 
 	if (do_verify){
 		printf("After LUD\n");
-		print_matrix(m, matrix_dim);
+		// print_matrix(m, matrix_dim);
 		printf(">>>Verify<<<<\n");
 		lud_verify(mm, m, matrix_dim); 
 		free(mm);

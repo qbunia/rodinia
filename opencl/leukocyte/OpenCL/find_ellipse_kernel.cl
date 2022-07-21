@@ -16,14 +16,17 @@ __kernel void GICOV_kernel(int grad_m, image2d_t grad_x, image2d_t grad_y, __con
                            __constant float *c_cos_angle, __constant int *c_tX, __constant int *c_tY, __global float *gicov) {
 #else
 __kernel void GICOV_kernel(int grad_m, __global float *grad_x, __global float *grad_y, __constant float *c_sin_angle,
-                           __constant float *c_cos_angle, __constant int *c_tX, __constant int *c_tY, __global float *gicov) {
+                           __constant float *c_cos_angle, __constant int *c_tX, __constant int *c_tY, __global float *gicov, int width, int height) {
 #endif
 	
 	int i, j, k, n, x, y;
+	int gid = get_global_id(0);
+	if(gid>=width*height)
+	  return;
 	
 	// Determine this thread's pixel
-	i = get_group_id(0) + MAX_RAD + 2;
-	j = get_local_id(0) + MAX_RAD + 2;
+	i = gid/width + MAX_RAD + 2;
+	j = gid%width + MAX_RAD + 2;
 
 	// Initialize the maximal GICOV score to 0
 	float max_GICOV = 0.f;
@@ -100,6 +103,8 @@ __kernel void dilate_kernel(int img_m, int img_n, int strel_m, int strel_n, __co
 	int i = thread_id % img_m;
 	int j = thread_id / img_m;
 
+	if(j > img_n) return;
+
 	// Initialize the maximum GICOV score seen so far to zero
 	float max = 0.0f;
 	
@@ -110,32 +115,37 @@ __kernel void dilate_kernel(int img_m, int img_n, int strel_m, int strel_n, __co
 
 	// Iterate across the structuring element in one dimension
 	int el_i, el_j, x, y;
-	for (el_i = 0; el_i < strel_m; el_i++) {
-		y = i - el_center_i + el_i;
-		// Make sure we have not gone off the edge of the matrix
-		if ( (y >= 0) && (y < img_m) ) {
-			// Iterate across the structuring element in the other dimension
-			for (el_j = 0; el_j < strel_n; el_j++) {
-				x = j - el_center_j + el_j;
-				// Make sure we have not gone off the edge of the matrix
-				//  and that the current structuring element value is not zero
-				if ( (x >= 0) &&
-					 (x < img_n) &&
-					 (c_strel[(el_i * strel_n) + el_j] != 0) ) {
-						// Determine if this is the maximal value seen so far
-						#ifdef USE_IMAGE
-						int2 addr = {y, x};
-						float temp = read_imagef(img, sampler, addr).x;
-						#else
-						int addr = (x * img_m) + y;
-						float temp = img[addr];
-						#endif
-						if (temp > max) max = temp;
-				}
-			}
-		}
-	}
-	
-	// Store the maximum value found
-	dilated[(i * img_n) + j] = max;
+	// Lingjie Zhang modificated at 11/06/2015
+
+    if (j < img_n){
+        for (el_i = 0; el_i < strel_m; el_i++) {
+	    	y = i - el_center_i + el_i;
+	    	// Make sure we have not gone off the edge of the matrix
+	    	if ( (y >= 0) && (y < img_m) ) {
+	    		// Iterate across the structuring element in the other dimension
+	    		for (el_j = 0; el_j < strel_n; el_j++) {
+	    			x = j - el_center_j + el_j;
+	    			// Make sure we have not gone off the edge of the matrix
+	    			//  and that the current structuring element value is not zero
+	    			if ( (x >= 0) &&
+	    				 (x < img_n) &&
+	    				 (c_strel[(el_i * strel_n) + el_j] != 0) ) {
+	    					// Determine if this is the maximal value seen so far
+	    					#ifdef USE_IMAGE
+	    					int2 addr = {y, x};
+	    					float temp = read_imagef(img, sampler, addr).x;
+	    					#else
+	    					int addr = (x * img_m) + y;
+	    					float temp = img[addr];
+	    					#endif
+	    					if (temp > max) max = temp;
+	    			}
+	    		}
+	    	}
+	    }
+	    
+	    // Store the maximum value found
+	    dilated[(i * img_n) + j] = max;
+    }
+    // end of Lingjie Zhang's modification
 }

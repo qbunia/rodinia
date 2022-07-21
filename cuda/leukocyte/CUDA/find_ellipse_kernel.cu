@@ -1,5 +1,5 @@
 #include "find_ellipse_kernel.h"
-#include <cutil.h>
+// #include <cutil.h>
 #include <stdio.h>
 
 
@@ -258,9 +258,9 @@ void transfer_constants(float *host_sin_angle, float *host_cos_angle, int *host_
 	unsigned int strel_mem_size = sizeof(float) * strel_m * strel_n;
 
 	// Copy the matrices from host memory to device constant memory
-	cudaMemcpyToSymbol("c_sin_angle", host_sin_angle, angle_mem_size, 0, cudaMemcpyHostToDevice);
-	cudaMemcpyToSymbol("c_cos_angle", host_cos_angle, angle_mem_size, 0, cudaMemcpyHostToDevice);
-	cudaMemcpyToSymbol("c_tX", host_tX, t_mem_size, 0, cudaMemcpyHostToDevice);
-	cudaMemcpyToSymbol("c_tY", host_tY, t_mem_size, 0, cudaMemcpyHostToDevice);
-	cudaMemcpyToSymbol("c_strel", host_strel, strel_mem_size, 0, cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(c_sin_angle, host_sin_angle, angle_mem_size, 0, cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(c_cos_angle, host_cos_angle, angle_mem_size, 0, cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(c_tX, host_tX, t_mem_size, 0, cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(c_tY, host_tY, t_mem_size, 0, cudaMemcpyHostToDevice);
+	cudaMemcpyToSymbol(c_strel, host_strel, strel_mem_size, 0, cudaMemcpyHostToDevice);
 }

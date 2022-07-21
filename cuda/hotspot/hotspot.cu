@@ -3,7 +3,16 @@
 #include <time.h>
 #include <assert.h>
 
-#define BLOCK_SIZE 16
+#ifdef RD_WG_SIZE_0_0                                                            
+        #define BLOCK_SIZE RD_WG_SIZE_0_0                                        
+#elif defined(RD_WG_SIZE_0)                                                      
+        #define BLOCK_SIZE RD_WG_SIZE_0                                          
+#elif defined(RD_WG_SIZE)                                                        
+        #define BLOCK_SIZE RD_WG_SIZE                                            
+#else                                                                                    
+        #define BLOCK_SIZE 16                                                            
+#endif                                                                                   
+
 #define STR_SIZE 256
 
 /* maximum power density possible (say 300W for a 10mm x 10mm chip)	*/
@@ -255,6 +264,8 @@ void usage(int argc, char **argv)
 
 int main(int argc, char** argv)
 {
+  printf("WG size of kernel = %d X %d\n", BLOCK_SIZE, BLOCK_SIZE);
+
     run(argc,argv);
 
     return EXIT_SUCCESS;

@@ -11,3 +11,6 @@ is included below:
 - additional memcopies to print intermediate results for each frame
 
 These additions result in different results and runtimes than previous versions.
+
+Single: single precision
+Double: double precision

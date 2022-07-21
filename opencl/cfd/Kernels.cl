@@ -36,8 +36,9 @@ typedef struct{
 		num_bytes:	the number of bytes all together
 	@return:	through mem_d
 ------------------------------------------------------------*/
-__kernel void memset_kernel(__global char * mem_d, short val, int number_bytes){
+__kernel void memset_kernel(__global char * mem_d, short val, int ct){
 	const int thread_id = get_global_id(0);
+	if( thread_id >= ct) return;
 	mem_d[thread_id] = val;
 }
 
@@ -82,6 +83,7 @@ inline void compute_flux_contribution(float density, FLOAT3 momentum, float dens
 __kernel void initialize_variables(__global float* variables, __constant float* ff_variable, int nelr){
 	//const int i = (blockDim.x*blockIdx.x + threadIdx.x);
 	const int i = get_global_id(0);
+	if( i >= nelr) return;
 	for(int j = 0; j < NVAR; j++)
 		variables[i + j*nelr] = ff_variable[j];
 	
@@ -93,6 +95,7 @@ __kernel void compute_step_factor(__global float* variables,
 							int nelr){
 	//const int i = (blockDim.x*blockIdx.x + threadIdx.x);
 	const int i = get_global_id(0);
+	if( i >= nelr) return;
 
 	float density = variables[i + VAR_DENSITY*nelr];
 	FLOAT3 momentum;
@@ -128,7 +131,7 @@ __kernel void compute_flux(
 	const float smoothing_coefficient = (float)(0.2f);
 	//const int i = (blockDim.x*blockIdx.x + threadIdx.x);
 	const int i = get_global_id(0);
-	
+	if( i >= nelr) return;
 	int j, nb;
 	FLOAT3 normal; float normal_len;
 	float factor;
@@ -266,6 +269,7 @@ __kernel void time_step(int j, int nelr,
 				__global float* fluxes){
 	//const int i = (blockDim.x*blockIdx.x + threadIdx.x);
 	const int i = get_global_id(0);
+	if( i >= nelr) return;
 
 	float factor = step_factors[i]/(float)(RK+1-j);
 

@@ -206,11 +206,20 @@ kernel_gpu_opencl_wrapper(	record *records,
 	if (error != CL_SUCCESS) 
 		fatal_CL(error, __LINE__);
 
+	char clOptions[110];
+	//  sprintf(clOptions,"-I../../src");                                                                                 
+	sprintf(clOptions,"-I./../");
+
+#ifdef DEFAULT_ORDER
+	sprintf(clOptions + strlen(clOptions), " -DDEFAULT_ORDER=%d", DEFAULT_ORDER);
+#endif
+
+
 	// Compile the program
 	error = clBuildProgram(	program, 
 							1, 
 							&device, 
-							"-I./../", 
+							clOptions, 
 							NULL, 
 							NULL);
 	// Print warnings and errors from compilation

@@ -50,7 +50,12 @@ kmeans_swap(__global float  *feature,
 ){
 
 	unsigned int tid = get_global_id(0);
-	for(int i = 0; i <  nfeatures; i++)
-		feature_swap[i * npoints + tid] = feature[tid * nfeatures + i];
-
+	//for(int i = 0; i <  nfeatures; i++)
+	//	feature_swap[i * npoints + tid] = feature[tid * nfeatures + i];
+    //Lingjie Zhang modificated at 11/05/2015
+    if (tid < npoints){
+	    for(int i = 0; i <  nfeatures; i++)
+		    feature_swap[i * npoints + tid] = feature[tid * nfeatures + i];
+    }
+    // end of Lingjie Zhang's modification
 } 

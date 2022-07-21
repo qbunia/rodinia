@@ -114,7 +114,7 @@ b+tree.out:	./main.o \
 main.o:	./common.h \
 		./main.h \
 		./main.c
-	$(C_C)	./main.c \
+	$(C_C)	$(KERNEL_DIM) ./main.c \
 			-c \
 			-o ./main.o \
 			-O3
@@ -126,7 +126,7 @@ main.o:	./common.h \
 ./kernel/kernel_gpu_cuda_wrapper.o:	./common.h \
 									./kernel/kernel_gpu_cuda_wrapper.h \
 									./kernel/kernel_gpu_cuda_wrapper.cu
-	$(CUD_C)	./kernel/kernel_gpu_cuda_wrapper.cu \
+	$(CUD_C) $(KERNEL_DIM) ./kernel/kernel_gpu_cuda_wrapper.cu \
 				-c \
 				-o ./kernel/kernel_gpu_cuda_wrapper.o \
 				-O3 \
@@ -135,7 +135,7 @@ main.o:	./common.h \
 ./kernel/kernel_gpu_cuda_wrapper_2.o:	./common.h \
 										./kernel/kernel_gpu_cuda_wrapper_2.h \
 										./kernel/kernel_gpu_cuda_wrapper_2.cu
-	$(CUD_C)	./kernel/kernel_gpu_cuda_wrapper_2.cu \
+	$(CUD_C) $(KERNEL_DIM) ./kernel/kernel_gpu_cuda_wrapper_2.cu \
 				-c \
 				-o ./kernel/kernel_gpu_cuda_wrapper_2.o \
 				-O3 \

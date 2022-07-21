@@ -37,9 +37,9 @@ bpnn_layerforward_ocl(__global float *input_cuda,
 		weight_matrix[ty * WIDTH + tx]= weight_matrix[ty * WIDTH + tx] * input_node[ty];
 		barrier(CLK_LOCAL_MEM_FENCE);
    
-    for ( int i = 1 ; i <= log2(HEIGHT) ; i++){
+		for ( int i = 1 ; i <= HEIGHT ; i=i*2){
 	//for ( int i = 1 ; i <= 4 ; i++){
-	    int power_two = pow(2, i);
+      int power_two = i; 
 		//int power_two = 2 << (i - 1);
 
 	    if( ty % power_two == 0 )

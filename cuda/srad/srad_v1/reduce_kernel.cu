@@ -27,6 +27,10 @@ __global__ void reduce(	long d_Ne,											// number of elements in array
 
 	}
 
+	// Lingjie Zhang modifited at Nov 1 / 2015
+    __syncthreads();
+    // end Lingjie Zhang's modification
+
 	// reduction of sums if all blocks are full (rare case)	
 	if(nf == NUMBER_THREADS){
 		// sum of every 2, 4, ..., NUMBER_THREADS elements

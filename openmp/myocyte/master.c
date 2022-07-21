@@ -47,7 +47,7 @@ void master(fp timeinst,
 
 	nthreads = omp_get_max_threads();
 
-	if(mode == 1){
+	if(mode == 0){
 
 		// partition workload between threads
 		temp = 0;

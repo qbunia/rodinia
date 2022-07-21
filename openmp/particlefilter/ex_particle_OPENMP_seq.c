@@ -9,7 +9,7 @@
 #include <sys/time.h>
 #include <omp.h>
 #include <limits.h>
-#define PI acos(-1)
+#define PI 3.1415926535897932
 /**
 @var M value for Linear Congruential Generator (LCG); use GCC's value
 */

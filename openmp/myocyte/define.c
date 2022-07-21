@@ -7,4 +7,4 @@
 #define fp float
 
 #define EQUATIONS 91
-#define PARAMETERS 18
+#define PARAMETERS 16

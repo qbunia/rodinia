@@ -100,6 +100,9 @@ main(	int argc,
 	FOUR_VECTOR* fv_cpu;
 	int nh;
 
+
+	printf("WG size of kernel = %d \n", NUMBER_THREADS);
+
 	time1 = get_time();
 
 	//======================================================================================================================================================150
@@ -257,20 +260,20 @@ main(	int argc,
 	// input (distances)
 	rv_cpu = (FOUR_VECTOR*)malloc(dim_cpu.space_mem);
 	for(i=0; i<dim_cpu.space_elem; i=i+1){
-		rv_cpu[i].v = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
+		rv_cpu[i].v = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
 		// rv_cpu[i].v = 0.1;			// get a number in the range 0.1 - 1.0
-		rv_cpu[i].x = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
+		rv_cpu[i].x = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
 		// rv_cpu[i].x = 0.2;			// get a number in the range 0.1 - 1.0
-		rv_cpu[i].y = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
+		rv_cpu[i].y = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
 		// rv_cpu[i].y = 0.3;			// get a number in the range 0.1 - 1.0
-		rv_cpu[i].z = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
+		rv_cpu[i].z = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
 		// rv_cpu[i].z = 0.4;			// get a number in the range 0.1 - 1.0
 	}
 
 	// input (charge)
 	qv_cpu = (fp*)malloc(dim_cpu.space_mem2);
 	for(i=0; i<dim_cpu.space_elem; i=i+1){
-		qv_cpu[i] = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
+		qv_cpu[i] = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
 		// qv_cpu[i] = 0.5;			// get a number in the range 0.1 - 1.0
 	}
 
@@ -305,6 +308,17 @@ main(	int argc,
 	//======================================================================================================================================================150
 	//	SYSTEM MEMORY DEALLOCATION
 	//======================================================================================================================================================150
+
+	// dump results
+#ifdef OUTPUT
+        FILE *fptr;
+	fptr = fopen("result.txt", "w");	
+	for(i=0; i<dim_cpu.space_elem; i=i+1){
+        	fprintf(fptr, "%f, %f, %f, %f\n", fv_cpu[i].v, fv_cpu[i].x, fv_cpu[i].y, fv_cpu[i].z);
+	}
+	fclose(fptr);
+#endif       	
+
 
 	free(rv_cpu);
 	free(qv_cpu);

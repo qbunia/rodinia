@@ -9,7 +9,7 @@
 #include <sys/time.h>
 
 // includes, kernels
-#include <backprop_cuda_kernel.cu>
+#include "backprop_cuda_kernel.cu"
 #include "backprop.h"
 
 ////////////////////////////////////////////////////////////////////////////////

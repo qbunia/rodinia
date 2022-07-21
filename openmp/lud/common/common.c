@@ -70,6 +70,7 @@ create_matrix_from_file(float **mp, const char* filename, int *size_p){
   return RET_SUCCESS;
 }
 
+
 func_ret_t
 create_matrix_from_random(float **mp, int size){
   float *l, *u, *m;
@@ -154,27 +155,27 @@ lud_verify(float *m, float *lu, int matrix_dim){
         }
         tmp[i*matrix_dim+j] = sum;
     }
-  printf(">>>>>LU<<<<<<<\n");
-  for (i=0; i<matrix_dim; i++){
-    for (j=0; j<matrix_dim;j++){
-        printf("%f ", lu[i*matrix_dim+j]);
-    }
-    printf("\n");
-  }
-  printf(">>>>>result<<<<<<<\n");
-  for (i=0; i<matrix_dim; i++){
-    for (j=0; j<matrix_dim;j++){
-        printf("%f ", tmp[i*matrix_dim+j]);
-    }
-    printf("\n");
-  }
-  printf(">>>>>input<<<<<<<\n");
-  for (i=0; i<matrix_dim; i++){
-    for (j=0; j<matrix_dim;j++){
-        printf("%f ", m[i*matrix_dim+j]);
-    }
-    printf("\n");
-  }
+  /* printf(">>>>>LU<<<<<<<\n"); */
+  /* for (i=0; i<matrix_dim; i++){ */
+  /*   for (j=0; j<matrix_dim;j++){ */
+  /*       printf("%f ", lu[i*matrix_dim+j]); */
+  /*   } */
+  /*   printf("\n"); */
+  /* } */
+  /* printf(">>>>>result<<<<<<<\n"); */
+  /* for (i=0; i<matrix_dim; i++){ */
+  /*   for (j=0; j<matrix_dim;j++){ */
+  /*       printf("%f ", tmp[i*matrix_dim+j]); */
+  /*   } */
+  /*   printf("\n"); */
+  /* } */
+  /* printf(">>>>>input<<<<<<<\n"); */
+  /* for (i=0; i<matrix_dim; i++){ */
+  /*   for (j=0; j<matrix_dim;j++){ */
+  /*       printf("%f ", m[i*matrix_dim+j]); */
+  /*   } */
+  /*   printf("\n"); */
+  /* } */
 
   for (i=0; i<matrix_dim; i++){
       for (j=0; j<matrix_dim; j++){
@@ -201,4 +202,40 @@ print_matrix(float *m, int matrix_dim) {
         printf("%f ", m[i*matrix_dim+j]);
       printf("\n");
     }
+}
+
+
+// Generate well-conditioned matrix internally  by Ke Wang 2013/08/07 22:20:06
+
+func_ret_t
+create_matrix(float **mp, int size){
+  float *m;
+  int i,j;
+  float lamda = -0.001;
+  float coe[2*size-1];
+  float coe_i =0.0;
+
+  for (i=0; i < size; i++)
+    {
+      coe_i = 10*exp(lamda*i); 
+      j=size-1+i;     
+      coe[j]=coe_i;
+      j=size-1-i;     
+      coe[j]=coe_i;
+    }
+
+  m = (float*) malloc(sizeof(float)*size*size);
+  if ( m == NULL) {
+      return RET_FAILURE;
+  }
+
+  for (i=0; i < size; i++) {
+      for (j=0; j < size; j++) {
+	m[i*size+j]=coe[size-1-i+j];
+      }
+  }
+
+  *mp = m;
+
+  return RET_SUCCESS;
 }

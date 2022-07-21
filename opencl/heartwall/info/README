@@ -71,7 +71,7 @@
 // The following are the command parameters to the application:
 // 1) Number of frames to process. Needs to be integer <= to the number of frames in the input file.
 // Example:
-// a.out 104
+// ./a.out 104
 
 //======================================================================================================================================================150
 //	End

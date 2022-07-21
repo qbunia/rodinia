@@ -1,5 +1,4 @@
-#define BLOCK_SIZE 16
-
+// #define BLOCK_SIZE 16
 __kernel void 
 lud_diagonal(__global float *m, 
 			 __local  float *shadow,

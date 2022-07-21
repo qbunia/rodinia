@@ -34,8 +34,8 @@ struct Node
 	int no_of_edges;
 };
 
-#include <kernel.cu>
-#include <kernel2.cu>
+#include "kernel.cu"
+#include "kernel2.cu"
 
 void BFSGraph(int argc, char** argv);
 

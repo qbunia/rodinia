@@ -28,7 +28,7 @@ OCL_LIB = -lOpenCL
 
 ./main.o:	./main.h \
 			./main.c
-	$(C_C)	./main.c \
+	$(C_C)	$(KERNEL_DIM) ./main.c \
 			-c \
 			-o ./main.o \
 			-O3
@@ -39,7 +39,7 @@ OCL_LIB = -lOpenCL
 
 ./kernel/kernel_gpu_opencl_wrapper.o:	./kernel/kernel_gpu_opencl_wrapper.h \
 										./kernel/kernel_gpu_opencl_wrapper.c
-	$(C_C)	./kernel/kernel_gpu_opencl_wrapper.c \
+	$(C_C)	$(KERNEL_DIM) ./kernel/kernel_gpu_opencl_wrapper.c \
 			-c \
 			-o ./kernel/kernel_gpu_opencl_wrapper.o \
 			-O3 \

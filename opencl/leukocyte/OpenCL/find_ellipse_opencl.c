@@ -6,7 +6,7 @@
 
 
 // Defined if we want to use images/textures
-#define USE_IMAGE
+/* #define USE_IMAGE */
 
 
 // The number of sample points in each ellipse (stencil)
@@ -84,13 +84,18 @@ float *GICOV_OpenCL(int grad_m, int grad_n, float *host_grad_x, float *host_grad
 	clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(log)-1, log, NULL);
 	if (strstr(log,"warning:") || strstr(log, "error:")) printf("<<<<\n%s\n>>>>\n", log);
     check_error(error, __FILE__, __LINE__);
-	
+
 	// Create both kernels (GICOV and dilate)
     cl_kernel GICOV_kernel = clCreateKernel(program, "GICOV_kernel", &error);
     check_error(error, __FILE__, __LINE__);
 	dilate_kernel = clCreateKernel(program, "dilate_kernel", &error);
     check_error(error, __FILE__, __LINE__);
-    
+
+	
+    // Setup execution parameters
+    cl_int local_work_size = grad_m - (2 * MaxR); 
+    cl_int num_work_groups = grad_n - (2 * MaxR);
+   
 	// Set the kernel arguments
 	clSetKernelArg(GICOV_kernel, 0, sizeof(cl_int), (void *) &grad_m);
 	clSetKernelArg(GICOV_kernel, 1, sizeof(cl_mem), (void *) &device_grad_x);
@@ -100,16 +105,22 @@ float *GICOV_OpenCL(int grad_m, int grad_n, float *host_grad_x, float *host_grad
 	clSetKernelArg(GICOV_kernel, 5, sizeof(cl_mem), (void *) &c_tX);
 	clSetKernelArg(GICOV_kernel, 6, sizeof(cl_mem), (void *) &c_tY);
 	clSetKernelArg(GICOV_kernel, 7, sizeof(cl_mem), (void *) &device_gicov);
+	clSetKernelArg(GICOV_kernel, 8, sizeof(cl_int), (void *) &local_work_size);
+	clSetKernelArg(GICOV_kernel, 9, sizeof(cl_int), (void *) &num_work_groups);
 
-	// Setup execution parameters
-	size_t num_work_groups = grad_n - (2 * MaxR);
-	size_t local_work_size = grad_m - (2 * MaxR);
+	size_t work_group_size = 256;
 	size_t global_work_size = num_work_groups * local_work_size;
-	
+	if(global_work_size % work_group_size > 0)
+	  global_work_size=(global_work_size / work_group_size+1)*work_group_size;
+
+	printf("Find: local_work_size = %d, global_work_size = %d \n"
+	       ,work_group_size, global_work_size);
+
 	// Execute the GICOV kernel
-	error = clEnqueueNDRangeKernel(command_queue, GICOV_kernel, 1, NULL, &global_work_size, &local_work_size, 0, NULL, NULL);
+	error = clEnqueueNDRangeKernel(command_queue, GICOV_kernel, 1, NULL, &global_work_size, &work_group_size, 0, NULL, NULL);
 	check_error(error, __FILE__, __LINE__);
 	
+
 	// Check for kernel errors
 	error = clFinish(command_queue);
 	check_error(error, __FILE__, __LINE__);
