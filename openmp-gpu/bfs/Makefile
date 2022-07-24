@@ -1,5 +1,5 @@
 CC = clang
-CC_FLAGS = -g -fopenmp -O3 -lstdc++
+CC_FLAGS = -O3 -g -fopenmp -fopenmp-targets=nvptx64 -lstdc++
 
 all: bfs.out
 
