@@ -1,5 +1,5 @@
 # C compiler
-CC = pathCC
+CC = pathcc
 CC_FLAGS = -acc -O2
 
 bfs: 

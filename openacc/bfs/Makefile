@@ -1,6 +1,6 @@
 # C compiler
-CC = pathCC
-CC_FLAGS = -acc -O2
+CC = pgcpp
+CC_FLAGS = -acc -O2 -Minfo
 
 bfs: 
 	$(CC) $(CC_FLAGS) bfs.cpp -o bfs 

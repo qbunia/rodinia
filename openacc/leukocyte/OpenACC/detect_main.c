@@ -1,26 +1,36 @@
 #include "find_ellipse.h"
 #include "track_ellipse.h"
 
+
+// Temporal variable for computing
+float *gicov_mem = NULL;
+float sin_angle[NPOINTS], cos_angle[NPOINTS], theta[NPOINTS];
+int tX[NCIRCLES * NPOINTS], tY[NCIRCLES * NPOINTS];
+float *strel = NULL;
+const int radius = 12;
+const int strel_m = radius * 2 + 1;
+const int strel_n = radius * 2 + 1;
+
+
+// Main
 int main(int argc, char ** argv) {
 
+	// Choose the best GPU in case there are multiple available
+	choose_GPU();
+
 	// Keep track of the start time of the program
-  long long program_start_time = get_time();
-	
-	// Let the user specify the number of frames to process
-	int num_frames = 1;
+	long long program_start_time = get_time();
 	
 	if (argc !=3){
-		fprintf(stderr, "usage: %s <num of frames> <input file>", argv[0]);
-		exit(1);
+	fprintf(stderr, "usage: %s <input file> <number of frames to process>", argv[0]);
+	exit(1);
 	}
 	
-	if (argc > 1){
-		num_frames = atoi(argv[1]);
-		}
-
+	// Let the user specify the number of frames to process
+	int num_frames = atoi(argv[2]);
+	
 	// Open video file
-	char *video_file_name;
-	video_file_name = argv[3];
+	char *video_file_name = argv[1];
 	
 	avi_t *cell_file = AVI_open_input_file(video_file_name, 1);
 	if (cell_file == NULL)	{
@@ -41,46 +51,50 @@ int main(int argc, char ** argv) {
 	MAT *grad_x = gradient_x(image_chopped);
 	MAT *grad_y = gradient_y(image_chopped);
 	
+	// Allocate for gicov_mem and strel
+	gicov_mem = (float*) malloc(sizeof(float) * grad_x->m * grad_y->n);
+	strel = (float*) malloc(sizeof(float) * strel_m * strel_n);
+
 	m_free(image_chopped);
+
+	int grad_m = grad_x->m;
+	int grad_n = grad_y->n;
 	
+#pragma acc data create(sin_angle,cos_angle,theta,tX,tY) \
+	create(gicov_mem[0:grad_x->m*grad_y->n])
+{
+	// Precomputed constants on GPU
+	compute_constants();
+
 	// Get GICOV matrices corresponding to image gradients
 	long long GICOV_start_time = get_time();
-	MAT *gicov = ellipsematching(grad_x, grad_y);
-	
-	// Square GICOV values
-	MAT *max_gicov = m_get(gicov->m, gicov->n);
-	for (i = 0; i < gicov->m; i++) {
-		for (j = 0; j < gicov->n; j++) {
-			double val = m_get_val(gicov, i, j);
-			m_set_val(max_gicov, i, j, val * val);
-		}
-	}
-	
+	MAT *gicov = GICOV(grad_x, grad_y);
 	long long GICOV_end_time = get_time();
-	
-	// Dilate the GICOV matrix
+
+	// Dilate the GICOV matrices
 	long long dilate_start_time = get_time();
-	MAT *strel = structuring_element(12);
-	MAT *img_dilated = dilate_f(max_gicov, strel);
+	MAT *img_dilated = dilate(gicov);
 	long long dilate_end_time = get_time();
+} /* end acc data */
 	
 	// Find possible matches for cell centers based on GICOV and record the rows/columns in which they are found
 	pair_counter = 0;
-	crow = (int *) malloc(max_gicov->m * max_gicov->n * sizeof(int));
-	ccol = (int *) malloc(max_gicov->m * max_gicov->n * sizeof(int));
-	for (i = 0; i < max_gicov->m; i++) {
-		for (j = 0; j < max_gicov->n; j++) {
-			if (!(m_get_val(max_gicov,i,j) == 0.0) && (m_get_val(img_dilated,i,j) == m_get_val(max_gicov,i,j))) {
-				crow[pair_counter] = i;
-				ccol[pair_counter] = j;
+	crow = (int *) malloc(gicov->m * gicov->n * sizeof(int));
+	ccol = (int *) malloc(gicov->m * gicov->n * sizeof(int));
+	for(i = 0; i < gicov->m; i++) {
+		for(j = 0; j < gicov->n; j++) {
+			if(!double_eq(m_get_val(gicov,i,j), 0.0) && double_eq(m_get_val(img_dilated,i,j), m_get_val(gicov,i,j)))
+			{
+				crow[pair_counter]=i;
+				ccol[pair_counter]=j;
 				pair_counter++;
 			}
 		}
 	}
-	
-	GICOV_spots = (double *) malloc(sizeof(double)*pair_counter);
-	for (i = 0; i < pair_counter; i++)
-		GICOV_spots[i] = m_get_val(gicov, crow[i], ccol[i]);
+
+	GICOV_spots = (double *) malloc(sizeof(double) * pair_counter);
+	for(i = 0; i < pair_counter; i++)
+		GICOV_spots[i] = sqrt(m_get_val(gicov, crow[i], ccol[i]));
 	
 	G = (double *) calloc(pair_counter, sizeof(double));
 	x_result = (double *) calloc(pair_counter, sizeof(double));
@@ -113,8 +127,6 @@ int main(int argc, char ** argv) {
 	}
 	
 	A = TMatrix(9,4);
-
-	
 	V = (double *) malloc(sizeof(double) * pair_counter);
 	QAX_CENTERS = (double * )malloc(sizeof(double) * pair_counter);
 	QAY_CENTERS = (double *) malloc(sizeof(double) * pair_counter);
@@ -187,7 +199,7 @@ int main(int argc, char ** argv) {
 					
 				V[n] = mean(W) / std_dev(W);
 				
-				//get means of X and Y values for all "snaxels" of the spline contour, thus finding the cell centers
+				// Find the cell centers by computing the means of X and Y values for all snaxels of the spline contour
 				QAX_CENTERS[k_count] = mean(X);
 				QAY_CENTERS[k_count] = mean(Y) + TOP;
 				
@@ -207,7 +219,7 @@ int main(int argc, char ** argv) {
 				m_free(Cy);
 				m_free(Cx);				
 			}
-			
+
 			// Free memory
 			v_free(y_row);
 			v_free(x_row);
@@ -215,8 +227,10 @@ int main(int argc, char ** argv) {
 			m_free(x);
 		}
 	}
-
+	
 	// Free memory
+	free(gicov_mem);
+	free(strel);
 	free(V);
 	free(ccol);
 	free(crow);
@@ -229,7 +243,6 @@ int main(int argc, char ** argv) {
 	m_free(celly);
 	m_free(cellx);
 	m_free(img_dilated);
-	m_free(max_gicov);
 	m_free(gicov);
 	m_free(grad_y);
 	m_free(grad_x);
@@ -251,7 +264,7 @@ int main(int argc, char ** argv) {
 	long long tracking_start_time = get_time();
 	int num_snaxels = 20;
 	ellipsetrack(cell_file, QAX_CENTERS, QAY_CENTERS, k_count, radius, num_snaxels, num_frames);
-	printf("           Total: %.5f seconds\n", ((float) (get_time() - tracking_start_time)) / (float) (1000*1000*num_frames));
+	printf("           Total: %.5f seconds\n", ((float) (get_time() - tracking_start_time)) / (float) (1000*1000*num_frames));	
 	
 	// Report total program execution time
     printf("\nTotal application run time: %.5f seconds\n", ((float) (get_time() - program_start_time)) / (1000*1000));

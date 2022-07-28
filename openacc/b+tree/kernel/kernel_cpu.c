@@ -96,11 +96,23 @@ kernel_cpu(	int cores_arg,
 				}
 
 			}
+		}
+	}
+
+	#pragma acc kernels
+	for(bid = 0; bid < count; bid++){
+
+		// process levels of the tree
+		for(i = 0; i < maxheight; i++){
 
 			// set for next tree level
 			currKnode[bid] = offset[bid];
 
 		}
+	}
+
+	#pragma acc kernels
+	for(bid = 0; bid < count; bid++){
 
 		//At this point, we have a candidate leaf node which may contain
 		//the target record.  Check each key to hopefully find the record

@@ -1,15 +1,12 @@
 #include "find_ellipse.h"
+#include "find_ellipse_kernel.h"
 #include <sys/time.h>
 
-// The number of sample points per ellipse
-#define NPOINTS 150
 // The expected radius (in pixels) of a cell
 #define RADIUS 10
 // The range of acceptable radii
 #define MIN_RAD RADIUS - 2
 #define MAX_RAD RADIUS * 2
-// The number of different sample ellipses to try
-#define NCIRCLES 7
 
 
 extern MAT * m_inverse(MAT * A, MAT * out);
@@ -79,142 +76,109 @@ MAT * chop_flip_image(unsigned char *image, int height, int width, int top, int 
 }
 
 
-// Given x- and y-gradients of a video frame, computes the GICOV
-//  score for each sample ellipse at every pixel in the frame
-MAT * ellipsematching(MAT * grad_x, MAT * grad_y) {
-	int i, n, k;
+// Computes and then transfers to the GPU all of the
+//  constant matrices required by the GPU kernels
+void compute_constants() {
+	int i, j, n, k;
 	// Compute the sine and cosine of the angle to each point in each sample circle
 	//  (which are the same across all sample circles)
-	double sin_angle[NPOINTS], cos_angle[NPOINTS], theta[NPOINTS];
-	#pragma acc kernels create(sin_angle, cos_angle, theta)
-	for (n = 0; n < NPOINTS; n++) {
-		theta[n] = (double) n * 2.0 * PI / (double) NPOINTS;
+	#pragma acc kernels
+	for(n = 0; n < NPOINTS; n++) {
+		theta[n] = (((double) n) * 2.0 * PI) / ((double) NPOINTS);
 		sin_angle[n] = sin(theta[n]);
 		cos_angle[n] = cos(theta[n]);
 	}
 
 	// Compute the (x,y) pixel offsets of each sample point in each sample circle
-	int tX[NCIRCLES][NPOINTS], tY[NCIRCLES][NPOINTS];
-	#pragma acc kernels create(tX, tY) present(theta)
+	#pragma acc kernels
 	for (k = 0; k < NCIRCLES; k++) {
-		double rad = (double) (MIN_RAD + 2 * k); 
-		#pragma acc loop independent
+		double rad = (double) (MIN_RAD + (2 * k)); 
 		for (n = 0; n < NPOINTS; n++) {
-			tX[k][n] = (int) (cos(theta[n]) * rad);
-			tY[k][n] = (int) (sin(theta[n]) * rad);
+			tX[(k * NPOINTS) + n] = (int)(cos(theta[n]) * rad);
+			tY[(k * NPOINTS) + n] = (int)(sin(theta[n]) * rad);
 		}
 	}
 	
-	int MaxR = MAX_RAD + 2;
-	
-	// Allocate memory for the result matrix
-	int height = grad_x->m, width = grad_x->n;
-	MAT * gicov = m_get(height, width);
-
-	#pragma acc kernels present(sin_angle, cos_angle, theta, tY, tX) \
-		copy(gicov[0:height*width])
-	// Scan from left to right, top to bottom, computing GICOV values
-	for (i = MaxR; i < width - MaxR; i++) {
-		double Grad[NPOINTS];
-		int j, k, n, x, y;
-		
-		for (j = MaxR; j < height - MaxR; j++) {
-			// Initialize the maximal GICOV score to 0
-			double max_GICOV = 0;	
-			
-			// Iterate across each stencil
-			for (k = 0; k < NCIRCLES; k++) {
-				// Iterate across each sample point in the current stencil
-				for (n = 0; n < NPOINTS; n++)	{
-					// Determine the x- and y-coordinates of the current sample point
-					y = j + tY[k][n];
-					x = i + tX[k][n];
-					
-					// Compute the combined gradient value at the current sample point
-					Grad[n] = m_get_val(grad_x, y, x) * cos_angle[n] + m_get_val(grad_y, y, x) * sin_angle[n];
-				}
-				
-				// Compute the mean gradient value across all sample points
-				double sum = 0.0;
-				for (n = 0; n < NPOINTS; n++) sum += Grad[n];
-				double mean = sum / (double)NPOINTS;
-				
-				// Compute the variance of the gradient values
-				double var = 0.0;				
-				for (n = 0; n < NPOINTS; n++)	{
-					sum = Grad[n] - mean;
-					var += sum * sum;
-				}				
-				var = var / (double) (NPOINTS - 1);
-				
-				// Keep track of the maximal GICOV value seen so far
-				if (mean * mean / var > max_GICOV) {
-					m_set_val(gicov, j, i, mean / sqrt(var));
-					max_GICOV = mean * mean / var;
-				}
-			}
+	// Compute the structuring element used in dilation
+	#pragma acc kernels
+	for (i = 0; i < strel_m; i++) {
+		for (j = 0; j < strel_n; j++) {
+			if (sqrt((float)((i-radius)*(i-radius)+(j-radius)*(j-radius))) <= radius)
+				strel[(i * strel_m) + j] = 1.0;
+			else
+				strel[(i * strel_m) + j] = 0.0;
 		}
 	}
-	
-	return gicov;
 }
 
 
-// Returns a circular structuring element of the specified radius
-MAT * structuring_element(int radius) {
-	MAT * result = m_get(radius*2+1, radius*2+1);
+// Given x- and y-gradients of a video frame, computes the GICOV
+//  score for each sample ellipse at every pixel in the frame
+MAT *GICOV(MAT *mat_grad_x, MAT *mat_grad_y) {
+	// Determine the dimensions of the frame
+	int grad_m = mat_grad_x->m;
+	int grad_n = mat_grad_y->n;
 	
-	int i, j;
-	for(i = 0; i < result->m; i++) {
-		for(j = 0; j < result->n; j++) {
-			if(sqrt((float)((i-radius)*(i-radius)+(j-radius)*(j-radius))) <= radius)
-				m_set_val(result, i, j, 1.0);
-			else
-				m_set_val(result, i, j, 0.0);
+	// Allocate host memory for grad_x ,grad_y
+	unsigned int grad_mem_size = sizeof(float) * grad_m * grad_n;
+	float *grad_x = (float*) malloc(grad_mem_size);
+	float *grad_y = (float*) malloc(grad_mem_size);
+
+	// initalize float versions of grad_x and grad_y
+	int m, n;
+	for (m = 0; m < grad_m; m++) {
+		for (n = 0; n < grad_n; n++) {
+			grad_x[(n * grad_m) + m] = (float) m_get_val(mat_grad_x, m, n);
+			grad_y[(n * grad_m) + m] = (float) m_get_val(mat_grad_y, m, n);
 		}
 	}
 
-	return result;
+	// Offload the GICOV score computation to the GPU
+	#pragma acc data copyin(grad_x[0:grad_m*grad_n],grad_y[0:grad_m*grad_n])
+	gicov_kernel(grad_m, grad_n, grad_x, grad_y, gicov_mem);
+
+	#pragma acc update host(gicov_mem[0:grad_m*grad_n])
+
+	// Copy the results into a new host matrix
+	MAT *mat_gicov = m_get(grad_m, grad_n);
+	for (m = 0; m < grad_m; m++)
+		for (n = 0; n < grad_n; n++)
+			m_set_val(mat_gicov, m, n, gicov_mem[(n * grad_m) + m]);
+
+	// Cleanup memory
+	free(grad_x);
+	free(grad_y);
+
+	return mat_gicov;
 }
 
 
 // Performs an image dilation on the specified matrix
-//  using the specified structuring element
-MAT * dilate_f(MAT * img_in, MAT * strel) {
-	MAT * dilated = m_get(img_in->m, img_in->n);
-	
-	// Find the center of the structuring element
-	int el_center_i = strel->m / 2, el_center_j = strel->n / 2, i;
-	
-	// Split the work among multiple threads, if OPEN is defined
-	#ifdef OPEN
-	#pragma omp parallel for num_threads(omp_num_threads)
-	#endif
-	#pragma acc kernels create(dilated[0:img_in->m*img_in->n]) \
-		copyout(dilated[0:img_in->m*img_in->n]) \
-		present_or_copyin(img_in, strel)
-	// Iterate across the input matrix
-	for (i = 0; i < img_in->m; i++) {
-		int j, el_i, el_j, x, y;
-		for (j = 0; j < img_in->n; j++) {
-			double max = 0.0, temp;
-			// Iterate across the structuring element
-			for (el_i = 0; el_i < strel->m; el_i++) {
-				for (el_j = 0; el_j < strel->n; el_j++) {
-					y = i - el_center_i + el_i;
-					x = j - el_center_j + el_j;
-					// Make sure we have not gone off the edge of the matrix
-					if (y >=0 && x >= 0 && y < img_in->m && x < img_in->n && m_get_val(strel, el_i, el_j) != 0) {
-						// Determine if this is maximal value seen so far
-						temp = m_get_val(img_in, y, x);
-						if (temp > max)	max = temp;
-					}
-				}
-			}
-			// Store the maximum value found
-			m_set_val(dilated, i, j, max);
-		}
-	}
+MAT *dilate(MAT *img_in) {
+	// Determine the dimensions of the frame
+	int max_gicov_m = img_in->m;
+	int max_gicov_n = img_in->n;
+
+	// Allocate host memory for img_dilated
+	float *img_dilated = (float*) malloc(sizeof(float) * max_gicov_m * max_gicov_n);
+
+	// Determine the dimensions of the structuring element
+	int strel_m = 12 * 2 + 1;
+	int strel_n = 12 * 2 + 1;
+
+	// Offload the dilation to the GPU
+	#pragma acc data copyout(img_dilated[0:max_gicov_m*max_gicov_n])
+	dilate_kernel(gicov_mem, img_dilated, max_gicov_m, max_gicov_n, strel_m, strel_n);
+
+	// Copy results into a new host matrix
+	MAT *dilated = m_get(max_gicov_m, max_gicov_n);
+	int m, n;
+	for (m = 0; m < max_gicov_m; m++)
+		for (n = 0; n < max_gicov_n; n++)
+			m_set_val(dilated, m, n, img_dilated[(m * max_gicov_n) + n]);
+
+	// Cleanup memory
+	free(img_dilated);
 
 	return dilated;
 }
@@ -229,10 +193,10 @@ MAT * TMatrix(unsigned int N, unsigned int M)
 	int * aindex, * bindex, * cindex, * dindex;
 	int i, j;
 
-	aindex = malloc(N*sizeof(int));
-	bindex = malloc(N*sizeof(int));
-	cindex = malloc(N*sizeof(int));
-	dindex = malloc(N*sizeof(int));
+	aindex = (int*) malloc(N*sizeof(int));
+	bindex = (int*) malloc(N*sizeof(int));
+	cindex = (int*) malloc(N*sizeof(int));
+	dindex = (int*) malloc(N*sizeof(int));
 
 	for(i = 1; i < N; i++)
 		aindex[i] = i-1;
@@ -378,10 +342,10 @@ VEC * getsampling(MAT * m, int ns)
 	int i, j;
 	VEC * retval = v_get(N*M);
 
-	aindex = malloc(N*sizeof(int));
-	bindex = malloc(N*sizeof(int));
-	cindex = malloc(N*sizeof(int));
-	dindex = malloc(N*sizeof(int));
+	aindex = (int*) malloc(N*sizeof(int));
+	bindex = (int*) malloc(N*sizeof(int));
+	cindex = (int*) malloc(N*sizeof(int));
+	dindex = (int*) malloc(N*sizeof(int));
 
 	for(i = 1; i < N; i++)
 		aindex[i] = i-1;
@@ -430,10 +394,10 @@ VEC * getfdriv(MAT * m, int ns)
 	int i, j;
 	VEC * retval = v_get(N*M);
 
-	aindex = malloc(N*sizeof(int));
-	bindex = malloc(N*sizeof(int));
-	cindex = malloc(N*sizeof(int));
-	dindex = malloc(N*sizeof(int));
+	aindex = (int*) malloc(N*sizeof(int));
+	bindex = (int*) malloc(N*sizeof(int));
+	cindex = (int*) malloc(N*sizeof(int));
+	dindex = (int*) malloc(N*sizeof(int));
 
 	for(i = 1; i < N; i++)
 		aindex[i] = i-1;
@@ -543,6 +507,7 @@ void splineenergyform01(MAT * Cx, MAT * Cy, MAT * Ix, MAT * Iy, int ns, double d
 	for(i = 0; i < Y2->dim; i++)
 		v_set_val(Y2, i, v_get_val(Y, i) + delta*v_get_val(Ny, i));
 
+	// seg fault happens at this func call
 	Ix1_mat = linear_interp2(Ix, X1, Y1);
 	Iy1_mat = linear_interp2(Iy, X1, Y1);
 	Ix2_mat = linear_interp2(Ix, X2, Y2);
@@ -562,10 +527,10 @@ void splineenergyform01(MAT * Cx, MAT * Cy, MAT * Ix, MAT * Iy, int ns, double d
 
 	//VEC * retval = v_get(N*ns);
 
-	aindex = malloc(N*sizeof(int));
-	bindex = malloc(N*sizeof(int));
-	cindex = malloc(N*sizeof(int));
-	dindex = malloc(N*sizeof(int));
+	aindex = (int*) malloc(N*sizeof(int));
+	bindex = (int*) malloc(N*sizeof(int));
+	cindex = (int*) malloc(N*sizeof(int));
+	dindex = (int*) malloc(N*sizeof(int));
 
 	for(i = 1; i < N; i++)
 		aindex[i] = i-1;

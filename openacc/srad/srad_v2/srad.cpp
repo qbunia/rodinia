@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
 	float lambda;
 	int i, j;
 
-	if (argc == 10)
+	if (argc == 9)
 	{
 		rows = atoi(argv[1]); //number of rows in the domain
 		cols = atoi(argv[2]); //number of cols in the domain
@@ -79,43 +79,46 @@ int main(int argc, char* argv[])
     dW = (float *)malloc(sizeof(float)* size_I) ;
     dE = (float *)malloc(sizeof(float)* size_I) ;    
     
-    #pragma acc kernels create(iN[0:rows], iS[0:rows])
+#pragma acc data create(iN[0:rows],iS[0:rows],jW[0:cols],jE[0:cols]) \
+    create(dN[0:size_I],dS[0:size_I],dW[0:size_I],dE[0:size_I],c[0:size_I]) \
+    create(I[0:size_I]) copyout(J[0:size_I])
+{
+    #pragma acc parallel loop
     for (int i=0; i< rows; i++) {
         iN[i] = i-1;
         iS[i] = i+1;
-        if (i == 0) iN[0] = 0;
-        if (i == rows-1) iS[rows-1] = rows-1;
     }
-    #pragma acc kernels create(jW[0:cols], jE[0:cols])
+    #pragma acc parallel loop
     for (int j=0; j< cols; j++) {
         jW[j] = j-1;
         jE[j] = j+1;
-        if (j == 0) jW[0] = 0;
-        if (j == cols-1) jE[cols-1] = cols-1;
+    }
+    #pragma acc kernels
+    {
+    iN[0]    = 0;
+    iS[rows-1] = rows-1;
+    jW[0]    = 0;
+    jE[cols-1] = cols-1;
     }
 	
 	printf("Randomizing the input matrix\n");
 
     random_matrix(I, rows, cols);
+    #pragma acc update device(I[0:size_I])
 
-    #pragma acc kernels copyin(I[0:size_I]) create(J[0:size_I])
+    #pragma acc parallel loop
     for (k = 0;  k < size_I; k++ ) {
      	J[k] = (float)exp(I[k]) ;
     }
    
 	printf("Start the SRAD main loop\n");
 
-	#pragma acc data copyout(J[0:size_I]) \
-		create(dN[0:size_I], dS[0:size_I], dW[0:size_I], dE[0:size_I], c[0:size_I]) \
-		present(iN, iS, jW, jE)
-	{
 #ifdef ITERATION
 	for (iter=0; iter< niter; iter++){
 #endif        
 		sum=0; sum2=0;     
-		#pragma acc parallel loop vector reduction(+:sum,sum2)
+		#pragma acc parallel loop collapse(2) reduction(+:sum,sum2)
 		for (i=r1; i<=r2; i++) {
-			#pragma acc loop vector reduction(+:sum,sum2)
             for (j=c1; j<=c2; j++) {
                 tmp   = J[i * cols + j];
                 sum  += tmp ;
@@ -127,23 +130,25 @@ int main(int argc, char* argv[])
         q0sqr   = varROI / (meanROI*meanROI);
 		
 
-        #pragma acc kernels
+        #pragma acc parallel loop collapse(2)
 		for (int i = 0 ; i < rows ; i++) {
             for (int j = 0; j < cols; j++) { 
 		
+				float dNk, dSk, dWk, dEk, ck;
+				
 				k = i * cols + j;
 				Jc = J[k];
  
 				// directional derivates
-                dN[k] = J[iN[i] * cols + j] - Jc;
-                dS[k] = J[iS[i] * cols + j] - Jc;
-                dW[k] = J[i * cols + jW[j]] - Jc;
-                dE[k] = J[i * cols + jE[j]] - Jc;
+                dNk = J[iN[i] * cols + j] - Jc;
+                dSk = J[iS[i] * cols + j] - Jc;
+                dWk = J[i * cols + jW[j]] - Jc;
+                dEk = J[i * cols + jE[j]] - Jc;
 			
-                G2 = (dN[k]*dN[k] + dS[k]*dS[k] 
-                    + dW[k]*dW[k] + dE[k]*dE[k]) / (Jc*Jc);
+                G2 = (dNk*dNk + dSk*dSk 
+                    + dWk*dWk + dEk*dEk) / (Jc*Jc);
 
-   		        L = (dN[k] + dS[k] + dW[k] + dE[k]) / Jc;
+   		        L = (dNk + dSk + dWk + dEk) / Jc;
 
 				num  = (0.5*G2) - ((1.0/16.0)*(L*L)) ;
                 den  = 1 + (.25*L);
@@ -151,16 +156,18 @@ int main(int argc, char* argv[])
  
                 // diffusion coefficent (equ 33)
                 den = (qsqr-q0sqr) / (q0sqr * (1+q0sqr)) ;
-                c[k] = 1.0 / (1.0+den) ;
+                ck = 1.0 / (1.0+den) ;
                 
                 // saturate diffusion coefficent
-                if (c[k] < 0) {c[k] = 0;}
-                else if (c[k] > 1) {c[k] = 1;}
+                if (ck < 0) {c[k] = 0;}
+                else if (ck >= 1) {c[k] = 1;}
+                
+                dN[k] = dNk, dS[k] = dSk, dW[k] = dWk, dE[k] = dEk;
    
 			}
     	}
 
-    	#pragma acc kernels
+    	#pragma acc parallel loop collapse(2)
 		for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {        
 
@@ -178,21 +185,14 @@ int main(int argc, char* argv[])
                 
                 // image update (equ 61)
                 J[k] = J[k] + 0.25*lambda*D;
-                #ifdef OUTPUT
-                //printf("%.5f ", J[k]); 
-                #endif //output
             }
-	            #ifdef OUTPUT
-                //printf("\n"); 
-                #endif //output
 	     }
 
 #ifdef ITERATION
 	}
 #endif
 
-	} /* end pragma acc data */
-
+} /* end acc data */
 
 #ifdef OUTPUT
 	  for( int i = 0 ; i < rows ; i++){

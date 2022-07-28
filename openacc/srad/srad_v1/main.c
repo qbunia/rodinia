@@ -30,6 +30,8 @@
 #include "resize.c"
 #include "timer.c"
 
+#define TRANSFER_IMAGE 1
+
 //====================================================================================================100
 //====================================================================================================100
 //	MAIN FUNCTION
@@ -187,33 +189,41 @@ int main(int argc, char *argv []){
 	// allocate variable for diffusion coefficient
     c  = malloc(sizeof(fp)*Ne) ;											// diffusion coefficient
         
+#pragma acc data create(iN[0:Nr],iS[0:Nr],jW[0:Nc],jE[0:Nc]) \
+    create(dN[0:Ne],dS[0:Ne],dW[0:Ne],dE[0:Ne],c[0:Ne]) \
+    copyout(image[0:Ne])
+{
+	#pragma acc update device(image[0:Ne]) async(TRANSFER_IMAGE)
+
     // N/S/W/E indices of surrounding pixels (every element of IMAGE)
-	#pragma acc kernels create(iN[0:Nr], iS[0:Nr])
+	#pragma acc parallel loop
     for (i=0; i<Nr; i++) {
         iN[i] = i-1;														// holds index of IMAGE row above
         iS[i] = i+1;														// holds index of IMAGE row below
-
-        // N/S boundary conditions, fix surrounding indices outside boundary of IMAGE
-        if (i==0) iN[0] = 0;												// changes IMAGE top row index from -1 to 0
-        if (i==Nr-1) iS[Nr-1] = Nr-1;										// changes IMAGE bottom row index from Nr to Nr-1 
     }
-	#pragma acc kernels create(jW[0:Nc], jE[0:Nc])
+	#pragma acc parallel loop
     for (j=0; j<Nc; j++) {
         jW[j] = j-1;														// holds index of IMAGE column on the left
         jE[j] = j+1;														// holds index of IMAGE column on the right
-
-        // W/E boundary conditions, fix surrounding indices outside boundary of IMAGE
-        if (j==0) jW[0] = 0;												// changes IMAGE leftmost column index from -1 to 0
-    	if (j==Nr-1) jE[Nc-1] = Nc-1;										// changes IMAGE rightmost column index from Nc to Nc-1
     }
-	
+	// N/S/W/E boundary conditions, fix surrounding indices outside boundary of IMAGE
+    #pragma acc kernels
+    {
+    iN[0]    = 0;															// changes IMAGE top row index from -1 to 0
+    iS[Nr-1] = Nr-1;														// changes IMAGE bottom row index from Nr to Nr-1 
+    jW[0]    = 0;															// changes IMAGE leftmost column index from -1 to 0
+    jE[Nc-1] = Nc-1;
+    }														// changes IMAGE rightmost column index from Nc to Nc-1
+
 	time5 = get_time();
 
 	//================================================================================80
 	// 	SCALE IMAGE DOWN FROM 0-255 TO 0-1 AND EXTRACT
 	//================================================================================80
 
-	#pragma acc kernels copyin(image[0:Ne])
+	#pragma acc wait(TRANSFER_IMAGE)
+
+	#pragma acc parallel loop
 	for (i=0; i<Ne; i++) {													// do for the number of elements in input IMAGE
 		image[i] = exp(image[i]/255);											// exponentiate input IMAGE and copy to output image
     }
@@ -227,8 +237,6 @@ int main(int argc, char *argv []){
 	// printf("iterations: ");
 
     // primary loop
-    #pragma acc data create(dN[0:Ne], dS[0:Ne], dW[0:Ne], dE[0:Ne], c[0:Ne])
-    {
     for (iter=0; iter<niter; iter++){										// do for the number of iterations input parameter
 
 		// printf("%d ", iter);
@@ -237,9 +245,8 @@ int main(int argc, char *argv []){
         // ROI statistics for entire ROI (single number for ROI)
         sum=0; 
 		sum2=0;
-		#pragma acc parallel loop vector reduction(+:sum,sum2) present(image)
+		#pragma acc parallel loop collapse(2) reduction(+:sum,sum2)
         for (i=r1; i<=r2; i++) {											// do for the range of rows in ROI
-        	#pragma acc loop vector reduction(+:sum,sum2)
             for (j=c1; j<=c2; j++) {										// do for the range of columns in ROI
                 tmp   = image[i + Nr*j];										// get coresponding value in IMAGE
                 sum  += tmp ;												// take corresponding value and add to sum
@@ -251,26 +258,28 @@ int main(int argc, char *argv []){
         q0sqr   = varROI / (meanROI*meanROI);								// gets standard deviation of ROI
 
         // directional derivatives, ICOV, diffusion coefficent
-		#pragma acc kernels present(image, c)
+		#pragma acc parallel loop collapse(2)
 		for (j=0; j<Nc; j++) {												// do for the range of columns in IMAGE
             for (i=0; i<Nr; i++) {											// do for the range of rows in IMAGE 
+
+                fp dNk, dSk, dWk, dEk, ck;
 
                 // current index/pixel
                 k = i + Nr*j;												// get position of current element
                 Jc = image[k];													// get value of the current element
 
                 // directional derivates (every element of IMAGE)
-                dN[k] = image[iN[i] + Nr*j] - Jc;								// north direction derivative
-                dS[k] = image[iS[i] + Nr*j] - Jc;								// south direction derivative
-                dW[k] = image[i + Nr*jW[j]] - Jc;								// west direction derivative
-                dE[k] = image[i + Nr*jE[j]] - Jc;								// east direction derivative
+                dNk = image[iN[i] + Nr*j] - Jc;								// north direction derivative
+                dSk = image[iS[i] + Nr*j] - Jc;								// south direction derivative
+                dWk = image[i + Nr*jW[j]] - Jc;								// west direction derivative
+                dEk = image[i + Nr*jE[j]] - Jc;								// east direction derivative
 
                 // normalized discrete gradient mag squared (equ 52,53)
-                G2 = (dN[k]*dN[k] + dS[k]*dS[k]								// gradient (based on derivatives)
-                    + dW[k]*dW[k] + dE[k]*dE[k]) / (Jc*Jc);
+                G2 = (dNk*dNk + dSk*dSk								// gradient (based on derivatives)
+                    + dWk*dWk + dEk*dEk) / (Jc*Jc);
 
                 // normalized discrete laplacian (equ 54)
-                L = (dN[k] + dS[k] + dW[k] + dE[k]) / Jc;					// laplacian (based on derivatives)
+                L = (dNk + dSk + dWk + dEk) / Jc;					// laplacian (based on derivatives)
 
                 // ICOV (equ 31/35)
                 num  = (0.5*G2) - ((1.0/16.0)*(L*L)) ;						// num (based on gradient and laplacian)
@@ -279,20 +288,21 @@ int main(int argc, char *argv []){
  
                 // diffusion coefficent (equ 33) (every element of IMAGE)
                 den = (qsqr-q0sqr) / (q0sqr * (1+q0sqr)) ;					// den (based on qsqr and q0sqr)
-                c[k] = 1.0 / (1.0+den) ;									// diffusion coefficient (based on den)
+                ck = 1.0 / (1.0+den) ;									// diffusion coefficient (based on den)
 
                 // saturate diffusion coefficent to 0-1 range
-                if (c[k] < 0)												// if diffusion coefficient < 0
+                if (ck < 0)												// if diffusion coefficient < 0
 					{c[k] = 0;}												// ... set to 0
-                else if (c[k] > 1)											// if diffusion coefficient > 1
+                else if (ck >= 1)											// if diffusion coefficient > 1
 					{c[k] = 1;}												// ... set to 1
 
+                dN[k] = dNk, dS[k] = dSk, dW[k] = dWk, dE[k] = dEk;
             }
 
         }
 
         // divergence & image update
-        #pragma acc kernels present(c, jE, dN, dS, dW, dE)
+        #pragma acc parallel loop collapse(2)
         for (j=0; j<Nc; j++) {												// do for the range of columns in IMAGE
             for (i=0; i<Nr; i++) {											// do for the range of rows in IMAGE
 
@@ -316,7 +326,6 @@ int main(int argc, char *argv []){
         }
 
 	}
-	} /* end pragma add data */
 
 	// printf("\n");
 
@@ -326,12 +335,13 @@ int main(int argc, char *argv []){
 	// 	SCALE IMAGE UP FROM 0-1 TO 0-255 AND COMPRESS
 	//================================================================================80
 
-	#pragma acc kernels copyout(image)
+	#pragma acc parallel loop
 	for (i=0; i<Ne; i++) {													// do for the number of elements in IMAGE
 		image[i] = log(image[i])*255;													// take logarithm of image, log compress
 	}
 
 	time8 = get_time();
+} /* end acc data */
 
 	//================================================================================80
 	// 	WRITE IMAGE AFTER PROCESSING

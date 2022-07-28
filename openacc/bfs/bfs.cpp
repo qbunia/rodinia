@@ -3,6 +3,8 @@
 #include <math.h>
 #include <stdlib.h>
 
+#define TRANSFER_GRAPH_NODE 1
+
 int no_of_nodes;
 int edge_list_size;
 FILE *fp;
@@ -39,6 +41,9 @@ int main( int argc, char** argv)
 void BFSGraph( int argc, char** argv) 
 {
     char *input_f;
+
+    int* h_cost;
+    int* h_graph_edges;
 	
 	if(argc!=2){
 	Usage(argc, argv);
@@ -78,26 +83,11 @@ void BFSGraph( int argc, char** argv)
 	//read the source node from the file
 	fscanf(fp,"%d",&source);
 	source=0;
-
-	#pragma acc kernels copyin(source) \
-		create(h_updating_graph_mask[0:no_of_nodes], h_graph_mask[0:no_of_nodes], h_graph_visited[0:no_of_nodes])
-	for( unsigned int i = 0; i < no_of_nodes; i++)
-	{
-		h_updating_graph_mask[i]=false;
-		h_graph_mask[i]=false;
-		h_graph_visited[i]=false;
-
-		//set the source node as true in the mask
-		if (i == source) {
-			h_graph_mask[source]=true;
-			h_graph_visited[source]=true;
-		}
-	}
-
+	
 	fscanf(fp,"%d",&edge_list_size);
-
+	
 	int id,cost;
-	int* h_graph_edges = (int*) malloc(sizeof(int)*edge_list_size);
+	h_graph_edges = (int*) malloc(sizeof(int)*edge_list_size);
 	for(int i=0; i < edge_list_size ; i++)
 	{
 		fscanf(fp,"%d",&id);
@@ -106,34 +96,53 @@ void BFSGraph( int argc, char** argv)
 	}
 
 	if(fp)
-		fclose(fp);    
+		fclose(fp); 
 
+#pragma acc data create(h_updating_graph_mask[0:no_of_nodes]) \
+	create(h_graph_mask[0:no_of_nodes],h_graph_visited[0:no_of_nodes]) \
+	create(h_graph_nodes[0:no_of_nodes], h_graph_edges[0:edge_list_size]) \
+	copyout(h_cost[0:no_of_nodes])
+{
+	#pragma acc update device(h_graph_nodes[0:no_of_nodes]) async(TRANSFER_GRAPH_NODE)
+
+	#pragma acc parallel loop
+	for( unsigned int i = 0; i < no_of_nodes; i++)
+	{
+		h_updating_graph_mask[i]=false;
+		h_graph_mask[i]=false;
+		h_graph_visited[i]=false;
+	}
+	
+	#pragma acc kernels present(h_graph_mask[0:no_of_nodes],h_graph_visited[0:no_of_nodes])
+	{
+	    //set the source node as true in the mask
+	    h_graph_mask[source]=true;
+		h_graph_visited[source]=true;
+	}
 
 	// allocate mem for the result on host side
-	int* h_cost = (int*) malloc( sizeof(int)*no_of_nodes);
-	#pragma acc kernels \
-		create(h_cost[0:no_of_nodes]) copyin(source)
+	h_cost = (int*) malloc( sizeof(int)*no_of_nodes);
+	#pragma acc parallel loop
 	for(int i=0;i<no_of_nodes;i++) {
 		h_cost[i]=-1;
 		if(i == source) h_cost[source]=0;
 	}
 	
+	// finish transfer node and edge to target
+	#pragma acc update device(h_graph_edges[0:edge_list_size])
+	#pragma acc wait(TRANSFER_GRAPH_NODE)
+
 	printf("Start traversing the tree\n");
-	
+
 	int k=0;
     
 	bool stop;
-	#pragma acc data \
-		present(h_updating_graph_mask, h_graph_mask, h_graph_visited) \
-	    copyin(h_graph_nodes[0:no_of_nodes], h_graph_edges[0:edge_list_size]) \
-	    copyout(h_cost[0:no_of_nodes])
-	{
 	do
 	{
 		//if no thread changes this value then the loop stops
 		stop=false;
 
-		#pragma acc kernels
+		#pragma acc parallel loop
 		for(int tid = 0; tid < no_of_nodes; tid++ )
 		{
 			if (h_graph_mask[tid] == true){ 
@@ -150,7 +159,7 @@ void BFSGraph( int argc, char** argv)
 			}
 		}
 
-		#pragma acc parallel loop vector reduction(||,stop) copyout(stop)
+		#pragma acc parallel loop vector reduction(||:stop)
   		for(int tid=0; tid< no_of_nodes ; tid++ )
 		{
 			if (h_updating_graph_mask[tid] == true){
@@ -163,7 +172,8 @@ void BFSGraph( int argc, char** argv)
 		k++;
 	}
 	while(stop);
-	} /* end pragma acc data */
+
+} /* end acc data */
 
 	//Store the result into a file
 	FILE *fpo = fopen("result.txt","w");

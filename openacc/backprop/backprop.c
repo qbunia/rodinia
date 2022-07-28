@@ -221,10 +221,10 @@ void bpnn_layerforward(float *l1, float *l2, float **conn, int n1, int n2)
   int j, k;
 
   /*** Set up thresholding unit ***/
-  #pragma acc kernels present(l1)
+  #pragma acc kernels present(l1[0:n1])
   l1[0] = 1.0;
 
-  #pragma acc parallel loop present(l1,l2,conn)
+  #pragma acc parallel loop present(l1[0:n1],l2[0:n2],conn[0:n1*n2])
   /*** For each unit in second layer ***/
   for (j = 1; j <= n2; j++) {
 
@@ -242,14 +242,15 @@ void bpnn_layerforward(float *l1, float *l2, float **conn, int n1, int n2)
 void bpnn_output_error(float *delta, float *target, float *output, int nj, float *err)
 {
   int j;
-  float o, t, errsum;
+  float o, t, errsum, deltaj;
   errsum = 0.0;
-  #pragma acc parallel loop reduction(+:errsum) present(delta,target,output)
+  #pragma acc parallel loop reduction(+:errsum) present(delta[0:nj],target[0:nj])
   for (j = 1; j <= nj; j++) {
     o = output[j];
     t = target[j];
-    delta[j] = o * (1.0 - o) * (t - o);
-    errsum += ABS(delta[j]);
+    deltaj = o * (1.0 - o) * (t - o);
+	delta[j] = deltaj;
+    errsum += ABS(deltaj);
   }
   *err = errsum;
 }
@@ -264,10 +265,10 @@ void bpnn_hidden_error(float *delta_h,
 					   float *err)
 {
   int j, k;
-  float h, sum, errsum;
+  float h, sum, errsum, delta_hj;
 
   errsum = 0.0;
-  #pragma acc parallel loop reduction(+:errsum) present(delta_h,delta_o,who,hidden)
+  #pragma acc parallel loop reduction(+:errsum) present(delta_h[0:nh],delta_o[0:no])
   for (j = 1; j <= nh; j++) {
     h = hidden[j];
     sum = 0.0;
@@ -275,8 +276,9 @@ void bpnn_hidden_error(float *delta_h,
     for (k = 1; k <= no; k++) {
       sum += delta_o[k] * who[j][k];
     }
-    delta_h[j] = h * (1.0 - h) * sum;
-    errsum += ABS(delta_h[j]);
+    delta_hj = h * (1.0 - h) * sum;
+	delta_h[j] = delta_hj;
+    errsum += ABS(delta_hj);
   }
   *err = errsum;
 }
@@ -290,7 +292,8 @@ void bpnn_adjust_weights(float *delta, int ndelta, float *ly, int nly, float **w
   //eta = 0.3;
   //momentum = 0.3;
 
-  #pragma acc parallel loop present(delta,ly,w,oldw)
+  #pragma acc parallel loop present(delta[0:ndelta],ly[0:nly]) \
+      present(w[0:nly][0:ndelta],oldw[0:nly][0:ndelta])
   for (j = 1; j <= ndelta; j++) {
     #pragma acc loop
     for (k = 0; k <= nly; k++) {

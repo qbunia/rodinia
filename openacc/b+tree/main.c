@@ -101,6 +101,8 @@
 //	VARIABLES
 //========================================================================================================================================================================================================200
 
+#define TRANSFER_KERNEL_DATA 1
+
 // general variables
 knode *knodes;
 record *krecords;
@@ -2136,7 +2138,7 @@ main(	int argc,
 				// get # of queries from user
 				int count;
 				sscanf(commandPointer, "%d", &count);
-				while(*commandPointer!=32 && commandPointer!='\n')
+				while(*commandPointer!=32 && *commandPointer!='\n')
 				  commandPointer++;
 
 				printf("\n ******command: k count=%d \n",count);
@@ -2175,17 +2177,22 @@ main(	int argc,
 				// OUTPUT: ans CPU allocation, initialize in GPU
 				record *ans = (record *)malloc(sizeof(record)*count);
 
+#pragma acc data create(currKnode[0:count],offset[0:count],ans[0:count]) \
+        create(keys[0:count],records[0:records_elem],knodes[0:knodes_elem]) \
+        copyout(ans[0:count])
+{
+        #pragma acc update device(keys[0:count],records[0:records_elem],knodes[0:knodes_elem]) \
+            async(TRANSFER_KERNEL_DATA)
+
         // Allocate variable in device and initialize
-        #pragma acc kernels create(currKnode[0:count], offset[0:count], ans[0:count])
+        #pragma acc parallel loop
         for(i = 0; i < count; i++) {
           currKnode[i] = 0;
           offset[i] = 0;
           ans[i].value = -1;
         }
 
-        #pragma acc data present(currKnode, offset) \
-          copyin(keys[0:count], records, knodes) copyout(ans[0:count])
-        {
+        #pragma acc wait(TRANSFER_KERNEL_DATA)
 				// New OpenACC kernel, same algorighm across all versions(OpenMP, CUDA, OpenCL) for comparison purposes
 				kernel_cpu(	cores_arg,
 
@@ -2201,7 +2208,7 @@ main(	int argc,
 							offset,
 							keys,
 							ans);
-        } /* end pragma acc data */
+} /* end pragma acc data */
 
 				// Original OpenMP kernel, different algorithm
 				// int j;
@@ -2270,12 +2277,12 @@ main(	int argc,
 				// get # of queries from user
 				int count;
 				sscanf(commandPointer, "%d", &count);
-				while(*commandPointer!=32 && commandPointer!='\n')
+				while(*commandPointer!=32 && *commandPointer!='\n')
 				  commandPointer++;
 
 				int rSize;
 				sscanf(commandPointer, "%d", &rSize);
-				while(*commandPointer!=32 && commandPointer!='\n')
+				while(*commandPointer!=32 && *commandPointer!='\n')
 				  commandPointer++;
 
 				printf("\n******command: j count=%d, rSize=%d \n",count, rSize);
@@ -2321,10 +2328,16 @@ main(	int argc,
 				int *recstart = (int *)malloc(count*sizeof(int));
 				int *reclength = (int *)malloc(count*sizeof(int));
 
+#pragma acc data create(currKnode[0:count],offset[0:count]) \
+    create(start[0:count],end[0:count]) \
+    create(lastKnode[0:count],offset_2[0:count]) \
+    copyout(recstart[0:count],reclength[0:count])
+{
+        #pragma acc update device(start[0:count],end[0:count]) \
+            async(TRANSFER_KERNEL_DATA)
+
         // Allocate variable in device and initialize
-        #pragma acc kernels create(currKnode[0:count], offset[0:count]) \ 
-          create(lastKnode[0:count], offset_2[0:count]) \
-          create(recstart[0:count], reclength[0:count])
+        #pragma acc parallel loop
         for(i = 0; i < count; i++){
           currKnode[i] = 0;
           offset[i] = 0;
@@ -2334,10 +2347,8 @@ main(	int argc,
           reclength[i] = 0;
         }
 
-        #pragma acc data present(currKnode, offset, lastKnode, offset_2) \
-          copyin(start[0:count], end[0:count])
-          copyout(recstart[0:count], reclength[0:count])
-        {
+        #pragma acc wait(TRANSFER_KERNEL_DATA)
+        
 				// New kernel, same algorighm across all versions(OpenMP, CUDA, OpenCL) for comparison purposes
 				kernel_cpu_2(	cores_arg,
 
@@ -2356,7 +2367,7 @@ main(	int argc,
 								end,
 								recstart,
 								reclength);
-        } /* end pragma acc data */
+} /* end pragma acc data */
 
 				// Original [CPU] kernel, different algorithm
 				// int k;

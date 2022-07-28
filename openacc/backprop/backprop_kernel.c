@@ -68,7 +68,7 @@ void bpnn_train_kernel(BPNN *net, float *eo, float *eh)
 
 #pragma acc data copyin(input_units[0:in]) \
   create(hidden_units[0:hid], output_units[0:out]) \
-  create(input_weights[0:in][0:hid], hidden_weights[0:hid][0:out]) \
+  copyin(input_weights[0:in][0:hid], hidden_weights[0:hid][0:out]) \
   create(hidden_delta[0:hid], output_delta[0:out]) \
   create(input_prev_weights[0:in][0:hid], hidden_prev_weights[0:hid][0:out]) \
   copyin(target[0:out])

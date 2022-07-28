@@ -1,4 +1,5 @@
 #include "track_ellipse.h"
+#include "track_ellipse_kernel.h"
 
 
 void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np, int Nf) {
@@ -12,22 +13,18 @@ void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np,
 	%   xc0,yc0.....initial center location (Nc entries)
 	%   Nc..........number of cells
 	%   R...........initial radius
-	%   Np..........nbr of snaxels points per snake
-	%   Nf..........nbr of frames in which to track
+	%   Np..........number of snaxels points per snake
+	%   Nf..........number of frames in which to track
 	%
 	% Matlab code written by: DREW GILLIAM (based on code by GANG DONG /
 	%                                                        NILANJAN RAY)
 	% Ported to C by: MICHAEL BOYER
 	*/
 	
-	int i, j;
-	double *shift_buff_Nc = (double *) malloc(Nc * sizeof(double));
-	double *shift_buff_Np = (double *) malloc(Np * sizoef(double));
-	
 	// Compute angle parameter
 	double *t = (double *) malloc(sizeof(double) * Np);
 	double increment = (2.0 * PI) / (double) Np;
-	#pragma acc kernels create(t[0:Np])
+	int i, j;
 	for (i = 0; i < Np; i++) {
 		t[i] =  increment * (double) i ;
 	}
@@ -40,25 +37,35 @@ void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np,
 	double ***y = alloc_3d_double(Nc, Np, Nf + 1);
 	
 	// Save the first snake for each cell
-	#pragma acc kernels create(xc, yc, r)
 	for (i = 0; i < Nc; i++) {
 		xc[i][0] = xc0[i];
 		yc[i][0] = yc0[i];
-		#pragma acc loop independent
 		for (j = 0; j < Np; j++) {
 			r[i][j][0] = (double) R;
 		}
 	}
 	
 	// Generate ellipse points for each cell
-	#pragma acc kernels create(x, y) present(xc, xy, r, t)
 	for (i = 0; i < Nc; i++) {
-		#pragma acc loop independent
 		for (j = 0; j < Np; j++) {
 			x[i][j][0] = xc[i][0] + (r[i][j][0] * cos(t[j]));
 			y[i][j][0] = yc[i][0] + (r[i][j][0] * sin(t[j]));
 		}
 	}
+	
+	// Allocate arrays so we can break up the per-cell for loop below
+	double *xci = (double *) malloc(sizeof(double) * Nc);
+	double *yci = (double *) malloc(sizeof(double) * Nc);
+	double **ri = alloc_2d_double(Nc, Np);
+	double *ycavg = (double *) malloc(sizeof(double) * Nc);
+	int *u1 = (int *) malloc(sizeof(int) * Nc);
+	int *u2 = (int *) malloc(sizeof(int) * Nc);
+	int *v1 = (int *) malloc(sizeof(int) * Nc);
+	int *v2 = (int *) malloc(sizeof(int) * Nc);
+	MAT **Isub = (MAT **) malloc(sizeof(MAT *) * Nc);
+	MAT **Ix = (MAT **) malloc(sizeof(MAT *) * Nc);
+	MAT **Iy = (MAT **) malloc(sizeof(MAT *) * Nc);
+	MAT **IE = (MAT **) malloc(sizeof(MAT *) * Nc);
 	
 	// Keep track of the total time spent on computing
 	//  the MGVF matrix and evolving the snakes
@@ -66,8 +73,8 @@ void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np,
 	long long snake_time = 0;
 	
 	
-	// Process each frame
-	int frame_num, cell_num;
+	// Process each frame sequentially
+	int frame_num;
 	for (frame_num = 1; frame_num <= Nf; frame_num++) {	 
 		printf("\rProcessing frame %d / %d", frame_num, Nf);
 		fflush(stdout);
@@ -77,25 +84,7 @@ void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np,
 		int Ih = I->m;
 		int Iw = I->n;
 	    
-	    // Set the current positions equal to the previous positions		
-#ifdef _OPENACC
-		#pragma acc kernels create(shift_buff_Nc[0:Nc]) present(xc)
-		for (i = 0; i < Nc; i++) shift_buff_Nc[frame_num] = xc[i][frame_num - 1];
-		#pragma acc kernels present(shift_buff_Nc, xc)
-		for (i = 0; i < Nc; i++) xc[i][frame_num] = shift_buff_Nc[frame_num];
-		
-		#pragma acc kernels present(shift_buff_Nc, yc)
-		for (i = 0; i < Nc; i++) shift_buff_Nc[frame_num] = yc[i][frame_num - 1];
-		#pragma acc kernels present(shift_buff_Nc, yc)
-		for (i = 0; i < Nc; i++) yc[i][frame_num] = shift_buff_Nc[frame_num];
-
-		#pragma acc kernels create(shift_buff_Np[0:Np]) present(r)
-		for (i = 0; i < Nc; i++) for (j = 0; j < Np; j++)
-			shift_buff_Np[frame_num] = r[i][j][frame_num - 1];
-		#pragma acc kernels present(shift_buff_Np, r)
-		for (i = 0; i < Nc; i++) for (j = 0; j < Np; j++)
-			r[i][j][frame_num] = shift_buff_Np[frame_num];
-#else
+	    // Initialize the current positions to be equal to the previous positions		
 		for (i = 0; i < Nc; i++) {
 			xc[i][frame_num] = xc[i][frame_num - 1];
 			yc[i][frame_num] = yc[i][frame_num - 1];
@@ -103,103 +92,121 @@ void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np,
 				r[i][j][frame_num] = r[i][j][frame_num - 1];
 			}
 		}
-#endif
 		
-
-		#pragma acc kernels present(xc, yc, r)
-		// Track each cell
+		// Sequentially extract the subimage near each cell
+		int cell_num;
 		for (cell_num = 0; cell_num < Nc; cell_num++) {
 			// Make copies of the current cell's location
-			double xci = xc[cell_num][frame_num];
-			double yci = yc[cell_num][frame_num];
-			double *ri = (double *) malloc(sizeof(double) * Np);
+			xci[cell_num] = xc[cell_num][frame_num];
+			yci[cell_num] = yc[cell_num][frame_num];
 			for (j = 0; j < Np; j++) {
-				ri[j] = r[cell_num][j][frame_num];
+				ri[cell_num][j] = r[cell_num][j][frame_num];
 			}
 			
-			// Add up the last ten y-values for this cell
+			// Add up the last ten y values for this cell
 			//  (or fewer if there are not yet ten previous frames)
-			double ycavg = 0.0;
+			ycavg[cell_num] = 0.0;
 			for (i = (frame_num > 10 ? frame_num - 10 : 0); i < frame_num; i++) {
-				ycavg += yc[cell_num][i];
+				ycavg[cell_num] += yc[cell_num][i];
 			}
-			// Compute the average of the last ten y-values
-			//  (this represents the expected y-location of the cell)
-			ycavg = ycavg / (double) (frame_num > 10 ? 10 : frame_num);
+			// Compute the average of the last ten values
+			//  (this represents the expected location of the cell)
+			ycavg[cell_num] = ycavg[cell_num] / (double) (frame_num > 10 ? 10 : frame_num);
 			
 			// Determine the range of the subimage surrounding the current position
-			int u1 = max(xci - 4.0 * R + 0.5, 0 );
-			int u2 = min(xci + 4.0 * R + 0.5, Iw - 1);
-			int v1 = max(yci - 2.0 * R + 1.5, 0 );    
-			int v2 = min(yci + 2.0 * R + 1.5, Ih - 1);
+			u1[cell_num] = max(xci[cell_num] - 4.0 * R + 0.5, 0 );
+			u2[cell_num] = min(xci[cell_num] + 4.0 * R + 0.5, Iw - 1);
+			v1[cell_num] = max(yci[cell_num] - 2.0 * R + 1.5, 0 );    
+			v2[cell_num] = min(yci[cell_num] + 2.0 * R + 1.5, Ih - 1);
 			
 			// Extract the subimage
-			MAT *Isub = m_get(v2 - v1 + 1, u2 - u1 + 1);
-			for (i = v1; i <= v2; i++) {
-				for (j = u1; j <= u2; j++) {
-					m_set_val(Isub, i - v1, j - u1, m_get_val(I, i, j));
+			Isub[cell_num] = m_get(v2[cell_num] - v1[cell_num] + 1, u2[cell_num] - u1[cell_num] + 1);
+			for (i = v1[cell_num]; i <= v2[cell_num]; i++) {
+				for (j = u1[cell_num]; j <= u2[cell_num]; j++) {
+					m_set_val(Isub[cell_num], i - v1[cell_num], j - u1[cell_num], m_get_val(I, i, j));
 				}
 			}
 			
 	        // Compute the subimage gradient magnitude			
-			MAT *Ix = gradient_x(Isub);
-			MAT *Iy = gradient_y(Isub);
-			MAT *IE = m_get(Isub->m, Isub->n);
-			for (i = 0; i < Isub->m; i++) {
-				for (j = 0; j < Isub->n; j++) {
-					double temp_x = m_get_val(Ix, i, j);
-					double temp_y = m_get_val(Iy, i, j);
-					m_set_val(IE, i, j, sqrt((temp_x * temp_x) + (temp_y * temp_y)));
+			Ix[cell_num] = gradient_x(Isub[cell_num]);
+			Iy[cell_num] = gradient_y(Isub[cell_num]);
+			IE[cell_num] = m_get(Isub[cell_num]->m, Isub[cell_num]->n);
+			for (i = 0; i < Isub[cell_num]->m; i++) {
+				for (j = 0; j < Isub[cell_num]->n; j++) {
+					double temp_x = m_get_val(Ix[cell_num], i, j);
+					double temp_y = m_get_val(Iy[cell_num], i, j);
+					m_set_val(IE[cell_num], i, j, sqrt((temp_x * temp_x) + (temp_y * temp_y)));
 				}
 			}
-			
-			// Compute the motion gradient vector flow (MGVF) edgemaps
-			long long MGVF_start_time = get_time();
-			MAT *IMGVF = MGVF(IE, 1, 1);
-			MGVF_time += get_time() - MGVF_start_time;
-			
+		}
+		
+		// Compute the motion gradient vector flow (MGVF) edgemaps for all cells concurrently
+		long long MGVF_start_time = get_time();
+		MAT **IMGVF = MGVF(IE, 1, 1, Nc);
+		MGVF_time += get_time() - MGVF_start_time;
+		
+		// Sequentially determine the new location of each cell
+		for (cell_num = 0; cell_num < Nc; cell_num++) {	
 			// Determine the position of the cell in the subimage			
-			xci = xci - (double) u1;
-			yci = yci - (double) (v1 - 1);
-			ycavg = ycavg - (double) (v1 - 1);
+			xci[cell_num] = xci[cell_num] - (double) u1[cell_num];
+			yci[cell_num] = yci[cell_num] - (double) (v1[cell_num] - 1);
+			ycavg[cell_num] = ycavg[cell_num] - (double) (v1[cell_num] - 1);
 			
 			// Evolve the snake
 			long long snake_start_time = get_time();
-			ellipseevolve(IMGVF, &xci, &yci, ri, t, Np, (double) R, ycavg);
+			ellipseevolve(IMGVF[cell_num], &(xci[cell_num]), &(yci[cell_num]), ri[cell_num], t, Np, (double) R, ycavg[cell_num]);
 			snake_time += get_time() - snake_start_time;
 			
 			// Compute the cell's new position in the full image
-			xci = xci + u1;
-			yci = yci + (v1 - 1);
+			xci[cell_num] = xci[cell_num] + u1[cell_num];
+			yci[cell_num] = yci[cell_num] + (v1[cell_num] - 1);
 			
 			// Store the new location of the cell and the snake
-			xc[cell_num][frame_num] = xci;
-			yc[cell_num][frame_num] = yci;
+			xc[cell_num][frame_num] = xci[cell_num];
+			yc[cell_num][frame_num] = yci[cell_num];
 			for (j = 0; j < Np; j++) {
-				r[cell_num][j][frame_num] = ri[j];
-				x[cell_num][j][frame_num] = xc[cell_num][frame_num] + (ri[j] * cos(t[j]));
-				y[cell_num][j][frame_num] = yc[cell_num][frame_num] + (ri[j] * sin(t[j]));
+				r[cell_num][j][frame_num] = 0;
+				r[cell_num][j][frame_num] = ri[cell_num][j];
+				x[cell_num][j][frame_num] = xc[cell_num][frame_num] + (ri[cell_num][j] * cos(t[j]));
+				y[cell_num][j][frame_num] = yc[cell_num][frame_num] + (ri[cell_num][j] * sin(t[j]));
 			}
 			
 			// Output the updated center of each cell
 			//printf("%d,%f,%f\n", cell_num, xci[cell_num], yci[cell_num]);
 			
 			// Free temporary memory
-			m_free(IMGVF);
-			free(ri);
+			m_free(Isub[cell_num]);
+			m_free(Ix[cell_num]);
+			m_free(Iy[cell_num]);
+			m_free(IE[cell_num]);
+			m_free(IMGVF[cell_num]);
 	    }
+		
+		free(IMGVF);
 		
 		// Output a new line to visually distinguish the output from different frames
 		//printf("\n");
 	}
 	
 	// Free temporary memory
-	free(t);
 	free_2d_double(xc);
 	free_2d_double(yc);
 	free_3d_double(r);
 	free_3d_double(x);
 	free_3d_double(y);
+	free(t);	
+	free(xci);
+	free(yci);
+	free_2d_double(ri);
+	free(ycavg);
+	free(u1);
+	free(u2);
+	free(v1);
+	free(v2);
+	free(Isub);
+	free(Ix);
+	free(Iy);
+	free(IE);
 	
 	// Report average processing time per frame
 	printf("\n\nTracking runtime (average per frame):\n");
@@ -209,7 +216,7 @@ void ellipsetrack(avi_t *video, double *xc0, double *yc0, int Nc, int R, int Np,
 }
 
 
-MAT *MGVF(MAT *I, double vx, double vy) {
+MAT **MGVF(MAT **IE, double vx, double vy, int Nc) {
 	/*
 	% MGVF calculate the motion gradient vector flow (MGVF) 
 	%  for the image 'I'
@@ -236,179 +243,49 @@ MAT *MGVF(MAT *I, double vx, double vy) {
 
 	// Constants
 	double converge = 0.00001;
-	double mu = 0.5;
 	double epsilon = 0.0000000001;
-	double lambda = 8.0 * mu + 1.0;
 	// Smallest positive value expressable in double-precision
 	double eps = pow(2.0, -52.0);
 	// Maximum number of iterations to compute the MGVF matrix
 	int iterations = 500;
 	
-	// Find the maximum and minimum values in I
-	int m = I->m, n = I->n, i, j;
-	double Imax = m_get_val(I, 0, 0);
-	double Imin = m_get_val(I, 0, 0);
-	for (i = 0; i < m; i++) {
-		for (j = 0; j < n; j++) {
-			double temp = m_get_val(I, i, j);
-			if (temp > Imax) Imax = temp;
-			else if (temp < Imin) Imin = temp;
-		}
-	}
+	// Allocate memory for pointers to the MGVF for each cell
+	MAT **IMGVF = (MAT **) malloc(sizeof(MAT *) * Nc);
 	
-	// Normalize the image I
-	double scale = 1.0 / (Imax - Imin + eps);
-	for (i = 0; i < m; i++) {
-		for (j = 0; j < n; j++) {
-			double old_val = m_get_val(I, i, j);
-			m_set_val(I, i, j, (old_val - Imin) * scale);
-		}
-	}
-
-	// Initialize the output matrix IMGVF with values from I
-	MAT *IMGVF = m_get(m, n);
-	for (i = 0; i < m; i++) {
-		for (j = 0; j < n; j++) {
-			m_set_val(IMGVF, i, j, m_get_val(I, i, j));
-		}
-	}
-	
-	// Precompute row and column indices for the
-	//  neighbor difference computation below
-	int *rowU = (int *) malloc(sizeof(int) * m);
-	int *rowD = (int *) malloc(sizeof(int) * m);
-	int *colL = (int *) malloc(sizeof(int) * n);
-	int *colR = (int *) malloc(sizeof(int) * n);
-	rowU[0] = 0;
-	rowD[m - 1] = m - 1;
-	for (i = 1; i < m; i++) {
-		rowU[i] = i - 1;
-		rowD[i - 1] = i;
-	}
-	colL[0] = 0;
-	colR[n - 1] = n - 1;
-	for (j = 1; j < n; j++) {
-		colL[j] = j - 1;
-		colR[j - 1] = j;
-	}
-	
-	// Allocate matrices used in the while loop below
-	MAT *U    = m_get(m, n), *D    = m_get(m, n), *L    = m_get(m, n), *R    = m_get(m, n);
-	MAT *UR   = m_get(m, n), *DR   = m_get(m, n), *UL   = m_get(m, n), *DL   = m_get(m, n);
-	MAT *UHe  = m_get(m, n), *DHe  = m_get(m, n), *LHe  = m_get(m, n), *RHe  = m_get(m, n);
-	MAT *URHe = m_get(m, n), *DRHe = m_get(m, n), *ULHe = m_get(m, n), *DLHe = m_get(m, n);
-
-	
-	// Precompute constants to avoid division in the for loops below
-	double mu_over_lambda = mu / lambda;
-	double one_over_lambda = 1.0 / lambda;
-	
-	// Compute the MGVF
-	int iter = 0;
-	double mean_diff = 1.0;
-	while ((iter < iterations) && (mean_diff > converge)) { 
-	    
-	    // Compute the difference between each pixel and its eight neighbors
+	// Normalize the sub-image for each cell
+	int cell_num;
+	for (cell_num = 0; cell_num < Nc; cell_num++) {
+		MAT *I = IE[cell_num];
+		
+		// Find the maximum and minimum values in I
+		int m = I->m, n = I->n, i, j;
+		double Imax = m_get_val(I, 0, 0);
+		double Imin = m_get_val(I, 0, 0);
 		for (i = 0; i < m; i++) {
 			for (j = 0; j < n; j++) {
-				double subtrahend = m_get_val(IMGVF, i, j);
-				m_set_val(U, i, j, m_get_val(IMGVF, rowU[i], j) - subtrahend);
-				m_set_val(D, i, j, m_get_val(IMGVF, rowD[i], j) - subtrahend);
-				m_set_val(L, i, j, m_get_val(IMGVF, i, colL[j]) - subtrahend);
-				m_set_val(R, i, j, m_get_val(IMGVF, i, colR[j]) - subtrahend);
-				m_set_val(UR, i, j, m_get_val(IMGVF, rowU[i], colR[j]) - subtrahend);
-				m_set_val(DR, i, j, m_get_val(IMGVF, rowD[i], colR[j]) - subtrahend);
-				m_set_val(UL, i, j, m_get_val(IMGVF, rowU[i], colL[j]) - subtrahend);
-				m_set_val(DL, i, j, m_get_val(IMGVF, rowD[i], colL[j]) - subtrahend);
+				double temp = m_get_val(I, i, j);
+				if (temp > Imax) Imax = temp;
+				else if (temp < Imin) Imin = temp;
 			}
 		}
 		
-	    // Compute the regularized heaviside version of the matrices above
-		heaviside( UHe,  U, -vy,      epsilon);
-		heaviside( DHe,  D,  vy,      epsilon);
-		heaviside( LHe,  L, -vx,      epsilon);
-		heaviside( RHe,  R,  vx,      epsilon);
-		heaviside(URHe, UR,  vx - vy, epsilon);
-		heaviside(DRHe, DR,  vx + vy, epsilon);
-		heaviside(ULHe, UL, -vx - vy, epsilon);
-		heaviside(DLHe, DL,  vy - vx, epsilon);
-		
-		// Update the IMGVF matrix
-		double total_diff = 0.0;
+		// Normalize the images I
+		double scale = 1.0 / (Imax - Imin + eps);
 		for (i = 0; i < m; i++) {
 			for (j = 0; j < n; j++) {
-				// Store the old value so we can compute the difference later
-				double old_val = m_get_val(IMGVF, i, j);
-				
-				// Compute IMGVF += (mu / lambda)(UHe .*U  + DHe .*D  + LHe .*L  + RHe .*R +
-				//                                URHe.*UR + DRHe.*DR + ULHe.*UL + DLHe.*DL);
-				double vU  = m_get_val(UHe,  i, j) * m_get_val(U,  i, j);
-				double vD  = m_get_val(DHe,  i, j) * m_get_val(D,  i, j);
-				double vL  = m_get_val(LHe,  i, j) * m_get_val(L,  i, j);
-				double vR  = m_get_val(RHe,  i, j) * m_get_val(R,  i, j);
-				double vUR = m_get_val(URHe, i, j) * m_get_val(UR, i, j);
-				double vDR = m_get_val(DRHe, i, j) * m_get_val(DR, i, j);
-				double vUL = m_get_val(ULHe, i, j) * m_get_val(UL, i, j);
-				double vDL = m_get_val(DLHe, i, j) * m_get_val(DL, i, j);				
-				double vHe = old_val + mu_over_lambda * (vU + vD + vL + vR + vUR + vDR + vUL + vDL);
-				
-				// Compute IMGVF -= (1 / lambda)(I .* (IMGVF - I))
-				double vI = m_get_val(I, i, j);
-				double new_val = vHe - (one_over_lambda * vI * (vHe - vI));
-				m_set_val(IMGVF, i, j, new_val);
-				
-				// Keep track of the absolute value of the differences
-				//  between this iteration and the previous one
-				total_diff += fabs(new_val - old_val);
+				double old_val = m_get_val(I, i, j);
+				m_set_val(I, i, j, (old_val - Imin) * scale);
 			}
 		}
 		
-		// Compute the mean absolute difference between this iteration
-		//  and the previous one to check for convergence
-		mean_diff = total_diff / (double) (m * n);
-	    
-		iter++;
+		// Allocate memory for this cell's MGVF matrix
+		IMGVF[cell_num] = m_get(m, n);
 	}
 	
-	// Free memory
-	free(rowU); free(rowD); free(colL); free(colR);
-	m_free(U);    m_free(D);    m_free(L);    m_free(R);
-	m_free(UR);   m_free(DR);   m_free(UL);   m_free(DL);
-	m_free(UHe);  m_free(DHe);  m_free(LHe);  m_free(RHe);
-	m_free(URHe); m_free(DRHe); m_free(ULHe); m_free(DLHe);
+	// Offload the MGVF computation to the GPU
+	IMGVF_cuda(IE, IMGVF, vx, vy, epsilon, iterations, converge, Nc);
 
 	return IMGVF;
-}
-
-
-// Regularized version of the Heaviside step function,
-//  parameterized by a small positive number 'e'
-void heaviside(MAT *H, MAT *z, double v, double e) {
-	int m = z->m, n = z->n, i, j;
-	
-	// Precompute constants to avoid division in the for loops below
-	double one_over_pi = 1.0 / PI;
-	double one_over_e = 1.0 / e;
-	
-	// Compute H = (1 / pi) * atan((z * v) / e) + 0.5
-	for (i = 0; i < m; i++) {
-		for (j = 0; j < n; j++) {
-			double z_val = m_get_val(z, i, j) * v;
-			double H_val = one_over_pi * atan(z_val * one_over_e) + 0.5;
-			m_set_val(H, i, j, H_val);
-		}
-	}
-	
-	// A simpler, faster approximation of the Heaviside function
-	/* for (i = 0; i < m; i++) {
-		for (j = 0; j < n; j++) {
-			double z_val = m_get_val(z, i, j) * v;
-			double H_val = 0.5;
-			if (z_val < -0.0001) H_val = 0.0;
-			else if (z_val > 0.0001) H_val = 1.0;
-			m_set_val(H, i, j, H_val);
-		}
-	} */
 }
 
 
@@ -572,7 +449,7 @@ void ellipseevolve(MAT *f, double *xc0, double *yc0, double *r0, double *t, int 
 	v_free( x); v_free( y);
 	m_free(fx); m_free(fy);
 }
-	
+
 
 // Returns the sum of all of the elements in the specified matrix
 double sum_m(MAT *matrix) {

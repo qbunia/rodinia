@@ -9,21 +9,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 // declaration, forward
 void runTest( int argc, char** argv);
-int maximum( int a,
-		 int b,
-		 int c){
-
-	int k;
-	if( a <= b )
-		k = b;
-	else 
-	k = a;
-
-	if( k <=c )
-	return(c);
-	else
-	return(k);
-}
+#define MAXOF2(a,b) (((a)>(b))?(a):(b))
+#define MAXIMUM(a,b,c) (MAXOF2(MAXOF2(a,b),c))
 
 
 int blosum62[24][24] = {
@@ -137,23 +124,26 @@ runTest( int argc, char** argv)
 		}
 	}
 
+	#pragma acc data copy(input_itemsets[0:max_rows*max_cols]) \
+	    copyin(referrence[0:max_rows*max_cols])
+	{
+		
+	#pragma acc parallel loop
     for( int i = 1; i< max_rows ; i++)
        input_itemsets[i*max_cols] = -i * penalty;
+	#pragma acc parallel loop
 	for( int j = 1; j< max_cols ; j++)
        input_itemsets[j] = -j * penalty;
 
 
-	
-	#pragma acc data copy(input_itemsets,referrence)
-	{
 	//Compute top-left matrix 
 	printf("Processing top-left matrix\n");
 	
     for( int i = 0 ; i < max_cols-2 ; i++){
-    	#pragma acc kernels present(input_itemsets,referrence)
+    	#pragma acc parallel loop
 		for( idx = 0 ; idx <= i ; idx++){
 		 index = (idx + 1) * max_cols + (i + 1 - idx);
-         input_itemsets[index]= maximum( input_itemsets[index-1-max_cols]+ referrence[index], 
+         input_itemsets[index]= MAXIMUM( input_itemsets[index-1-max_cols]+ referrence[index], 
 			                             input_itemsets[index-1]         - penalty, 
 									     input_itemsets[index-max_cols]  - penalty);
 
@@ -164,15 +154,16 @@ runTest( int argc, char** argv)
 	printf("Processing bottom-right matrix\n");
     
 	for( int i = max_cols - 4 ; i >= 0 ; i--){
-		#pragma acc kernels present(input_itemsets,referrence) 
+		#pragma acc parallel loop
         for( idx = 0 ; idx <= i ; idx++){
 	      index =  ( max_cols - idx - 2 ) * max_cols + idx + max_cols - i - 2 ;
-		  input_itemsets[index]= maximum( input_itemsets[index-1-max_cols]+ referrence[index], 
+		  input_itemsets[index]= MAXIMUM( input_itemsets[index-1-max_cols]+ referrence[index], 
 			                              input_itemsets[index-1]         - penalty, 
 									      input_itemsets[index-max_cols]  - penalty);
 	      }
 
 	}
+	
 	} /* end pragma acc data */
 
 //#define TRACEBACK
@@ -209,7 +200,7 @@ runTest( int argc, char** argv)
 		new_w = w - penalty;
 		new_n = n - penalty;
 		
-		traceback = maximum(new_nw, new_w, new_n);
+		traceback = MAXIMUM(new_nw, new_w, new_n);
 		if(traceback == new_nw)
 			traceback = nw;
 		if(traceback == new_w)

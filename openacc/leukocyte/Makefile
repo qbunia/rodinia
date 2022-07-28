@@ -1,4 +1,4 @@
-all: OpenACC/leukocyte
+all: OpenACC/leukocyte 
 
 OpenACC/leukocyte:
 	cd OpenACC; make
