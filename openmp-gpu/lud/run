@@ -1,0 +1,1 @@
+./openacc/lud_openacc -i ../../data/lud/512.dat 
