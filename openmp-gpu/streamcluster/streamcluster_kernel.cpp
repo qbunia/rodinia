@@ -62,7 +62,8 @@ float pgain( long x, Points *points, float z, long int *numcenters, int kmax, bo
 			center_table[i] = count++;
 		}
 	}
-	#pragma acc update device(center_table) async(TRANSFER_CENTER_TABLE)
+	//#pragma acc update device(center_table) async(TRANSFER_CENTER_TABLE)
+	#pragma omp target update to(center_table) depend(out:TRANSFER_CENTER_TABLE)
 
 	// Extract 'coord'
 	// Only if first iteration OR coord has changed
@@ -75,17 +76,21 @@ float pgain( long x, Points *points, float z, long int *numcenters, int kmax, bo
 				coord[ (i*num)+j ] = points->p[j].coord[i];
 			}
 		}
-		#pragma acc update device(coord[0:num*dim]) async(TRNASFER_COORD)
+		//#pragma acc update device(coord[0:num*dim]) async(TRNASFER_COORD)
+	        #pragma omp target update to(coord[0:num*dim]) depend(out:TRNASFER_COORD)
 	}
 
-	#pragma acc update device(points->p) async(TRANSFER_POINTS)
+	//#pragma acc update device(points->p) async(TRANSFER_POINTS)
+	#pragma omp target update to(points->) depend(out:TRNASFER_POINTS)
 
-	#pragma acc kernels
+	//#pragma acc kernels
+	#pragma omp target teams distribute parallel for
 	for(int i=0; i<num; i++) {
 		switch_membership[i] = 0;
 	}
 
-	#pragma acc kernels
+	//#pragma acc kernels
+	#pragma omp target teams distribute parallel for
 	for(int i=0; i<stride * (nThread + 1); i++) {
 		work_mem[i] = 0;
 	}
@@ -93,15 +98,19 @@ float pgain( long x, Points *points, float z, long int *numcenters, int kmax, bo
 	*serial_t += (double) tmp_t;	
 	*alloc_t += (double) tmp_t;
 
-	#pragma acc wait(TRANSFER_CENTER_TABLE)
+	//#pragma acc wait(TRANSFER_CENTER_TABLE)
+	#pragma omp taskwait depend(in:TRANSFER_CENTER_TABLE)
 	if(isCoordChanged || iter == 0) {
-		#pragma acc wait(TRNASFER_COORD)
+		//#pragma acc wait(TRNASFER_COORD)
+		#pragma omp taskwait depend(in:TRANSFER_COORD)
 	}
-	#pragma acc wait(TRANSFER_POINTS)
+	//#pragma acc wait(TRANSFER_POINTS)
+	#pragma omp taskwait depend(in:TRANSFER_POINTS)
 	
 	//=======================================
 	// KERNEL: CALCULATE COST
-	#pragma acc kernels
+	//#pragma acc kernels
+	#pragma omp target teams distribute parallel for
 	for(int i=0; i<num; i++)
 	{
 		float *lower = &work_mem[i*stride];
@@ -127,8 +136,10 @@ float pgain( long x, Points *points, float z, long int *numcenters, int kmax, bo
 	//=======================================
 	// GPU-TO-CPU MEMORY COPY
 	//=======================================
-	#pragma acc update host(work_mem[0:])
-	#pragma acc update host(switch_membership[0:num]) async(TRANSFER_SWITCH_MEMSHIP)
+	//#pragma acc update host(work_mem[0:])
+	#pragma omp target update from(work_mem[0:])
+	//#pragma acc update host(switch_membership[0:num]) async(TRANSFER_SWITCH_MEMSHIP)
+	#pragma omp target update from(switch_membership[0:num]) depend(out:TRANSFER_SWITCH_MEMSHIP)
 
 	//=======================================
 	// CPU (SERIAL) WORK
@@ -158,7 +169,8 @@ float pgain( long x, Points *points, float z, long int *numcenters, int kmax, bo
 		gl_cost_of_opening_x += work_mem[i*stride+K];
 	}
 
-	#pragma acc wait(TRANSFER_SWITCH_MEMSHIP)
+	//#pragma acc wait(TRANSFER_SWITCH_MEMSHIP)
+	#pragma omp taskwait depend(in:TRANSFER_SWITCH_MEMSHIP)
 
 	//if opening a center at x saves cost (i.e. cost is negative) do so; otherwise, do nothing
 	if ( gl_cost_of_opening_x < 0 )

@@ -79,21 +79,27 @@ int main(int argc, char* argv[])
     dW = (float *)malloc(sizeof(float)* size_I) ;
     dE = (float *)malloc(sizeof(float)* size_I) ;    
     
-#pragma acc data create(iN[0:rows],iS[0:rows],jW[0:cols],jE[0:cols]) \
-    create(dN[0:size_I],dS[0:size_I],dW[0:size_I],dE[0:size_I],c[0:size_I]) \
-    create(I[0:size_I]) copyout(J[0:size_I])
+//#pragma acc data create(iN[0:rows],iS[0:rows],jW[0:cols],jE[0:cols]) \
+//    create(dN[0:size_I],dS[0:size_I],dW[0:size_I],dE[0:size_I],c[0:size_I]) \
+//    create(I[0:size_I]) copyout(J[0:size_I])
+#pragma omp target data map(alloc:iN[0:rows],iS[0:rows],jW[0:cols],jE[0:cols]) \
+    map(alloc:dN[0:size_I],dS[0:size_I],dW[0:size_I],dE[0:size_I],c[0:size_I]) \
+    map(alloc:I[0:size_I]) map(from:J[0:size_I])
 {
-    #pragma acc parallel loop
+    //#pragma acc parallel loop
+    #pragma omp target teams distribute parallel for 
     for (int i=0; i< rows; i++) {
         iN[i] = i-1;
         iS[i] = i+1;
     }
-    #pragma acc parallel loop
+    //#pragma acc parallel loop
+    #pragma omp target teams distribute parallel for 
     for (int j=0; j< cols; j++) {
         jW[j] = j-1;
         jE[j] = j+1;
     }
-    #pragma acc kernels
+    //#pragma acc kernels
+    #pragma omp target
     {
     iN[0]    = 0;
     iS[rows-1] = rows-1;
@@ -104,9 +110,11 @@ int main(int argc, char* argv[])
 	printf("Randomizing the input matrix\n");
 
     random_matrix(I, rows, cols);
-    #pragma acc update device(I[0:size_I])
+    //#pragma acc update device(I[0:size_I])
+    #pragma omp target update to(I[0:size_I])
 
-    #pragma acc parallel loop
+    //#pragma acc parallel loop
+    #pragma omp target teams distribute parallel for 
     for (k = 0;  k < size_I; k++ ) {
      	J[k] = (float)exp(I[k]) ;
     }
@@ -117,7 +125,8 @@ int main(int argc, char* argv[])
 	for (iter=0; iter< niter; iter++){
 #endif        
 		sum=0; sum2=0;     
-		#pragma acc parallel loop collapse(2) reduction(+:sum,sum2)
+		//#pragma acc parallel loop collapse(2) reduction(+:sum,sum2)
+    		#pragma omp target teams distribute parallel for collapse(2) reduction(+:sum,sum2)
 		for (i=r1; i<=r2; i++) {
             for (j=c1; j<=c2; j++) {
                 tmp   = J[i * cols + j];
@@ -130,7 +139,8 @@ int main(int argc, char* argv[])
         q0sqr   = varROI / (meanROI*meanROI);
 		
 
-        #pragma acc parallel loop collapse(2)
+        //#pragma acc parallel loop collapse(2)
+    	#pragma omp target teams distribute parallel for collapse(2)
 		for (int i = 0 ; i < rows ; i++) {
             for (int j = 0; j < cols; j++) { 
 		
@@ -167,7 +177,8 @@ int main(int argc, char* argv[])
 			}
     	}
 
-    	#pragma acc parallel loop collapse(2)
+    	//#pragma acc parallel loop collapse(2)
+    	#pragma omp target teams distribute parallel for collapse(2)
 		for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {        
 

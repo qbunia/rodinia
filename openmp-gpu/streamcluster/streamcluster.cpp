@@ -279,8 +279,11 @@ float pFL(Points *points, int *feasible, int numfeasible,
   change = cost;
   /* continue until we run iter iterations without improvement */
   /* stop instead if improvement is less than e */
-  #pragma acc data create(center_table[0:numberOfPoints],switch_membership[0:numberOfPoints]) \
-    create(work_mem[0:workMemSize],coord[0:coordSize],points->p[0:numberOfPoints])
+  //#pragma acc data create(center_table[0:numberOfPoints],switch_membership[0:numberOfPoints]) \
+  //  create(work_mem[0:workMemSize],coord[0:coordSize],points->p[0:numberOfPoints])
+  
+  #pragma omp target data map(alloc:center_table[0:numberOfPoints],switch_membership[0:numberOfPoints]) \
+    map(alloc:work_mem[0:workMemSize],coord[0:coordSize],points->p[0:numberOfPoints])
   while (change/cost > 1.0*e) {
     change = 0.0;
     numberOfPoints = points->num;

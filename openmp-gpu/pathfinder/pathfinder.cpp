@@ -88,13 +88,15 @@ void run(int argc, char** argv)
     src = new int[cols];
 
     pin_stats_reset();
-    #pragma acc data create(src[0:cols]) copy(dst[0:cols], data[0:rows*cols])
+    //#pragma acc data create(src[0:cols]) copy(dst[0:cols], data[0:rows*cols])
+    #pragma omp target data map(alloc:src[0:cols]) map(tofrom:dst[0:cols], data[0:rows*cols])
     {
     for (int t = 0; t < rows-1; t++) {
         temp = src;
         src = dst;
         dst = temp;
-        #pragma acc kernels
+        //#pragma acc kernels
+        #pragma omp target teams distribute parallel for
         for(int n = 0; n < cols; n++){
           min = src[n];
           if (n > 0)

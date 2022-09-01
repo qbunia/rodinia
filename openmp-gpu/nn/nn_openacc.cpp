@@ -84,7 +84,8 @@ int main(int argc, char* argv[])
     /**
      * Execute kernel
      */
-    #pragma acc kernels copyin(locations[0:numRecords]) copyout(distances[0:numRecords])
+    //#pragma acc kernels copyin(locations[0:numRecords]) copyout(distances[0:numRecords])
+    #pragma omp target teams distribute parallel for map(to:locations[0:numRecords]) map(from:distances[0:numRecords])
     for (i=0; i<numRecords; i++) {
       LatLong latlong = locations[i];
       distances[i] = (float)sqrt((lat-latlong.lat)*(lat-latlong.lat)+(lng-latlong.lng)*(lng-latlong.lng));

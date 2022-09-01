@@ -142,7 +142,8 @@ int solver(	fp*** y,
 
 
 	//#pragma omp parallel for private(i, status) shared(y, x, xmax, params, mode)
-	#pragma acc parallel loop if(mode != 0)
+	//#pragma acc parallel loop if(mode != 0)
+	#pragma omp target teams distribute parallel for if(target:mode != 0)
 	for(i=0; i<workload; i++){
 
 		//========================================================================================================================

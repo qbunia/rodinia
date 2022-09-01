@@ -189,25 +189,32 @@ int main(int argc, char *argv []){
 	// allocate variable for diffusion coefficient
     c  = malloc(sizeof(fp)*Ne) ;											// diffusion coefficient
         
-#pragma acc data create(iN[0:Nr],iS[0:Nr],jW[0:Nc],jE[0:Nc]) \
-    create(dN[0:Ne],dS[0:Ne],dW[0:Ne],dE[0:Ne],c[0:Ne]) \
-    copyout(image[0:Ne])
+//#pragma acc data create(iN[0:Nr],iS[0:Nr],jW[0:Nc],jE[0:Nc]) \
+//    create(dN[0:Ne],dS[0:Ne],dW[0:Ne],dE[0:Ne],c[0:Ne]) \
+//    copyout(image[0:Ne])
+#pragma omp target data map(alloc:iN[0:Nr],iS[0:Nr],jW[0:Nc],jE[0:Nc]) \
+    map(alloc:dN[0:Ne],dS[0:Ne],dW[0:Ne],dE[0:Ne],c[0:Ne]) \
+    map(from:image[0:Ne])
 {
-	#pragma acc update device(image[0:Ne]) async(TRANSFER_IMAGE)
+	//#pragma acc update device(image[0:Ne]) async(TRANSFER_IMAGE)
+	#pragma omp target update to(image[0:Ne]) depend(out:TRANSFER_IMAGE)
 
     // N/S/W/E indices of surrounding pixels (every element of IMAGE)
-	#pragma acc parallel loop
+	//#pragma acc parallel loop
+	#pragma omp target teams distribute parallel for 
     for (i=0; i<Nr; i++) {
         iN[i] = i-1;														// holds index of IMAGE row above
         iS[i] = i+1;														// holds index of IMAGE row below
     }
-	#pragma acc parallel loop
+	//#pragma acc parallel loop
+	#pragma omp target teams distribute parallel for 
     for (j=0; j<Nc; j++) {
         jW[j] = j-1;														// holds index of IMAGE column on the left
         jE[j] = j+1;														// holds index of IMAGE column on the right
     }
 	// N/S/W/E boundary conditions, fix surrounding indices outside boundary of IMAGE
-    #pragma acc kernels
+    //#pragma acc kernels
+    #pragma omp target
     {
     iN[0]    = 0;															// changes IMAGE top row index from -1 to 0
     iS[Nr-1] = Nr-1;														// changes IMAGE bottom row index from Nr to Nr-1 
@@ -221,9 +228,11 @@ int main(int argc, char *argv []){
 	// 	SCALE IMAGE DOWN FROM 0-255 TO 0-1 AND EXTRACT
 	//================================================================================80
 
-	#pragma acc wait(TRANSFER_IMAGE)
+	//#pragma acc wait(TRANSFER_IMAGE)
+	#pragma omp taskwait depend(in:TRANSFER_IMAGE)
 
-	#pragma acc parallel loop
+	//#pragma acc parallel loop
+	#pragma omp target teams distribute parallel for 
 	for (i=0; i<Ne; i++) {													// do for the number of elements in input IMAGE
 		image[i] = exp(image[i]/255);											// exponentiate input IMAGE and copy to output image
     }
@@ -245,7 +254,8 @@ int main(int argc, char *argv []){
         // ROI statistics for entire ROI (single number for ROI)
         sum=0; 
 		sum2=0;
-		#pragma acc parallel loop collapse(2) reduction(+:sum,sum2)
+		//#pragma acc parallel loop collapse(2) reduction(+:sum,sum2)
+		#pragma omp target teams distribute parallel for collapse(2) reduction(+:sum,sum2) 
         for (i=r1; i<=r2; i++) {											// do for the range of rows in ROI
             for (j=c1; j<=c2; j++) {										// do for the range of columns in ROI
                 tmp   = image[i + Nr*j];										// get coresponding value in IMAGE
@@ -258,7 +268,8 @@ int main(int argc, char *argv []){
         q0sqr   = varROI / (meanROI*meanROI);								// gets standard deviation of ROI
 
         // directional derivatives, ICOV, diffusion coefficent
-		#pragma acc parallel loop collapse(2)
+		//#pragma acc parallel loop collapse(2)
+		#pragma omp target teams distribute parallel for collapse(2)
 		for (j=0; j<Nc; j++) {												// do for the range of columns in IMAGE
             for (i=0; i<Nr; i++) {											// do for the range of rows in IMAGE 
 
@@ -302,7 +313,8 @@ int main(int argc, char *argv []){
         }
 
         // divergence & image update
-        #pragma acc parallel loop collapse(2)
+        //#pragma acc parallel loop collapse(2)
+	#pragma omp target teams distribute parallel for collapse(2)
         for (j=0; j<Nc; j++) {												// do for the range of columns in IMAGE
             for (i=0; i<Nr; i++) {											// do for the range of rows in IMAGE
 
@@ -335,7 +347,8 @@ int main(int argc, char *argv []){
 	// 	SCALE IMAGE UP FROM 0-1 TO 0-255 AND COMPRESS
 	//================================================================================80
 
-	#pragma acc parallel loop
+	//#pragma acc parallel loop
+	#pragma omp target teams distribute parallel for
 	for (i=0; i<Ne; i++) {													// do for the number of elements in IMAGE
 		image[i] = log(image[i])*255;													// take logarithm of image, log compress
 	}

@@ -299,11 +299,16 @@ int main(int argc, char *argv []){
 	//================================================================================80
 
 	
-	#pragma acc data copy(y[0:workload][0:(1+xmax)][0:EQUATIONS]) \
-		copyin(params[0:workload][0:PARAMETERS]) \
-		create(x[0:workload][0:(1+xmax)],err[0:workload][0:EQUATIONS]) \
-		create(scale[0:workload][0:EQUATIONS],yy[0:workload][0:EQUATIONS]) \
-		create(com[0:workload][0:3])
+	//#pragma acc data copy(y[0:workload][0:(1+xmax)][0:EQUATIONS]) \
+	//	copyin(params[0:workload][0:PARAMETERS]) \
+	//	create(x[0:workload][0:(1+xmax)],err[0:workload][0:EQUATIONS]) \
+	//	create(scale[0:workload][0:EQUATIONS],yy[0:workload][0:EQUATIONS]) \
+	//	create(com[0:workload][0:3])
+	#pragma omp target data map(tofrom:y[0:workload][0:(1+xmax)][0:EQUATIONS]) \
+		map(to:params[0:workload][0:PARAMETERS]) \
+		map(alloc:x[0:workload][0:(1+xmax)],err[0:workload][0:EQUATIONS]) \
+		map(alloc:scale[0:workload][0:EQUATIONS],yy[0:workload][0:EQUATIONS]) \
+		map(alloc:com[0:workload][0:3])
 	status = solver(	y,
 						x,
 						xmax,
