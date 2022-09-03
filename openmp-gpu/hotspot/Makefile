@@ -1,9 +1,13 @@
-# C compiler
-CC = pgcpp
-CC_FLAGS = -acc -Minfo -O2
+# C++ compiler
+CC = clang++
+CC_FLAGS = -O3 -fopenmp -fopenmp-targets=nvptx64
 
-hotspot: 
-	$(CC) $(CC_FLAGS) hotspot_openacc.cpp -o hotspot 
+hotspot.out: hotspot.cpp
+	$(CC) $(CC_FLAGS) hotspot.cpp -o hotspot.out
 
+run: hotspot.out
+	./hotspot.out 512 512 2 ../../data/hotspot/temp_512 ../../data/hotspot/power_512
+
+.PHONY: clean
 clean:
-	rm -f hotspot
+	rm -f *.o *.out
