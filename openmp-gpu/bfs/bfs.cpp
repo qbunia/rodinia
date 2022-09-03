@@ -156,11 +156,11 @@ void BFSGraph(int argc, char **argv) {
     printf("Compute time: %lf\n", (end_time - start_time));
   }
   // Store the result into a file
-  FILE *fpo = fopen("result.txt", "w");
+  FILE *fpo = fopen("result.log", "w");
   for (int i = 0; i < no_of_nodes; i++)
     fprintf(fpo, "%d) cost:%d\n", i, h_cost[i]);
   fclose(fpo);
-  printf("Result stored in result.txt\n");
+  printf("Result stored in result.log\n");
 
   // cleanup memory
   free(h_graph_nodes);
