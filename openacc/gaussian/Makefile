@@ -1,13 +1,17 @@
 include ../../common/make.config
 
-CC := pathcc
-CCFLAGS := -acc
+CC := nvc
+CCFLAGS := -O3 -acc
 
 SRC = gaussian.c
-EXE = gaussian
+EXE = gaussian.out
 
-release: $(SRC)
+$(EXE): $(SRC)
 	$(CC) $(CCFLAGS) $(SRC) -o $(EXE)
 
+run: $(EXE)
+	./$(EXE) ../../data/gaussian/matrix4.txt
+
+.PHONY: clean
 clean:
-	rm gaussian
+	rm -f *.o *.out
