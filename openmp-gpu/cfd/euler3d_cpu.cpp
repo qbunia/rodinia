@@ -96,8 +96,7 @@ void dump(float *variables, int nel, int nelr) {
 }
 
 void initialize_variables(int nelr, float *variables, float *ff_variable) {
-#pragma omp parallel for default(shared) schedule(static)                      \
-    num_threads(NUM_THREADS)
+#pragma omp parallel for
   for (int i = 0; i < nelr; i++) {
     for (int j = 0; j < NVAR; j++)
       variables[i + j * nelr] = ff_variable[j];
@@ -192,7 +191,7 @@ void compute_flux(int nelr, int *elements_surrounding_elements, float *normals,
                   float3 ff_flux_contribution_density_energy) {
   const float smoothing_coefficient = float(0.2f);
 
-#pragma omp target teams distribute num_teams(NUM_TEAMS) default(shared)
+#pragma omp target teams distribute num_teams(NUM_TEAMS)
   for (int blk = 0; blk < nelr / block_length; ++blk) {
     int b_start = blk * block_length;
     int b_end =
@@ -541,7 +540,7 @@ int main(int argc, char **argv) {
   }
 
   double end = omp_get_wtime();
-  std::cout << "Compute time: " << (end - start) << std::endl;
+  std::cout << "Compute time: " << end - start << std::endl;
 
   std::cout << "Saving solution..." << std::endl;
   dump(variables, nel, nelr);
