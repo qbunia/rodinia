@@ -517,7 +517,7 @@ int main(int argc, char **argv) {
   }
 
   double end = omp_get_wtime();
-  std::cout << "Compute time: " << end - start << std::endl;
+  std::cout << "Compute time: " << end - start << "s" << std::endl;
 
   std::cout << "Saving solution..." << std::endl;
   dump(variables, nel, nelr);
