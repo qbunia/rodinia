@@ -1,26 +1,23 @@
-CUDA_SDK_PATH = /af10/sc5nf/NVIDIA_CUDA_SDK
-
 OMP_NUM_THREADS = 8
+MIC_OMP_NUM_THREADS = 216
 
-CC = pathCC
-CC_FLAGS = -acc -O3
+all: euler3d_cpu_offload.out euler3d_cpu_double pre_euler3d_cpu pre_euler3d_cpu_double
 
-all: euler3d_cpu euler3d_cpu_double pre_euler3d_cpu pre_euler3d_cpu_double
+euler3d_cpu_offload.out: euler3d_cpu.cpp
+	clang++ -g -O3 -Dblock_length=$(MIC_OMP_NUM_THREADS) -fopenmp -fopenmp-targets=nvptx64 euler3d_cpu.cpp -o euler3d_cpu_offload.out
 
-euler3d_cpu: euler3d_cpu.cpp
-	$(CC) $(CC_FLAGS) -Dblock_length=$(OMP_NUM_THREADS) euler3d_cpu.cpp -o euler3d_cpu
 euler3d_cpu_double: euler3d_cpu_double.cpp
-	$(CC) $(CC_FLAGS) -Dblock_length=$(OMP_NUM_THREADS) euler3d_cpu_double.cpp -o euler3d_cpu_double
+	g++ -O3 -Dblock_length=$(OMP_NUM_THREADS) -fopenmp euler3d_cpu_double.cpp -o euler3d_cpu_double
 
 pre_euler3d_cpu: pre_euler3d_cpu.cpp
-	$(CC) $(CC_FLAGS) -Dblock_length=$(OMP_NUM_THREADS) pre_euler3d_cpu.cpp -o pre_euler3d_cpu
+	g++ -O3 -Dblock_length=$(OMP_NUM_THREADS) -fopenmp pre_euler3d_cpu.cpp -o pre_euler3d_cpu
 
 pre_euler3d_cpu_double: pre_euler3d_cpu_double.cpp
-	$(CC) $(CC_FLAGS) -Dblock_length=$(OMP_NUM_THREADS) pre_euler3d_cpu_double.cpp -o pre_euler3d_cpu_double
+	g++ -O3 -Dblock_length=$(OMP_NUM_THREADS) -fopenmp pre_euler3d_cpu_double.cpp -o pre_euler3d_cpu_double
 
-
+.PHONY: clean
 clean:
-	rm -f euler3d_cpu
+	rm -f *.o *.out *.log
 	rm -f euler3d_cpu_double
 	rm -f pre_euler3d_cpu
 	rm -f pre_euler3d_cpu_double

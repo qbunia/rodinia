@@ -53,7 +53,7 @@ void dealloc(T* array)
 template <typename T>
 void copy(T* dst, T* src, int N)
 {
-	#pragma acc kernels present_or_copyin(src) present_or_create(dst)
+	#pragma omp parallel for default(shared) schedule(static)
 	for(int i = 0; i < N; i++)
 	{
 		dst[i] = src[i];
@@ -102,7 +102,7 @@ float3 ff_fc_density_energy;
 
 void initialize_variables(int nelr, float* variables)
 {
-	#pragma acc kernels
+	#pragma omp parallel for default(shared) schedule(static)
 	for(int i = 0; i < nelr; i++)
 	{
 		for(int j = 0; j < NVAR; j++) variables[i*NVAR + j] = ff_variable[j];
@@ -155,7 +155,7 @@ inline float compute_speed_of_sound(float& density, float& pressure)
 
 void compute_step_factor(int nelr, float* variables, float* areas, float* step_factors)
 {
-	#pragma acc kernels
+	#pragma omp parallel for default(shared) schedule(static)
 	for(int i = 0; i < nelr; i++)
 	{
 		float density = variables[NVAR*i + VAR_DENSITY];
@@ -178,7 +178,7 @@ void compute_step_factor(int nelr, float* variables, float* areas, float* step_f
 
 void compute_flux_contributions(int nelr, float* variables, float* fc_momentum_x, float* fc_momentum_y, float* fc_momentum_z, float* fc_density_energy)
 {
-	#pragma acc kernels
+	#pragma omp parallel for default(shared) schedule(static)
 	for(int i = 0; i < nelr; i++)
 	{
 		float density_i = variables[NVAR*i + VAR_DENSITY];
@@ -226,7 +226,7 @@ void compute_flux(int nelr, int* elements_surrounding_elements, float* normals, 
 {
 	const float smoothing_coefficient = float(0.2f);
 
-	#pragma acc kernels
+	#pragma omp parallel for default(shared) schedule(static)
 	for(int i = 0; i < nelr; i++)
 	{
 		int j, nb;
@@ -385,7 +385,7 @@ void compute_flux(int nelr, int* elements_surrounding_elements, float* normals, 
 
 void time_step(int j, int nelr, float* old_variables, float* variables, float* step_factors, float* fluxes)
 {
-	#pragma acc kernels
+	#pragma omp parallel for  default(shared) schedule(static)
 	for(int i = 0; i < nelr; i++)
 	{
 		float factor = step_factors[i]/float(RK+1-j);
@@ -488,10 +488,7 @@ int main(int argc, char** argv)
 
 	// Create arrays and set initial conditions
 	float* variables = alloc<float>(nelr*NVAR);
-	#pragma acc data create(variables[0:nelr*NVAR]) copyin(ff_variable)
-	{
 	initialize_variables(nelr, variables);
-	} /* end pragma acc data */
 
 	float* old_variables = alloc<float>(nelr*NVAR);
 	float* fluxes = alloc<float>(nelr*NVAR);
@@ -505,12 +502,6 @@ int main(int argc, char** argv)
 	std::cout << "Starting..." << std::endl;
 	double start = omp_get_wtime();
 
-	#pragma acc data create(old_variables[0:nelr*NVAR], step_factors[0:nelr]) \
-		create(fc_momentum_x[0:nelr*NDIM], fc_momentum_y[0:nelr*NDIM], fc_momentum_z[0:nelr*NDIM]) \
-		create(fc_density_energy[0:nelr*NDIM], fluxes[0:nelr*NVAR]) \
-		copyin(areas[0:nelr], elements_surrounding_elements[0:nelr*NNB], normals[0:NDIM*NNB*nelr]) \
-		copyout(variables[0:nelr*NVAR]) 
-	{
 	// Begin iterations
 	for(int i = 0; i < iterations; i++)
 	{
@@ -526,7 +517,6 @@ int main(int argc, char** argv)
 			time_step(j, nelr, old_variables, variables, step_factors, fluxes);
 		}
 	}
-	} /* end pragma acc data */
 
 	double end = omp_get_wtime();
 	std::cout  << (end-start)  / iterations << " seconds per iteration" << std::endl;
