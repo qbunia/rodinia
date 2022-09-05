@@ -60,14 +60,14 @@ template <typename T> T *alloc(int N) { return new T[N]; }
 
 template <typename T> void dealloc(T *array) { delete[] array; }
 
-#pragma omp declare target
 template <typename T> void copy(T *dst, T *src, int N) {
-#pragma omp parallel for default(shared) schedule(static) num_threads(NUM_THREADS)
+#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
+    num_threads(NUM_THREADS)
   for (int i = 0; i < N; i++) {
     dst[i] = src[i];
   }
 }
-#pragma omp end declare target
+
 void dump(float *variables, int nel, int nelr) {
 
   {
@@ -96,7 +96,8 @@ void dump(float *variables, int nel, int nelr) {
 }
 
 void initialize_variables(int nelr, float *variables, float *ff_variable) {
-#pragma omp parallel for default(shared) schedule(static) num_threads(NUM_THREADS)
+#pragma omp parallel for default(shared) schedule(static)                      \
+    num_threads(NUM_THREADS)
   for (int i = 0; i < nelr; i++) {
     for (int j = 0; j < NVAR; j++)
       variables[i + j * nelr] = ff_variable[j];
@@ -149,15 +150,16 @@ inline float compute_pressure(float &density, float &density_energy,
 inline float compute_speed_of_sound(float &density, float &pressure) {
   return std::sqrt(float(GAMMA) * pressure / density);
 }
+#pragma omp end declare target
 
 void compute_step_factor(int nelr, float *__restrict variables, float *areas,
                          float *__restrict step_factors) {
-#pragma omp parallel for default(shared) schedule(static) num_threads(NUM_THREADS)
+#pragma omp target teams distribute num_teams(NUM_TEAMS) default(shared)
   for (int blk = 0; blk < nelr / block_length; ++blk) {
     int b_start = blk * block_length;
     int b_end =
         (blk + 1) * block_length > nelr ? nelr : (blk + 1) * block_length;
-#pragma omp simd
+#pragma omp parallel for num_threads(NUM_THREADS)
     for (int i = b_start; i < b_end; i++) {
       float density = variables[i + VAR_DENSITY * nelr];
 
@@ -182,11 +184,6 @@ void compute_step_factor(int nelr, float *__restrict variables, float *areas,
   }
 }
 
-/*
- *
- *
- */
-
 void compute_flux(int nelr, int *elements_surrounding_elements, float *normals,
                   float *variables, float *fluxes, float *ff_variable,
                   float3 ff_flux_contribution_momentum_x,
@@ -195,12 +192,12 @@ void compute_flux(int nelr, int *elements_surrounding_elements, float *normals,
                   float3 ff_flux_contribution_density_energy) {
   const float smoothing_coefficient = float(0.2f);
 
-#pragma omp parallel for default(shared) schedule(static) num_threads(NUM_THREADS)
+#pragma omp target teams distribute num_teams(NUM_TEAMS) default(shared)
   for (int blk = 0; blk < nelr / block_length; ++blk) {
     int b_start = blk * block_length;
     int b_end =
         (blk + 1) * block_length > nelr ? nelr : (blk + 1) * block_length;
-#pragma omp simd
+#pragma omp parallel for num_threads(NUM_THREADS)
     for (int i = b_start; i < b_end; ++i) {
       float density_i = variables[i + VAR_DENSITY * nelr];
       float3 momentum_i;
@@ -375,12 +372,12 @@ void compute_flux(int nelr, int *elements_surrounding_elements, float *normals,
 
 void time_step(int j, int nelr, float *old_variables, float *variables,
                float *step_factors, float *fluxes) {
-#pragma omp parallel for default(shared) schedule(static) num_threads(NUM_THREADS)
+#pragma omp target teams distribute num_teams(NUM_TEAMS)
   for (int blk = 0; blk < nelr / block_length; ++blk) {
     int b_start = blk * block_length;
     int b_end =
         (blk + 1) * block_length > nelr ? nelr : (blk + 1) * block_length;
-#pragma omp simd
+#pragma omp parallel for num_threads(NUM_THREADS)
     for (int i = b_start; i < b_end; ++i) {
       float factor = step_factors[i] / float(RK + 1 - j);
 
@@ -402,7 +399,6 @@ void time_step(int j, int nelr, float *old_variables, float *variables,
     }
   }
 }
-#pragma omp end declare target
 
 /*
  * Main function
@@ -514,10 +510,9 @@ int main(int argc, char **argv) {
 
   // these need to be computed the first time in order to compute time step
   std::cout << "Starting..." << std::endl;
-#ifdef _OPENMP
   double start = omp_get_wtime();
-#pragma omp target map(alloc                                                   \
-                       : old_variables [0:(nelr * NVAR)])                      \
+#pragma omp target data map(alloc                                              \
+                            : old_variables [0:(nelr * NVAR)])                 \
     map(to                                                                     \
         : nelr, areas [0:nelr], step_factors [0:nelr],                         \
           elements_surrounding_elements [0:(nelr * NNB)],                      \
@@ -526,29 +521,27 @@ int main(int argc, char **argv) {
           ff_flux_contribution_momentum_y, ff_flux_contribution_momentum_z,    \
           ff_flux_contribution_density_energy)                                 \
         map(variables [0:(nelr * NVAR)])
-#endif
-  // Begin iterations
-#pragma omp teams distribute num_teams(NUM_TEAMS)
-  for (int i = 0; i < iterations; i++) {
-    copy<float>(old_variables, variables, nelr * NVAR);
+  {
+    // Begin iterations
+    for (int i = 0; i < iterations; i++) {
+      copy<float>(old_variables, variables, nelr * NVAR);
 
-    // for the first iteration we compute the time step
-    compute_step_factor(nelr, variables, areas, step_factors);
+      // for the first iteration we compute the time step
+      compute_step_factor(nelr, variables, areas, step_factors);
 
-    for (int j = 0; j < RK; j++) {
-      compute_flux(nelr, elements_surrounding_elements, normals, variables,
-                   fluxes, ff_variable, ff_flux_contribution_momentum_x,
-                   ff_flux_contribution_momentum_y,
-                   ff_flux_contribution_momentum_z,
-                   ff_flux_contribution_density_energy);
-      time_step(j, nelr, old_variables, variables, step_factors, fluxes);
+      for (int j = 0; j < RK; j++) {
+        compute_flux(nelr, elements_surrounding_elements, normals, variables,
+                     fluxes, ff_variable, ff_flux_contribution_momentum_x,
+                     ff_flux_contribution_momentum_y,
+                     ff_flux_contribution_momentum_z,
+                     ff_flux_contribution_density_energy);
+        time_step(j, nelr, old_variables, variables, step_factors, fluxes);
+      }
     }
   }
 
-#ifdef _OPENMP
   double end = omp_get_wtime();
   std::cout << "Compute time: " << (end - start) << std::endl;
-#endif
 
   std::cout << "Saving solution..." << std::endl;
   dump(variables, nel, nelr);
