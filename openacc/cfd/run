@@ -1,7 +1,7 @@
 There are three datasets:
 
-./euler3d_cpu ../../data/cfd/fvcorr.domn.097K   
-./euler3d_cpu ../../data/cfd/fvcorr.domn.193K   
-./euler3d_cpu ../../data/cfd/missile.domn.0.2M  
+./euler3d_cpu.out ../../data/cfd/fvcorr.domn.097K
+./euler3d_cpu.out ../../data/cfd/fvcorr.domn.193K
+./euler3d_cpu.out ../../data/cfd/missile.domn.0.2M
 
-replace euler3d with other CFD programs
+Replace euler3d with other CFD programs.

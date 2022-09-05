@@ -17,6 +17,10 @@ pre_euler3d_cpu.out: pre_euler3d_cpu.cpp
 pre_euler3d_cpu_double.out: pre_euler3d_cpu_double.cpp
 	$(CC) $(CC_FLAGS) -Dblock_length=$(MIC_OMP_NUM_THREADS) pre_euler3d_cpu_double.cpp -o pre_euler3d_cpu_double.out
 
-.PHONY: clean
+.PHONY: run clean
+
+run: euler3d_cpu.out
+	./euler3d_cpu.out ../../data/cfd/fvcorr.domn.097K
+
 clean:
 	rm -f *.o *.out *.log
