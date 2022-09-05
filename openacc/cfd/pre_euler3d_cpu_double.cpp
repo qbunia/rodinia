@@ -1,13 +1,9 @@
 // Copyright 2009, Andrew Corrigan, acorriga@gmu.edu
 // This code is from the AIAA-2009-4001 paper
 
+#include <cmath>
 #include <fstream>
 #include <iostream>
-
-#pragma omp declare target
-#include <cmath>
-#pragma omp end declare target
-
 #include <omp.h>
 
 struct double3 {
@@ -15,7 +11,7 @@ struct double3 {
 };
 
 #ifndef block_length
-#ifdef _OPENMP
+#ifdef _OPENACC
 #error "you need to define block_length"
 #else
 #define block_length 1
@@ -55,8 +51,8 @@ template <typename T> T *alloc(int N) { return new T[N]; }
 template <typename T> void dealloc(T *array) { delete[] array; }
 
 template <typename T> void copy(T *dst, T *src, int N) {
-#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
-    num_threads(NUM_THREADS)
+#pragma acc parallel loop num_gangs(NUM_TEAMS) num_workers(1)                  \
+    vector_length(NUM_THREADS)
   for (int i = 0; i < N; i++) {
     dst[i] = src[i];
   }
@@ -99,14 +95,13 @@ double3 ff_fc_momentum_z;
 double3 ff_fc_density_energy;
 
 void initialize_variables(int nelr, double *variables) {
-#pragma omp parallel for
   for (int i = 0; i < nelr; i++) {
     for (int j = 0; j < NVAR; j++)
       variables[i * NVAR + j] = ff_variable[j];
   }
 }
 
-#pragma omp declare target
+#pragma acc routine
 inline void compute_flux_contribution(double &density, double3 &momentum,
                                       double &density_energy, double &pressure,
                                       double3 &velocity, double3 &fc_momentum_x,
@@ -131,6 +126,7 @@ inline void compute_flux_contribution(double &density, double3 &momentum,
   fc_density_energy.z = velocity.z * de_p;
 }
 
+#pragma acc routine
 inline void compute_velocity(double &density, double3 &momentum,
                              double3 &velocity) {
   velocity.x = momentum.x / density;
@@ -138,26 +134,28 @@ inline void compute_velocity(double &density, double3 &momentum,
   velocity.z = momentum.z / density;
 }
 
+#pragma acc routine
 inline double compute_speed_sqd(double3 &velocity) {
   return velocity.x * velocity.x + velocity.y * velocity.y +
          velocity.z * velocity.z;
 }
 
+#pragma acc routine
 inline double compute_pressure(double &density, double &density_energy,
                                double &speed_sqd) {
   return (double(GAMMA) - double(1.0)) *
          (density_energy - double(0.5) * density * speed_sqd);
 }
 
+#pragma acc routine
 inline double compute_speed_of_sound(double &density, double &pressure) {
   return std::sqrt(double(GAMMA) * pressure / density);
 }
-#pragma omp end declare target
 
 void compute_step_factor(int nelr, double *variables, double *areas,
                          double *step_factors) {
-#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
-    num_threads(NUM_THREADS)
+#pragma acc parallel loop gang num_gangs(NUM_TEAMS) num_workers(1)             \
+    vector_length(NUM_THREADS) present(variables, areas, step_factors)
   for (int i = 0; i < nelr; i++) {
     double density = variables[NVAR * i + VAR_DENSITY];
 
@@ -185,8 +183,10 @@ void compute_flux_contributions(int nelr, double *variables,
                                 double *fc_momentum_x, double *fc_momentum_y,
                                 double *fc_momentum_z,
                                 double *fc_density_energy) {
-#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
-    num_threads(NUM_THREADS)
+#pragma acc parallel loop gang num_gangs(NUM_TEAMS) num_workers(1)             \
+    vector_length(NUM_THREADS)                                                 \
+        present(variables, fc_momentum_x, fc_momentum_y, fc_momentum_z,        \
+                fc_density_energy)
   for (int i = 0; i < nelr; i++) {
     double density_i = variables[NVAR * i + VAR_DENSITY];
     double3 momentum_i;
@@ -237,8 +237,11 @@ void compute_flux(int nelr, int *elements_surrounding_elements, double *normals,
                   double *fc_density_energy, double *fluxes) {
   const double smoothing_coefficient = double(0.2);
 
-#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
-    num_threads(NUM_THREADS)
+#pragma acc parallel loop gang num_gangs(NUM_TEAMS) num_workers(1)             \
+    vector_length(NUM_THREADS)                                                 \
+        present(elements_surrounding_elements, normals, variables,             \
+                fc_momentum_x, fc_momentum_y, fc_momentum_z,                   \
+                fc_density_energy, fluxes)
   for (int i = 0; i < nelr; i++) {
     int j, nb;
     double3 normal;
@@ -410,8 +413,9 @@ void compute_flux(int nelr, int *elements_surrounding_elements, double *normals,
 
 void time_step(int j, int nelr, double *old_variables, double *variables,
                double *step_factors, double *fluxes) {
-#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
-    num_threads(NUM_THREADS)
+#pragma acc parallel loop gang num_gangs(NUM_TEAMS) num_workers(1)             \
+    vector_length(NUM_THREADS)                                                 \
+        present(old_variables, variables, step_factors, fluxes)
   for (int i = 0; i < nelr; i++) {
     double factor = step_factors[i] / double(RK + 1 - j);
 
@@ -542,15 +546,14 @@ int main(int argc, char **argv) {
   std::cout << "Starting..." << std::endl;
   double start = omp_get_wtime();
 
-#pragma omp target data map(alloc                                              \
-                            : old_variables [0:(nelr * NVAR)])                 \
-    map(to                                                                     \
-        : nelr, areas [0:nelr], step_factors [0:nelr],                         \
-          elements_surrounding_elements [0:(nelr * NNB)],                      \
-          normals [0:(NDIM * NNB * nelr)], fluxes [0:(nelr * NVAR)],           \
-          ff_variable [0:NVAR], fc_momentum_x [0:nelr * NDIM],                 \
-          fc_momentum_y [0:nelr * NDIM], fc_momentum_z [0:nelr * NDIM],        \
-          fc_density_energy [0:nelr * NDIM]) map(variables [0:(nelr * NVAR)])
+#pragma acc data create(old_variables [0:(nelr * NVAR)])                       \
+    copyin(nelr, areas [0:nelr], step_factors [0:nelr],                        \
+           elements_surrounding_elements [0:(nelr * NNB)],                     \
+           normals [0:(NDIM * NNB * nelr)], fluxes [0:(nelr * NVAR)],          \
+           ff_variable [0:NVAR], fc_momentum_x [0:nelr * NDIM],                \
+           fc_momentum_y [0:nelr * NDIM], fc_momentum_z [0:nelr * NDIM],       \
+           fc_density_energy [0:nelr * NDIM])                                  \
+        copy(variables [0:(nelr * NVAR)])
   // Begin iterations
   for (int i = 0; i < iterations; i++) {
     copy<double>(old_variables, variables, nelr * NVAR);
