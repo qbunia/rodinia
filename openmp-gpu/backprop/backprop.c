@@ -15,6 +15,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
+
 #define ABS(x) (((x) > 0.0) ? (x) : (-(x)))
 
 #define fastcopy(to, from, len)                                                \
@@ -74,7 +77,7 @@ void bpnn_randomize_weights(float *w, int m, int n) {
 
   for (i = 0; i <= m; i++) {
     for (j = 0; j <= n; j++) {
-      w[i * m + j] = (float)rand() / RAND_MAX;
+      w[i * n + j] = (float)rand() / RAND_MAX;
     }
   }
 }
@@ -91,7 +94,7 @@ void bpnn_zero_weights(float *w, int m, int n) {
 
   for (i = 0; i <= m; i++) {
     for (j = 0; j <= n; j++) {
-      w[i * m + j] = 0.0;
+      w[i * n + j] = 0.0;
     }
   }
 }
@@ -146,11 +149,7 @@ void bpnn_free(BPNN *net) {
 
   free((char *)net->input_weights);
   free((char *)net->input_prev_weights);
-  free((char *)net->input_weights);
-  free((char *)net->input_prev_weights);
 
-  free((char *)net->hidden_weights);
-  free((char *)net->hidden_prev_weights);
   free((char *)net->hidden_weights);
   free((char *)net->hidden_prev_weights);
 
@@ -189,19 +188,18 @@ void bpnn_layerforward(float *l1, float *l2, float *conn, int n1, int n2) {
   /*** Set up thresholding unit ***/
   l1[0] = 1.0;
 
-// omp_set_num_threads(NUM_THREAD);
-#pragma omp target teams distribute parallel for map(                          \
-    alloc                                                                      \
-    : l1 [0:n1 + 1], l2 [0:n2 + 1]) map(to                                     \
-                                        : conn [0:(n1 + 1) * (n2 + 1)])
+#pragma omp target teams distribute num_teams(NUM_TEAMS)                       \
+    map(alloc                                                                  \
+        : l1 [0:n1 + 1], l2 [0:n2 + 1]) map(to                                 \
+                                            : conn [0:(n1 + 1) * (n2 + 1)])
   /*** For each unit in second layer ***/
   for (int j = 1; j <= n2; j++) {
 
     /*** Compute weighted sum of its inputs ***/
     float sum = 0.0;
-#pragma omp parallel for reduction(+ : sum)
+#pragma omp parallel for reduction(+ : sum) num_threads(NUM_THREADS)
     for (int k = 0; k <= n1; k++) {
-      sum += conn[k * n1 + j] * l1[k];
+      sum += conn[k * n2 + j] * l1[k];
     }
     l2[j] = SQUASH(sum);
   }
@@ -232,7 +230,7 @@ void bpnn_hidden_error(float *delta_h, int nh, float *delta_o, int no,
     h = hidden[j];
     sum = 0.0;
     for (k = 1; k <= no; k++) {
-      sum += delta_o[k] * who[j * nh + k];
+      sum += delta_o[k] * who[j * no + k];
     }
     delta_h[j] = h * (1.0 - h) * sum;
     errsum += ABS(delta_h[j]);
@@ -242,18 +240,16 @@ void bpnn_hidden_error(float *delta_h, int nh, float *delta_o, int no,
 
 void bpnn_adjust_weights(float *delta, int ndelta, float *ly, int nly, float *w,
                          float *oldw) {
-  float new_dw;
-  int k, j;
   ly[0] = 1.0;
 
-  // omp_set_num_threads(NUM_THREAD);
-#pragma omp parallel for shared(oldw, w, delta) private(j, k, new_dw)          \
-    firstprivate(ndelta, nly)
-  for (j = 1; j <= ndelta; j++) {
-    for (k = 0; k <= nly; k++) {
-      new_dw = ((ETA * delta[j] * ly[k]) + (MOMENTUM * oldw[k * nly + j]));
-      w[k * nly + j] += new_dw;
-      oldw[k * nly + j] = new_dw;
+#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
+    num_threads(NUM_THREADS) collapse(2)
+  for (int j = 1; j <= ndelta; j++) {
+    for (int k = 0; k <= nly; k++) {
+      float new_dw =
+          ((ETA * delta[j] * ly[k]) + (MOMENTUM * oldw[k * ndelta + j]));
+      w[k * ndelta + j] += new_dw;
+      oldw[k * ndelta + j] = new_dw;
     }
   }
 }
@@ -335,7 +331,7 @@ void bpnn_save(BPNN *net, char *filename) {
   mem = (char *)malloc((unsigned)((n1 + 1) * (n2 + 1) * sizeof(float)));
   for (i = 0; i <= n1; i++) {
     for (j = 0; j <= n2; j++) {
-      dvalue = w[i * n1 + j];
+      dvalue = w[i * n2 + j];
       fastcopy(&mem[memcnt], &dvalue, sizeof(float));
       memcnt += sizeof(float);
     }
@@ -350,7 +346,7 @@ void bpnn_save(BPNN *net, char *filename) {
   mem = (char *)malloc((unsigned)((n2 + 1) * (n3 + 1) * sizeof(float)));
   for (i = 0; i <= n2; i++) {
     for (j = 0; j <= n3; j++) {
-      dvalue = w[i * n2 + j];
+      dvalue = w[i * n3 + j];
       fastcopy(&mem[memcnt], &dvalue, sizeof(float));
       memcnt += sizeof(float);
     }
@@ -388,7 +384,7 @@ BPNN *bpnn_read(char *filename) {
   read(fd, mem, (n1 + 1) * (n2 + 1) * sizeof(float));
   for (i = 0; i <= n1; i++) {
     for (j = 0; j <= n2; j++) {
-      fastcopy(&(new->input_weights[i * n1 + j]), &mem[memcnt], sizeof(float));
+      fastcopy(&(new->input_weights[i * n2 + j]), &mem[memcnt], sizeof(float));
       memcnt += sizeof(float);
     }
   }
@@ -401,7 +397,7 @@ BPNN *bpnn_read(char *filename) {
   read(fd, mem, (n2 + 1) * (n3 + 1) * sizeof(float));
   for (i = 0; i <= n2; i++) {
     for (j = 0; j <= n3; j++) {
-      fastcopy(&(new->hidden_weights[i * n2 + j]), &mem[memcnt], sizeof(float));
+      fastcopy(&(new->hidden_weights[i * n3 + j]), &mem[memcnt], sizeof(float));
       memcnt += sizeof(float);
     }
   }
