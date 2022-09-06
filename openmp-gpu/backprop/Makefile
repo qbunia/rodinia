@@ -5,9 +5,6 @@ CC_FLAGS = -g -O3 -fopenmp -fopenmp-targets=nvptx64
 backprop.out: backprop.o facetrain.o imagenet.o backprop_kernel.o
 	$(CC) $(CC_FLAGS) backprop.o facetrain.o imagenet.o backprop_kernel.o -o backprop.out -lm
 
-%.o: %.[ch]
-	$(CC) $(CC_FLAGS) $< -c
-
 facetrain.o: facetrain.c backprop.h
 	$(CC) $(CC_FLAGS) facetrain.c -c
 	
@@ -21,6 +18,7 @@ imagenet.o: imagenet.c backprop.h
 	$(CC) $(CC_FLAGS) imagenet.c -c
 
 .PHONY: run clean
+
 run: backprop.out
 	./backprop.out 65536
 

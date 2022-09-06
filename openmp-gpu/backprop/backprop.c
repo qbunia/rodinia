@@ -208,12 +208,12 @@ void bpnn_layerforward(float *l1, float *l2, float *conn, int n1, int n2) {
 // extern "C"
 void bpnn_output_error(float *delta, float *target, float *output, int nj,
                        float *err) {
-  int j;
-  float o, t, errsum;
-  errsum = 0.0;
-  for (j = 1; j <= nj; j++) {
-    o = output[j];
-    t = target[j];
+  float errsum = 0.0;
+#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
+    num_threads(NUM_THREADS) reduction(+ : errsum)
+  for (int j = 1; j <= nj; j++) {
+    float o = output[j];
+    float t = target[j];
     delta[j] = o * (1.0 - o) * (t - o);
     errsum += ABS(delta[j]);
   }
@@ -222,14 +222,13 @@ void bpnn_output_error(float *delta, float *target, float *output, int nj,
 
 void bpnn_hidden_error(float *delta_h, int nh, float *delta_o, int no,
                        float *who, float *hidden, float *err) {
-  int j, k;
-  float h, sum, errsum;
-
-  errsum = 0.0;
-  for (j = 1; j <= nh; j++) {
-    h = hidden[j];
-    sum = 0.0;
-    for (k = 1; k <= no; k++) {
+  float errsum = 0.0;
+#pragma omp target teams distribute num_teams(NUM_TEAMS) reduction(+ : errsum)
+  for (int j = 1; j <= nh; j++) {
+    float h = hidden[j];
+    float sum = 0.0;
+#pragma omp parallel for reduction(+ : sum) num_threads(NUM_THREADS)
+    for (int k = 1; k <= no; k++) {
       sum += delta_o[k] * who[j * no + k];
     }
     delta_h[j] = h * (1.0 - h) * sum;
@@ -241,6 +240,7 @@ void bpnn_hidden_error(float *delta_h, int nh, float *delta_o, int no,
 void bpnn_adjust_weights(float *delta, int ndelta, float *ly, int nly, float *w,
                          float *oldw) {
   ly[0] = 1.0;
+#pragma target data update(to : ly[0])
 
 #pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
     num_threads(NUM_THREADS) collapse(2)
