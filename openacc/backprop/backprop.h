@@ -3,46 +3,45 @@
 
 #define BIGRND 0x7fffffff
 
-
-#define ETA 0.3       //eta value
-#define MOMENTUM 0.3  //momentum value
-
+#define ETA 0.3      // eta value
+#define MOMENTUM 0.3 // momentum value
 
 typedef struct {
-  int input_n;                  /* number of input units */
-  int hidden_n;                 /* number of hidden units */
-  int output_n;                 /* number of output units */
+  int input_n;  /* number of input units */
+  int hidden_n; /* number of hidden units */
+  int output_n; /* number of output units */
 
-  float *input_units;          /* the input units */
-  float *hidden_units;         /* the hidden units */
-  float *output_units;         /* the output units */
+  float *input_units;  /* the input units */
+  float *hidden_units; /* the hidden units */
+  float *output_units; /* the output units */
 
-  float *hidden_delta;         /* storage for hidden unit error */
-  float *output_delta;         /* storage for output unit error */
+  float *hidden_delta; /* storage for hidden unit error */
+  float *output_delta; /* storage for output unit error */
 
-  float *target;               /* storage for target vector */
+  float *target; /* storage for target vector */
 
-  float **input_weights;       /* weights from input to hidden layer */
-  float **hidden_weights;      /* weights from hidden to output layer */
+  float *input_weights;  /* weights from input to hidden layer */
+  float *hidden_weights; /* weights from hidden to output layer */
 
-                                /*** The next two are for momentum ***/
-  float **input_prev_weights;  /* previous change on input to hidden wgt */
-  float **hidden_prev_weights; /* previous change on hidden to output wgt */
+  /*** The next two are for momentum ***/
+  float *input_prev_weights;  /* previous change on input to hidden wgt */
+  float *hidden_prev_weights; /* previous change on hidden to output wgt */
 } BPNN;
-
 
 /*** User-level functions ***/
 
-void bpnn_initialize();
+void bpnn_initialize(int);
 
-BPNN *bpnn_create();
-void bpnn_free();
+BPNN *bpnn_create(int, int, int);
+void bpnn_free(BPNN *);
 
-void bpnn_train();
-void bpnn_feedforward();
+void bpnn_train(BPNN *, float *, float *);
+void bpnn_feedforward(BPNN *);
 
-void bpnn_save();
-BPNN *bpnn_read();
+void bpnn_save(BPNN *, char *);
+BPNN *bpnn_read(char *);
 
+void bpnn_train_kernel(BPNN *, float *, float *);
+void load(BPNN *);
 
 #endif

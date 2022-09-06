@@ -1,23 +1,26 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 
 #include "backprop.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
-extern void bpnn_layerforward(float *l1, float *l2, float **conn, int n1, int n2);
+extern void bpnn_layerforward(float *l1, float *l2, float *conn, int n1,
+                              int n2);
 
-extern void bpnn_output_error(float *delta, float *target, float *output, int nj, float *err);
+extern void bpnn_output_error(float *delta, float *target, float *output,
+                              int nj, float *err);
 
-extern void bpnn_hidden_error(float *delta_h, int nh, float *delta_o, int no, float **who, float *hidden, float *err);
+extern void bpnn_hidden_error(float *delta_h, int nh, float *delta_o, int no,
+                              float *who, float *hidden, float *err);
 
-extern void bpnn_adjust_weights(float *delta, int ndelta, float *ly, int nly, float **w, float **oldw);
+extern void bpnn_adjust_weights(float *delta, int ndelta, float *ly, int nly,
+                                float *w, float *oldw);
 
-
-extern int setup(int argc, char** argv);
+extern int setup(int argc, char **argv);
 
 extern float **alloc_2d_dbl(int m, int n);
 
@@ -25,32 +28,26 @@ extern float squash(float x);
 
 double gettime() {
   struct timeval t;
-  gettimeofday(&t,NULL);
-  return t.tv_sec+t.tv_usec*1e-6;
+  gettimeofday(&t, NULL);
+  return t.tv_sec + t.tv_usec * 1e-6;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Program main
 ////////////////////////////////////////////////////////////////////////////////
-int
-main( int argc, char** argv) 
-{
-	setup(argc, argv);
-}
+int main(int argc, char **argv) { setup(argc, argv); }
 
-
-void bpnn_train_kernel(BPNN *net, float *eo, float *eh)
-{
+void bpnn_train_kernel(BPNN *net, float *eo, float *eh) {
   int in, hid, out;
   float out_err, hid_err;
   float *input_units, *hidden_units, *output_units;
-  float **input_weights, **hidden_weights;
+  float *input_weights, *hidden_weights;
   float *target, *hidden_delta, *output_delta;
-  float **hidden_prev_weights, **input_prev_weights;
-  
+  float *hidden_prev_weights, *input_prev_weights;
+
   in = net->input_n;
   hid = net->hidden_n;
-  out = net->output_n;   
+  out = net->output_n;
 
   input_units = net->input_units;
   hidden_units = net->hidden_units;
@@ -66,20 +63,24 @@ void bpnn_train_kernel(BPNN *net, float *eo, float *eh)
   hidden_prev_weights = net->hidden_prev_weights;
   input_prev_weights = net->input_prev_weights;
 
-#pragma acc data copyin(input_units[0:in]) \
-  create(hidden_units[0:hid], output_units[0:out]) \
-  copyin(input_weights[0:in][0:hid], hidden_weights[0:hid][0:out]) \
-  create(hidden_delta[0:hid], output_delta[0:out]) \
-  create(input_prev_weights[0:in][0:hid], hidden_prev_weights[0:hid][0:out]) \
-  copyin(target[0:out])
-{
-  printf("Performing CPU computation\n");
-  bpnn_layerforward(input_units, hidden_units, input_weights, in, hid);
-  bpnn_layerforward(hidden_units, output_units, hidden_weights, hid, out);
-  bpnn_output_error(output_delta, target, output_units, out, &out_err);
-  bpnn_hidden_error(hidden_delta, hid, output_delta, out, hidden_weights, hidden_units, &hid_err);
-  bpnn_adjust_weights(output_delta, out, hidden_units, hid, hidden_weights, hidden_prev_weights);
-  bpnn_adjust_weights(hidden_delta, hid, input_units, in, input_weights, input_prev_weights);
-} /* end acc data */
-
+#pragma acc data copyin(input_units [0:in + 1])                                \
+    create(hidden_units [0:hid + 1], output_units [0:out + 1])                 \
+        copyin(input_weights [0:(in + 1) * (hid + 1)],                         \
+               hidden_weights [0:(hid + 1) * (out + 1)])                       \
+            create(hidden_delta [0:hid + 1], output_delta [0:out + 1])         \
+                create(input_prev_weights [0:(in + 1) * (hid + 1)],            \
+                       hidden_prev_weights [0:(hid + 1) * (out + 1)])          \
+                    copyin(target [0:out + 1])
+  {
+    printf("Performing GPU computation\n");
+    bpnn_layerforward(input_units, hidden_units, input_weights, in, hid);
+    bpnn_layerforward(hidden_units, output_units, hidden_weights, hid, out);
+    bpnn_output_error(output_delta, target, output_units, out, &out_err);
+    bpnn_hidden_error(hidden_delta, hid, output_delta, out, hidden_weights,
+                      hidden_units, &hid_err);
+    bpnn_adjust_weights(output_delta, out, hidden_units, hid, hidden_weights,
+                        hidden_prev_weights);
+    bpnn_adjust_weights(hidden_delta, hid, input_units, in, input_weights,
+                        input_prev_weights);
+  } /* end omp target data */
 }

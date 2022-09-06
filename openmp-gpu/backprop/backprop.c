@@ -134,10 +134,6 @@ BPNN *bpnn_internal_create(int n_in, int n_hidden, int n_out) {
 }
 
 void bpnn_free(BPNN *net) {
-  int n1, n2, i;
-
-  n1 = net->input_n;
-  n2 = net->hidden_n;
 
   free((char *)net->input_units);
   free((char *)net->hidden_units);
@@ -187,6 +183,7 @@ void bpnn_layerforward(float *l1, float *l2, float *conn, int n1, int n2) {
 
   /*** Set up thresholding unit ***/
   l1[0] = 1.0;
+#pragma target data update(to : l1[0])
 
 #pragma omp target teams distribute num_teams(NUM_TEAMS)                       \
     map(alloc                                                                  \
@@ -205,7 +202,6 @@ void bpnn_layerforward(float *l1, float *l2, float *conn, int n1, int n2) {
   }
 }
 
-// extern "C"
 void bpnn_output_error(float *delta, float *target, float *output, int nj,
                        float *err) {
   float errsum = 0.0;

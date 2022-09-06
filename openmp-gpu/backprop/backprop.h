@@ -5,7 +5,6 @@
 
 #define ETA 0.3      // eta value
 #define MOMENTUM 0.3 // momentum value
-#define NUM_THREAD 8 // OpenMP threads
 
 typedef struct {
   int input_n;  /* number of input units */
