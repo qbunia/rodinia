@@ -127,8 +127,6 @@ int main(int argc, char *argv[]) {
   public.frame_cols = AVI_video_width(public.d_frames);
   public.frame_elem = public.frame_rows * public.frame_cols;
   public.frame_mem = sizeof(fp) * public.frame_elem;
-  // cudaMalloc((void **)&common_change.d_frame, common.frame_mem);
-  // fp* public_d_frame = omp_target_malloc(common.frame_mem, device_id);
 
   //======================================================================================================================================================
   // 	CHECK INPUT ARGUMENTS
@@ -162,57 +160,55 @@ int main(int argc, char *argv[]) {
   public.endoPoints = ENDO_POINTS;
   public.d_endo_mem = sizeof(int) * public.endoPoints;
 
-  public.d_endoRow = (int *)malloc(public.d_endo_mem);
-  public.d_endoRow[0] = 369;
-  public.d_endoRow[1] = 400;
-  public.d_endoRow[2] = 429;
-  public.d_endoRow[3] = 452;
-  public.d_endoRow[4] = 476;
-  public.d_endoRow[5] = 486;
-  public.d_endoRow[6] = 479;
-  public.d_endoRow[7] = 458;
-  public.d_endoRow[8] = 433;
-  public.d_endoRow[9] = 404;
-  public.d_endoRow[10] = 374;
-  public.d_endoRow[11] = 346;
-  public.d_endoRow[12] = 318;
-  public.d_endoRow[13] = 294;
-  public.d_endoRow[14] = 277;
-  public.d_endoRow[15] = 269;
-  public.d_endoRow[16] = 275;
-  public.d_endoRow[17] = 287;
-  public.d_endoRow[18] = 311;
-  public.d_endoRow[19] = 339;
-  int *dev_public_d_endoRow = omp_target_alloc(public.d_endo_mem, device_id);
-  omp_target_memcpy(dev_public_d_endoRow, public.d_endoRow, public.d_endo_mem,
-                    0, 0, device_id, host_id);
-  public.d_endoRow = dev_public_d_endoRow;
+  public.h_endoRow = (int *)malloc(public.d_endo_mem);
+  public.h_endoRow[0] = 369;
+  public.h_endoRow[1] = 400;
+  public.h_endoRow[2] = 429;
+  public.h_endoRow[3] = 452;
+  public.h_endoRow[4] = 476;
+  public.h_endoRow[5] = 486;
+  public.h_endoRow[6] = 479;
+  public.h_endoRow[7] = 458;
+  public.h_endoRow[8] = 433;
+  public.h_endoRow[9] = 404;
+  public.h_endoRow[10] = 374;
+  public.h_endoRow[11] = 346;
+  public.h_endoRow[12] = 318;
+  public.h_endoRow[13] = 294;
+  public.h_endoRow[14] = 277;
+  public.h_endoRow[15] = 269;
+  public.h_endoRow[16] = 275;
+  public.h_endoRow[17] = 287;
+  public.h_endoRow[18] = 311;
+  public.h_endoRow[19] = 339;
+  public.d_endoRow = omp_target_alloc(public.d_endo_mem, device_id);
+  omp_target_memcpy(public.d_endoRow, public.h_endoRow, public.d_endo_mem, 0, 0,
+                    device_id, host_id);
 
-  public.d_endoCol = (int *)malloc(public.d_endo_mem);
-  public.d_endoCol[0] = 408;
-  public.d_endoCol[1] = 406;
-  public.d_endoCol[2] = 397;
-  public.d_endoCol[3] = 383;
-  public.d_endoCol[4] = 354;
-  public.d_endoCol[5] = 322;
-  public.d_endoCol[6] = 294;
-  public.d_endoCol[7] = 270;
-  public.d_endoCol[8] = 250;
-  public.d_endoCol[9] = 237;
-  public.d_endoCol[10] = 235;
-  public.d_endoCol[11] = 241;
-  public.d_endoCol[12] = 254;
-  public.d_endoCol[13] = 273;
-  public.d_endoCol[14] = 300;
-  public.d_endoCol[15] = 328;
-  public.d_endoCol[16] = 356;
-  public.d_endoCol[17] = 383;
-  public.d_endoCol[18] = 401;
-  public.d_endoCol[19] = 411;
-  int *dev_public_d_endoCol = omp_target_alloc(public.d_endo_mem, device_id);
-  omp_target_memcpy(dev_public_d_endoCol, public.d_endoCol, public.d_endo_mem,
-                    0, 0, device_id, host_id);
-  public.d_endoCol = dev_public_d_endoCol;
+  public.h_endoCol = (int *)malloc(public.d_endo_mem);
+  public.h_endoCol[0] = 408;
+  public.h_endoCol[1] = 406;
+  public.h_endoCol[2] = 397;
+  public.h_endoCol[3] = 383;
+  public.h_endoCol[4] = 354;
+  public.h_endoCol[5] = 322;
+  public.h_endoCol[6] = 294;
+  public.h_endoCol[7] = 270;
+  public.h_endoCol[8] = 250;
+  public.h_endoCol[9] = 237;
+  public.h_endoCol[10] = 235;
+  public.h_endoCol[11] = 241;
+  public.h_endoCol[12] = 254;
+  public.h_endoCol[13] = 273;
+  public.h_endoCol[14] = 300;
+  public.h_endoCol[15] = 328;
+  public.h_endoCol[16] = 356;
+  public.h_endoCol[17] = 383;
+  public.h_endoCol[18] = 401;
+  public.h_endoCol[19] = 411;
+  public.d_endoCol = omp_target_alloc(public.d_endo_mem, device_id);
+  omp_target_memcpy(public.d_endoCol, public.h_endoCol, public.d_endo_mem, 0, 0,
+                    device_id, host_id);
 
   public.h_tEndoRowLoc = (int *)malloc(public.d_endo_mem * public.frames);
   public.d_tEndoRowLoc =
@@ -228,79 +224,77 @@ int main(int argc, char *argv[]) {
   public.epiPoints = EPI_POINTS;
   public.d_epi_mem = sizeof(int) * public.epiPoints;
 
-  public.d_epiRow = (int *)malloc(public.d_epi_mem);
-  public.d_epiRow[0] = 390;
-  public.d_epiRow[1] = 419;
-  public.d_epiRow[2] = 448;
-  public.d_epiRow[3] = 474;
-  public.d_epiRow[4] = 501;
-  public.d_epiRow[5] = 519;
-  public.d_epiRow[6] = 535;
-  public.d_epiRow[7] = 542;
-  public.d_epiRow[8] = 543;
-  public.d_epiRow[9] = 538;
-  public.d_epiRow[10] = 528;
-  public.d_epiRow[11] = 511;
-  public.d_epiRow[12] = 491;
-  public.d_epiRow[13] = 466;
-  public.d_epiRow[14] = 438;
-  public.d_epiRow[15] = 406;
-  public.d_epiRow[16] = 376;
-  public.d_epiRow[17] = 347;
-  public.d_epiRow[18] = 318;
-  public.d_epiRow[19] = 291;
-  public.d_epiRow[20] = 275;
-  public.d_epiRow[21] = 259;
-  public.d_epiRow[22] = 256;
-  public.d_epiRow[23] = 252;
-  public.d_epiRow[24] = 252;
-  public.d_epiRow[25] = 257;
-  public.d_epiRow[26] = 266;
-  public.d_epiRow[27] = 283;
-  public.d_epiRow[28] = 305;
-  public.d_epiRow[29] = 331;
-  public.d_epiRow[30] = 360;
-  int *dev_public_d_epiRow = omp_target_alloc(public.d_epi_mem, device_id);
-  omp_target_memcpy(dev_public_d_epiRow, public.d_epiRow, public.d_epi_mem, 0,
-                    0, device_id, host_id);
-  public.d_epiRow = dev_public_d_epiRow;
+  public.h_epiRow = (int *)malloc(public.d_epi_mem);
+  public.h_epiRow[0] = 390;
+  public.h_epiRow[1] = 419;
+  public.h_epiRow[2] = 448;
+  public.h_epiRow[3] = 474;
+  public.h_epiRow[4] = 501;
+  public.h_epiRow[5] = 519;
+  public.h_epiRow[6] = 535;
+  public.h_epiRow[7] = 542;
+  public.h_epiRow[8] = 543;
+  public.h_epiRow[9] = 538;
+  public.h_epiRow[10] = 528;
+  public.h_epiRow[11] = 511;
+  public.h_epiRow[12] = 491;
+  public.h_epiRow[13] = 466;
+  public.h_epiRow[14] = 438;
+  public.h_epiRow[15] = 406;
+  public.h_epiRow[16] = 376;
+  public.h_epiRow[17] = 347;
+  public.h_epiRow[18] = 318;
+  public.h_epiRow[19] = 291;
+  public.h_epiRow[20] = 275;
+  public.h_epiRow[21] = 259;
+  public.h_epiRow[22] = 256;
+  public.h_epiRow[23] = 252;
+  public.h_epiRow[24] = 252;
+  public.h_epiRow[25] = 257;
+  public.h_epiRow[26] = 266;
+  public.h_epiRow[27] = 283;
+  public.h_epiRow[28] = 305;
+  public.h_epiRow[29] = 331;
+  public.h_epiRow[30] = 360;
+  public.d_epiRow = omp_target_alloc(public.d_epi_mem, device_id);
+  omp_target_memcpy(public.d_epiRow, public.h_epiRow, public.d_epi_mem, 0, 0,
+                    device_id, host_id);
 
-  public.d_epiCol = (int *)malloc(public.d_epi_mem);
-  public.d_epiCol[0] = 457;
-  public.d_epiCol[1] = 454;
-  public.d_epiCol[2] = 446;
-  public.d_epiCol[3] = 431;
-  public.d_epiCol[4] = 411;
-  public.d_epiCol[5] = 388;
-  public.d_epiCol[6] = 361;
-  public.d_epiCol[7] = 331;
-  public.d_epiCol[8] = 301;
-  public.d_epiCol[9] = 273;
-  public.d_epiCol[10] = 243;
-  public.d_epiCol[11] = 218;
-  public.d_epiCol[12] = 196;
-  public.d_epiCol[13] = 178;
-  public.d_epiCol[14] = 166;
-  public.d_epiCol[15] = 157;
-  public.d_epiCol[16] = 155;
-  public.d_epiCol[17] = 165;
-  public.d_epiCol[18] = 177;
-  public.d_epiCol[19] = 197;
-  public.d_epiCol[20] = 218;
-  public.d_epiCol[21] = 248;
-  public.d_epiCol[22] = 276;
-  public.d_epiCol[23] = 304;
-  public.d_epiCol[24] = 333;
-  public.d_epiCol[25] = 361;
-  public.d_epiCol[26] = 391;
-  public.d_epiCol[27] = 415;
-  public.d_epiCol[28] = 434;
-  public.d_epiCol[29] = 448;
-  public.d_epiCol[30] = 455;
-  int *dev_public_d_epiCol = omp_target_alloc(public.d_epi_mem, device_id);
-  omp_target_memcpy(dev_public_d_epiCol, public.d_epiCol, public.d_epi_mem, 0,
-                    0, device_id, host_id);
-  public.d_epiCol = dev_public_d_epiCol;
+  public.h_epiCol = (int *)malloc(public.d_epi_mem);
+  public.h_epiCol[0] = 457;
+  public.h_epiCol[1] = 454;
+  public.h_epiCol[2] = 446;
+  public.h_epiCol[3] = 431;
+  public.h_epiCol[4] = 411;
+  public.h_epiCol[5] = 388;
+  public.h_epiCol[6] = 361;
+  public.h_epiCol[7] = 331;
+  public.h_epiCol[8] = 301;
+  public.h_epiCol[9] = 273;
+  public.h_epiCol[10] = 243;
+  public.h_epiCol[11] = 218;
+  public.h_epiCol[12] = 196;
+  public.h_epiCol[13] = 178;
+  public.h_epiCol[14] = 166;
+  public.h_epiCol[15] = 157;
+  public.h_epiCol[16] = 155;
+  public.h_epiCol[17] = 165;
+  public.h_epiCol[18] = 177;
+  public.h_epiCol[19] = 197;
+  public.h_epiCol[20] = 218;
+  public.h_epiCol[21] = 248;
+  public.h_epiCol[22] = 276;
+  public.h_epiCol[23] = 304;
+  public.h_epiCol[24] = 333;
+  public.h_epiCol[25] = 361;
+  public.h_epiCol[26] = 391;
+  public.h_epiCol[27] = 415;
+  public.h_epiCol[28] = 434;
+  public.h_epiCol[29] = 448;
+  public.h_epiCol[30] = 455;
+  public.d_epiCol = omp_target_alloc(public.d_epi_mem, device_id);
+  omp_target_memcpy(public.d_epiCol, public.h_epiCol, public.d_epi_mem, 0, 0,
+                    device_id, host_id);
 
   public.h_tEpiRowLoc = (int *)malloc(public.d_epi_mem * public.frames);
   public.d_tEpiRowLoc =
@@ -557,7 +551,6 @@ int main(int argc, char *argv[]) {
   }
 
   for (i = 0; i < public.allPoints; i++) {
-    // private[i].d_mask_conv = (fp *)malloc(public.mask_conv_mem);
     private[i].d_mask_conv = omp_target_alloc(public.mask_conv_mem, device_id);
   }
 
@@ -572,7 +565,7 @@ int main(int argc, char *argv[]) {
   //	KERNEL
   //======================================================================================================================================================
 
-  float *dev_public_d_frame = omp_target_alloc(public.frame_mem, device_id);
+  public.d_frame = omp_target_alloc(public.frame_mem, device_id);
 
   for (public.frame_no = 0; public.frame_no < frames_processed;
        public.frame_no++) {
@@ -582,16 +575,14 @@ int main(int argc, char *argv[]) {
     //====================================================================================================
 
     // Extract a cropped version of the first frame from the video file
-    public.d_frame =
+    float *host_frame =
         get_frame(public.d_frames, // pointer to video file
                   public.frame_no, // number of frame that needs to be returned
                   0,               // cropped?
                   0,               // scaled?
                   1);              // converted
-    float *host_frame = public.d_frame;
-    omp_target_memcpy(dev_public_d_frame, public.d_frame, public.frame_mem, 0,
-                      0, device_id, host_id);
-    public.d_frame = dev_public_d_frame;
+    omp_target_memcpy(public.d_frame, host_frame, public.frame_mem, 0, 0,
+                      device_id, host_id);
 
     //====================================================================================================
     //	PROCESSING
@@ -663,11 +654,23 @@ int main(int argc, char *argv[]) {
   omp_target_free(public.d_tEndoColLoc, device_id);
   omp_target_free(public.d_endoT, device_id);
 
+  free(public.h_endoRow);
+  free(public.h_endoCol);
+  free(public.h_tEndoRowLoc);
+  free(public.h_tEndoColLoc);
+
   omp_target_free(public.d_epiRow, device_id);
   omp_target_free(public.d_epiCol, device_id);
   omp_target_free(public.d_tEpiRowLoc, device_id);
   omp_target_free(public.d_tEpiColLoc, device_id);
   omp_target_free(public.d_epiT, device_id);
+
+  free(public.h_epiRow);
+  free(public.h_epiCol);
+  free(public.h_tEpiRowLoc);
+  free(public.h_tEpiColLoc);
+
+  omp_target_free(public.d_frame, device_id);
 
   //====================================================================================================
   //	POINTERS
