@@ -16,6 +16,9 @@
 #include "define.h"
 #include "kernel.c"
 
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
+
 //===============================================================================================================================================================================================================200
 //	WRITE DATA FUNCTION
 //===============================================================================================================================================================================================================200
@@ -591,7 +594,7 @@ int main(int argc, char *argv[]) {
     {
 #pragma omp target update to(public.d_frame)
 
-#pragma omp target teams distribute
+#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS) num_threads(NUM_THREADS)
       for (i = 0; i < public.allPoints; i++) {
         kernel(public, private[i]);
       }

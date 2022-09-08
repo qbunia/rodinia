@@ -16,6 +16,11 @@ main.o: main.c define.h kernel.c
 ./AVI/avilib.o ./AVI/avimod.o:
 	cd AVI; make;
 
+.PHONY: run clean
+
+run: heartwall.out
+	./heartwall.out ../../data/heartwall/test.avi 20 4
+
 # delete all object files
 clean:
 	rm -f *.o AVI/*.o *.out *.log
