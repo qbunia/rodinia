@@ -9,11 +9,11 @@
 #include <string.h>
 #include <time.h>
 
-#include <avilib.h>
-#include <avimod.h>
+#include "AVI/avilib.h"
+#include "AVI/avimod.h"
 #include <omp.h>
 
-#include "define.c"
+#include "define.h"
 #include "kernel.c"
 
 //===============================================================================================================================================================================================================200
@@ -118,12 +118,17 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
+  int host_id = omp_get_initial_device();
+  int device_id = omp_get_default_device();
+
   public.d_frames = d_frames;
   public.frames = AVI_video_frames(public.d_frames);
   public.frame_rows = AVI_video_height(public.d_frames);
   public.frame_cols = AVI_video_width(public.d_frames);
   public.frame_elem = public.frame_rows * public.frame_cols;
   public.frame_mem = sizeof(fp) * public.frame_elem;
+  // cudaMalloc((void **)&common_change.d_frame, common.frame_mem);
+  // fp* public_d_frame = omp_target_malloc(common.frame_mem, device_id);
 
   //======================================================================================================================================================
   // 	CHECK INPUT ARGUMENTS
@@ -156,6 +161,7 @@ int main(int argc, char *argv[]) {
 
   public.endoPoints = ENDO_POINTS;
   public.d_endo_mem = sizeof(int) * public.endoPoints;
+
   public.d_endoRow = (int *)malloc(public.d_endo_mem);
   public.d_endoRow[0] = 369;
   public.d_endoRow[1] = 400;
@@ -177,6 +183,11 @@ int main(int argc, char *argv[]) {
   public.d_endoRow[17] = 287;
   public.d_endoRow[18] = 311;
   public.d_endoRow[19] = 339;
+  int *dev_public_d_endoRow = omp_target_alloc(public.d_endo_mem, device_id);
+  omp_target_memcpy(dev_public_d_endoRow, public.d_endoRow, public.d_endo_mem,
+                    0, 0, device_id, host_id);
+  public.d_endoRow = dev_public_d_endoRow;
+
   public.d_endoCol = (int *)malloc(public.d_endo_mem);
   public.d_endoCol[0] = 408;
   public.d_endoCol[1] = 406;
@@ -198,8 +209,17 @@ int main(int argc, char *argv[]) {
   public.d_endoCol[17] = 383;
   public.d_endoCol[18] = 401;
   public.d_endoCol[19] = 411;
-  public.d_tEndoRowLoc = (int *)malloc(public.d_endo_mem * public.frames);
-  public.d_tEndoColLoc = (int *)malloc(public.d_endo_mem * public.frames);
+  int *dev_public_d_endoCol = omp_target_alloc(public.d_endo_mem, device_id);
+  omp_target_memcpy(dev_public_d_endoCol, public.d_endoCol, public.d_endo_mem,
+                    0, 0, device_id, host_id);
+  public.d_endoCol = dev_public_d_endoCol;
+
+  public.h_tEndoRowLoc = (int *)malloc(public.d_endo_mem * public.frames);
+  public.d_tEndoRowLoc =
+      omp_target_alloc(public.d_endo_mem * public.frames, device_id);
+  public.h_tEndoColLoc = (int *)malloc(public.d_endo_mem * public.frames);
+  public.d_tEndoColLoc =
+      omp_target_alloc(public.d_endo_mem * public.frames, device_id);
 
   //====================================================================================================
   //	EPI POINTS
@@ -207,6 +227,7 @@ int main(int argc, char *argv[]) {
 
   public.epiPoints = EPI_POINTS;
   public.d_epi_mem = sizeof(int) * public.epiPoints;
+
   public.d_epiRow = (int *)malloc(public.d_epi_mem);
   public.d_epiRow[0] = 390;
   public.d_epiRow[1] = 419;
@@ -239,6 +260,11 @@ int main(int argc, char *argv[]) {
   public.d_epiRow[28] = 305;
   public.d_epiRow[29] = 331;
   public.d_epiRow[30] = 360;
+  int *dev_public_d_epiRow = omp_target_alloc(public.d_epi_mem, device_id);
+  omp_target_memcpy(dev_public_d_epiRow, public.d_epiRow, public.d_epi_mem, 0,
+                    0, device_id, host_id);
+  public.d_epiRow = dev_public_d_epiRow;
+
   public.d_epiCol = (int *)malloc(public.d_epi_mem);
   public.d_epiCol[0] = 457;
   public.d_epiCol[1] = 454;
@@ -271,8 +297,17 @@ int main(int argc, char *argv[]) {
   public.d_epiCol[28] = 434;
   public.d_epiCol[29] = 448;
   public.d_epiCol[30] = 455;
-  public.d_tEpiRowLoc = (int *)malloc(public.d_epi_mem * public.frames);
-  public.d_tEpiColLoc = (int *)malloc(public.d_epi_mem * public.frames);
+  int *dev_public_d_epiCol = omp_target_alloc(public.d_epi_mem, device_id);
+  omp_target_memcpy(dev_public_d_epiCol, public.d_epiCol, public.d_epi_mem, 0,
+                    0, device_id, host_id);
+  public.d_epiCol = dev_public_d_epiCol;
+
+  public.h_tEpiRowLoc = (int *)malloc(public.d_epi_mem * public.frames);
+  public.d_tEpiRowLoc =
+      omp_target_alloc(public.d_epi_mem * public.frames, device_id);
+  public.h_tEpiColLoc = (int *)malloc(public.d_epi_mem * public.frames);
+  public.d_tEpiColLoc =
+      omp_target_alloc(public.d_epi_mem * public.frames, device_id);
 
   //====================================================================================================
   //	ALL POINTS
@@ -294,13 +329,14 @@ int main(int argc, char *argv[]) {
   //======================================================================================================================================================
 
   for (i = 0; i < public.allPoints; i++) {
-    private[i].in_partial_sum = (fp *)malloc(sizeof(fp) * 2 * public.tSize + 1);
+    private[i].in_partial_sum =
+        omp_target_alloc(sizeof(fp) * 2 * public.tSize + 1, device_id);
     private[i].in_sqr_partial_sum =
-        (fp *)malloc(sizeof(fp) * 2 * public.tSize + 1);
-    private[i].par_max_val =
-        (fp *)malloc(sizeof(fp) * (2 * public.tSize + 2 * public.sSize + 1));
-    private[i].par_max_coo =
-        (int *)malloc(sizeof(int) * (2 * public.tSize + 2 * public.sSize + 1));
+        omp_target_alloc(sizeof(fp) * 2 * public.tSize + 1, device_id);
+    private[i].par_max_val = omp_target_alloc(
+        sizeof(fp) * (2 * public.tSize + 2 * public.sSize + 1), device_id);
+    private[i].par_max_coo = omp_target_alloc(
+        sizeof(int) * (2 * public.tSize + 2 * public.sSize + 1), device_id);
   }
 
   //======================================================================================================================================================
@@ -313,8 +349,8 @@ int main(int argc, char *argv[]) {
   public.in2_mem = sizeof(fp) * public.in2_elem;
 
   for (i = 0; i < public.allPoints; i++) {
-    private[i].d_in2 = (fp *)malloc(public.in2_mem);
-    private[i].d_in2_sqr = (fp *)malloc(public.in2_mem);
+    private[i].d_in2 = omp_target_alloc(public.in2_mem, device_id);
+    private[i].d_in2_sqr = omp_target_alloc(public.in2_mem, device_id);
   }
 
   //======================================================================================================================================================
@@ -327,16 +363,18 @@ int main(int argc, char *argv[]) {
   public.in_mod_mem = sizeof(fp) * public.in_mod_elem;
 
   for (i = 0; i < public.allPoints; i++) {
-    private[i].d_in_mod = (fp *)malloc(public.in_mod_mem);
-    private[i].d_in_sqr = (fp *)malloc(public.in_mod_mem);
+    private[i].d_in_mod = omp_target_alloc(public.in_mod_mem, device_id);
+    private[i].d_in_sqr = omp_target_alloc(public.in_mod_mem, device_id);
   }
 
   //======================================================================================================================================================
   // 	ARRAY OF TEMPLATES FOR ALL POINTS
   //======================================================================================================================================================
 
-  public.d_endoT = (fp *)malloc(public.in_mod_mem * public.endoPoints);
-  public.d_epiT = (fp *)malloc(public.in_mod_mem * public.epiPoints);
+  public.d_endoT =
+      omp_target_alloc(public.in_mod_mem * public.endoPoints, device_id);
+  public.d_epiT =
+      omp_target_alloc(public.in_mod_mem * public.epiPoints, device_id);
 
   //======================================================================================================================================================
   // 	SETUP private POINTERS TO ROWS, COLS  AND TEMPLATE
@@ -376,7 +414,7 @@ int main(int argc, char *argv[]) {
   public.conv_mem = sizeof(fp) * public.conv_elem;
 
   for (i = 0; i < public.allPoints; i++) {
-    private[i].d_conv = (fp *)malloc(public.conv_mem);
+    private[i].d_conv = omp_target_alloc(public.conv_mem, device_id);
   }
 
   //======================================================================================================================================================
@@ -398,7 +436,7 @@ int main(int argc, char *argv[]) {
   public.in2_pad_mem = sizeof(fp) * public.in2_pad_elem;
 
   for (i = 0; i < public.allPoints; i++) {
-    private[i].d_in2_pad = (fp *)malloc(public.in2_pad_mem);
+    private[i].d_in2_pad = omp_target_alloc(public.in2_pad_mem, device_id);
   }
 
   //====================================================================================================
@@ -425,7 +463,7 @@ int main(int argc, char *argv[]) {
   public.in2_sub_mem = sizeof(fp) * public.in2_sub_elem;
 
   for (i = 0; i < public.allPoints; i++) {
-    private[i].d_in2_sub = (fp *)malloc(public.in2_sub_mem);
+    private[i].d_in2_sub = omp_target_alloc(public.in2_sub_mem, device_id);
   }
 
   //====================================================================================================
@@ -450,7 +488,8 @@ int main(int argc, char *argv[]) {
   public.in2_sub2_sqr_mem = sizeof(fp) * public.in2_sub2_sqr_elem;
 
   for (i = 0; i < public.allPoints; i++) {
-    private[i].d_in2_sub2_sqr = (fp *)malloc(public.in2_sub2_sqr_mem);
+    private[i].d_in2_sub2_sqr =
+        omp_target_alloc(public.in2_sub2_sqr_mem, device_id);
   }
 
   //======================================================================================================================================================
@@ -473,7 +512,7 @@ int main(int argc, char *argv[]) {
 
   //====================================================================================================
   //	SELECTION, SELECTION 2, SUBTRACTION, DIFFERENTIAL LOCAL SUM, DENOMINATOR
-  //A, DENOMINATOR, CORRELATION
+  // A, DENOMINATOR, CORRELATION
   //====================================================================================================
 
   //======================================================================================================================================================
@@ -487,7 +526,7 @@ int main(int argc, char *argv[]) {
   public.tMask_mem = sizeof(fp) * public.tMask_elem;
 
   for (i = 0; i < public.allPoints; i++) {
-    private[i].d_tMask = (fp *)malloc(public.tMask_mem);
+    private[i].d_tMask = omp_target_alloc(public.tMask_mem, device_id);
   }
 
   //======================================================================================================================================================
@@ -518,7 +557,8 @@ int main(int argc, char *argv[]) {
   }
 
   for (i = 0; i < public.allPoints; i++) {
-    private[i].d_mask_conv = (fp *)malloc(public.mask_conv_mem);
+    // private[i].d_mask_conv = (fp *)malloc(public.mask_conv_mem);
+    private[i].d_mask_conv = omp_target_alloc(public.mask_conv_mem, device_id);
   }
 
   //======================================================================================================================================================
@@ -531,6 +571,8 @@ int main(int argc, char *argv[]) {
   //======================================================================================================================================================
   //	KERNEL
   //======================================================================================================================================================
+
+  float *dev_public_d_frame = omp_target_alloc(public.frame_mem, device_id);
 
   for (public.frame_no = 0; public.frame_no < frames_processed;
        public.frame_no++) {
@@ -546,25 +588,30 @@ int main(int argc, char *argv[]) {
                   0,               // cropped?
                   0,               // scaled?
                   1);              // converted
+    float *host_frame = public.d_frame;
+    omp_target_memcpy(dev_public_d_frame, public.d_frame, public.frame_mem, 0,
+                      0, device_id, host_id);
+    public.d_frame = dev_public_d_frame;
 
     //====================================================================================================
     //	PROCESSING
     //====================================================================================================
+#pragma omp target data map(to : public, private [0:ALL_POINTS])
+    {
+#pragma omp target update to(public.d_frame)
 
-    omp_set_num_threads(omp_num_threads);
-
-#pragma omp parallel for
-    for (i = 0; i < public.allPoints; i++) {
-      kernel(public, private[i]);
+#pragma omp target teams distribute
+      for (i = 0; i < public.allPoints; i++) {
+        kernel(public, private[i]);
+      }
     }
-
     //====================================================================================================
     //	FREE MEMORY FOR FRAME
     //====================================================================================================
 
-    // free frame after each loop iteration, since AVI library allocates memory
-    // for every frame fetched
-    free(public.d_frame);
+    // free frame after each loop iteration, since AVI library allocates
+    // memory for every frame fetched
+    free(host_frame);
 
     //====================================================================================================
     //	PRINT FRAME PROGRESS
@@ -572,71 +619,82 @@ int main(int argc, char *argv[]) {
 
     printf("%d ", public.frame_no);
     fflush(NULL);
+
+    //======================================================================================================================================================
+    //	PRINT FRAME PROGRESS END
+    //======================================================================================================================================================
+
+    printf("\n");
+    fflush(NULL);
   }
 
-  //======================================================================================================================================================
-  //	PRINT FRAME PROGRESS END
-  //======================================================================================================================================================
-
-  printf("\n");
-  fflush(NULL);
-
-  //======================================================================================================================================================
-  //	DEALLOCATION
-  //======================================================================================================================================================
+  omp_target_memcpy(public.h_tEndoRowLoc, public.d_tEndoRowLoc,
+                    public.d_endo_mem * public.frames, 0, 0, host_id,
+                    device_id);
+  omp_target_memcpy(public.h_tEndoColLoc, public.d_tEndoColLoc,
+                    public.d_endo_mem * public.frames, 0, 0, host_id,
+                    device_id);
+  omp_target_memcpy(public.h_tEpiRowLoc, public.d_tEpiRowLoc,
+                    public.d_epi_mem * public.frames, 0, 0, host_id, device_id);
+  omp_target_memcpy(public.h_tEpiColLoc, public.d_tEpiColLoc,
+                    public.d_epi_mem * public.frames, 0, 0, host_id, device_id);
 
   //==================================================50
   //	DUMP DATA TO FILE
   //==================================================50
 #ifdef OUTPUT
   write_data("result.log", public.frames, frames_processed, public.endoPoints,
-             public.d_tEndoRowLoc, public.d_tEndoColLoc, public.epiPoints,
-             public.d_tEpiRowLoc, public.d_tEpiColLoc);
+             public.h_tEndoRowLoc, public.h_tEndoColLoc, public.epiPoints,
+             public.h_tEpiRowLoc, public.h_tEpiColLoc);
 
 #endif
+
+  //======================================================================================================================================================
+  //	DEALLOCATION
+  //======================================================================================================================================================
 
   //====================================================================================================
   //	COMMON
   //====================================================================================================
 
-  free(public.d_endoRow);
-  free(public.d_endoCol);
-  free(public.d_tEndoRowLoc);
-  free(public.d_tEndoColLoc);
-  free(public.d_endoT);
+  omp_target_free(public.d_endoRow, device_id);
+  omp_target_free(public.d_endoCol, device_id);
+  omp_target_free(public.d_tEndoRowLoc, device_id);
+  omp_target_free(public.d_tEndoColLoc, device_id);
+  omp_target_free(public.d_endoT, device_id);
 
-  free(public.d_epiRow);
-  free(public.d_epiCol);
-  free(public.d_tEpiRowLoc);
-  free(public.d_tEpiColLoc);
-  free(public.d_epiT);
+  omp_target_free(public.d_epiRow, device_id);
+  omp_target_free(public.d_epiCol, device_id);
+  omp_target_free(public.d_tEpiRowLoc, device_id);
+  omp_target_free(public.d_tEpiColLoc, device_id);
+  omp_target_free(public.d_epiT, device_id);
 
   //====================================================================================================
   //	POINTERS
   //====================================================================================================
 
   for (i = 0; i < public.allPoints; i++) {
-    free(private[i].in_partial_sum);
-    free(private[i].in_sqr_partial_sum);
-    free(private[i].par_max_val);
-    free(private[i].par_max_coo);
+    omp_target_free(private[i].in_partial_sum, device_id);
+    omp_target_free(private[i].in_sqr_partial_sum, device_id);
+    omp_target_free(private[i].par_max_val, device_id);
+    omp_target_free(private[i].par_max_coo, device_id);
 
-    free(private[i].d_in2);
-    free(private[i].d_in2_sqr);
+    omp_target_free(private[i].d_in2, device_id);
+    omp_target_free(private[i].d_in2_sqr, device_id);
 
-    free(private[i].d_in_mod);
-    free(private[i].d_in_sqr);
+    omp_target_free(private[i].d_in_mod, device_id);
+    omp_target_free(private[i].d_in_sqr, device_id);
 
-    free(private[i].d_conv);
+    omp_target_free(private[i].d_conv, device_id);
 
-    free(private[i].d_in2_pad);
+    omp_target_free(private[i].d_in2_pad, device_id);
 
-    free(private[i].d_in2_sub);
+    omp_target_free(private[i].d_in2_sub, device_id);
 
-    free(private[i].d_in2_sub2_sqr);
+    omp_target_free(private[i].d_in2_sub2_sqr, device_id);
 
-    free(private[i].d_tMask);
-    free(private[i].d_mask_conv);
+    omp_target_free(private[i].d_tMask, device_id);
+    omp_target_free(private[i].d_mask_conv, device_id);
   }
 }
 

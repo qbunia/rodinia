@@ -33,6 +33,10 @@ typedef struct public_struct {
   int *d_tEndoRowLoc;
   int *d_tEndoColLoc;
   fp *d_endoT;
+  int *h_endoRow;
+  int *h_endoCol;
+  int *h_tEndoRowLoc;
+  int *h_tEndoColLoc;
 
   int epiPoints;
   int d_epi_mem;
@@ -41,6 +45,10 @@ typedef struct public_struct {
   int *d_tEpiRowLoc;
   int *d_tEpiColLoc;
   fp *d_epiT;
+  int *h_epiRow;
+  int *h_epiCol;
+  int *h_tEpiRowLoc;
+  int *h_tEpiColLoc;
 
   int allPoints;
 
