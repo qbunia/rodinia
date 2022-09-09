@@ -128,8 +128,6 @@ float **kmeans_clustering(float **h_feature, /* in: [npoints][nfeatures] */
   float **h_clusters;    /* out: [nclusters][nfeatures] */
   float delta;
 
-  double timing;
-
   int nthreads;
   int **h_partial_new_centers_len;
   float **h_partial_new_centers;
@@ -226,7 +224,7 @@ float **kmeans_clustering(float **h_feature, /* in: [npoints][nfeatures] */
                             : feature [0:npoints], membership [0:npoints],     \
                               new_centers [0:nclusters],                       \
                               new_centers_len [0:nclusters])                   \
-    map(tofrom                                                                 \
+    map(to                                                                     \
         : clusters [0:nclusters],                                              \
           partial_new_centers [0:nthreads * nclusters],                        \
           partial_new_centers_len [0:nthreads])
@@ -235,13 +233,16 @@ float **kmeans_clustering(float **h_feature, /* in: [npoints][nfeatures] */
       delta = 0.0;
 #pragma omp target parallel map(tofrom : delta) num_threads(num_omp_threads)
       {
-        int tid = omp_get_thread_num();
-#pragma omp for \
-                        private(i,j,index) \
-                        firstprivate(npoints,nclusters,nfeatures) \
-                        schedule(static) \
-                        reduction(+:delta)
+        int total_num_threads = 0;
+        if (npoints <= num_omp_threads) {
+          total_num_threads = npoints;
+        } else {
+          total_num_threads = num_omp_threads;
+        }
+#pragma omp for private(i, j, index)                                           \
+    firstprivate(npoints, nclusters, nfeatures) reduction(+ : delta)
         for (i = 0; i < npoints; i++) {
+          int tid = i % total_num_threads;
           /* find the index of nestest cluster centers */
           index =
               find_nearest_point(feature[i], nfeatures, clusters, nclusters);
@@ -274,7 +275,7 @@ float **kmeans_clustering(float **h_feature, /* in: [npoints][nfeatures] */
       }
 
       /* replace old cluster centers with new_centers */
-#pragma omp target parallel for collapse(2)
+#pragma omp target parallel for
       for (i = 0; i < nclusters; i++) {
         for (j = 0; j < nfeatures; j++) {
           if (new_centers_len[i] > 0)
