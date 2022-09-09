@@ -17,7 +17,7 @@
 /*                                                                           */
 /*2       Redistributions in binary form must reproduce the above copyright   */
 /*        notice, this list of conditions and the following disclaimer in the */
-/*        documentation and/or other materials provided with the distribution.*/ 
+/*        documentation and/or other materials provided with the distribution.*/
 /*                                                                            */
 /*3       Neither the name of Northwestern University nor the names of its    */
 /*        contributors may be used to endorse or promote products derived     */
@@ -36,7 +36,6 @@
 /*ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE             */
 /*POSSIBILITY OF SUCH DAMAGE.                                                 */
 /******************************************************************************/
-
 /*************************************************************************/
 /**   File:         cluster.c                                           **/
 /**   Description:  Takes as input a file, containing 1 data point per  **/
@@ -51,99 +50,62 @@
 /**                                                                     **/
 /**   Edited by: Jay Pisharath, Wei-keng Liao                           **/
 /**              Northwestern University.                               **/
-/**																		**/
+/**                                                                     **/
 /**   ================================================================  **/
-/**																		**/
-/**   Edited by: Shuai Che, David Tarjan, Sang-Ha Lee					**/
-/**				 University of Virginia									**/
-/**																		**/
-/**   Description:	No longer supports fuzzy c-means clustering;	 	**/
-/**					only regular k-means clustering.					**/
-/**					No longer performs "validity" function to analyze	**/
-/**					compactness and separation crietria; instead		**/
-/**					calculate root mean squared error.					**/
+/**
+ * **/
+/**   Edited by: Sang-Ha  Lee
+ * **/
+/**				 University of Virginia
+ * **/
+/**
+ * **/
+/**   Description:	No longer supports fuzzy c-means clustering;
+ * **/
+/**					only regular k-means clustering.
+ * **/
+/**					Simplified for main functionality:
+ * regular k-means	**/
+/**					clustering.
+ * **/
 /**                                                                     **/
 /*************************************************************************/
 
+#include <float.h>
+#include <limits.h>
+#include <math.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
-#include <math.h>
-#include <float.h>
-#include <omp.h>
 
 #include "kmeans.h"
 
-extern double wtime(void);
-float	min_rmse_ref = FLT_MAX;			/* reference min_rmse value */
-
 /*---< cluster() >-----------------------------------------------------------*/
-int cluster(int      npoints,				/* number of data points */
-            int      nfeatures,				/* number of attributes for each point */
-            float   *features,				/* in: [npoints][nfeatures] */                  
-            int      min_nclusters,			/* range of min to max number of clusters */
-			int		 max_nclusters,
-            float    threshold,				/* loop terminating factor */
-            int     *best_nclusters,		/* out: number between min and max with lowest RMSE */
-            float ***cluster_centres,		/* out: [best_nclusters][nfeatures] */
-			float	*min_rmse,				/* out: minimum RMSE */
-			int		 isRMSE,				/* calculate RMSE */
-			int		 nloops					/* number of iteration for each number of clusters */
-			)
-{    
-	int		nclusters;						/* number of clusters k */	
-	int		index =0;						/* number of iteration to reach the best RMSE */
-	int		rmse;							/* RMSE for each clustering */
-    float **tmp_cluster_centres;			/* hold coordinates of cluster centers */
-	int		i;
+int cluster(int numObjects,     /* number of input objects */
+            int numAttributes,  /* size of attribute of each object */
+            float **attributes, /* [numObjects][numAttributes] */
+            int nclusters, float threshold, /* in:   */
+            float ***cluster_centres /* out: [best_nclusters][numAttributes] */
 
-	/* sweep k from min to max_nclusters to find the best number of clusters */
-	for(nclusters = min_nclusters; nclusters <= max_nclusters; nclusters++)
-	{
-		if (nclusters > npoints) break;	/* cannot have more clusters than points */
+) {
+  int *membership;
+  float **tmp_cluster_centres;
 
-		/* allocate device memory, invert data array (@ kmeans_cuda.cu) */
-		allocateMemory(npoints, nfeatures, nclusters, features);
+  membership = (int *)malloc(numObjects * sizeof(int));
 
-		/* iterate nloops times for each number of clusters */
-		for(i = 0; i < nloops; i++)
-		{
-			/* initialize initial cluster centers, CUDA calls (@ kmeans_cuda.cu) */
-			tmp_cluster_centres = kmeans_clustering(features,
-													nfeatures,
-													npoints,
-													nclusters,
-													threshold);
+  srand(7);
+  /* perform regular Kmeans */
+  tmp_cluster_centres = kmeans_clustering(attributes, numAttributes, numObjects,
+                                          nclusters, threshold, membership);
 
-			if (*cluster_centres) {
-				free((*cluster_centres)[0]);
-				free(*cluster_centres);
-			}
-			*cluster_centres = tmp_cluster_centres;
-	        
-					
-			/* find the number of clusters with the best RMSE */
-			if(isRMSE)
-			{
-				rmse = rms_err(features,
-							   nfeatures,
-							   npoints,
-							   tmp_cluster_centres,
-							   nclusters);
-				
-				if(rmse < min_rmse_ref){
-					min_rmse_ref = rmse;			//update reference min RMSE
-					*min_rmse = min_rmse_ref;		//update return min RMSE
-					*best_nclusters = nclusters;	//update optimum number of clusters
-					index = i;						//update number of iteration to reach best RMSE
-				}
-			}			
-		}
-		
-		deallocateMemory();							/* free device memory (@ kmeans_cuda.cu) */
-	}
+  if (*cluster_centres) {
+    free((*cluster_centres)[0]);
+    free(*cluster_centres);
+  }
+  *cluster_centres = tmp_cluster_centres;
 
-    return index;
+  free(membership);
+
+  return 0;
 }
-

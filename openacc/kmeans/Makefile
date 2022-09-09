@@ -1,17 +1,29 @@
-include ../../common/make.config
-
 # C compiler
-CC = pathcc
-CC_FLAGS = -g -acc -O2 
+CC = nvc
+CC_FLAGS = -g -O3 -acc
 
-kmeans: cluster.o getopt.o kmeans.o kmeans_clustering.o kmeans_kernel.o rmse.o
-	$(CC) $(CC_FLAGS) cluster.o getopt.o kmeans.o kmeans_clustering.o kmeans_cuda.o rmse.o -o kmeans
+kmeans.out: cluster.o getopt.o kmeans.o kmeans_clustering.o
+	$(CC) $(CC_FLAGS) cluster.o getopt.o kmeans.o kmeans_clustering.o  -o kmeans.out
 
 %.o: %.[ch]
 	$(CC) $(CC_FLAGS) $< -c
 
-kmeans_kernel.o: kmeans_kernel.c 
-	$(CC) $(CC_FLAGS) -c kmeans_kernel.c
+cluster.o: cluster.c
+	$(CC) $(CC_FLAGS) cluster.c -c
+
+getopt.o: getopt.c
+	$(CC) $(CC_FLAGS) getopt.c -c
+
+kmeans.o: kmeans.c
+	$(CC) $(CC_FLAGS) kmeans.c -c
+
+kmeans_clustering.o: kmeans_clustering.c kmeans.h
+	$(CC) $(CC_FLAGS) kmeans_clustering.c -c
+
+.PHONY: run clean
+
+run: kmeans.out
+	./kmeans.out -n 4 -i ../../data/kmeans/kdd_cup
 
 clean:
-	rm -f *.o *~ kmeans
+	rm -f *.o *.out
