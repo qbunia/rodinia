@@ -33,7 +33,6 @@ void write_data(char *filename, int frameNo, int frames_processed,
 
   FILE *fid;
   int i, j;
-  char c;
 
   //================================================================================80
   //	OPEN FILE FOR READING
@@ -592,9 +591,10 @@ int main(int argc, char *argv[]) {
     //====================================================================================================
 #pragma omp target data map(to : public, private [0:ALL_POINTS])
     {
-#pragma omp target update to(public.d_frame)
-
-#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS) num_threads(NUM_THREADS)
+#pragma omp target teams distribute parallel for map(to                        \
+                                                     : public,                 \
+                                                       private [0:ALL_POINTS]) \
+    num_teams(NUM_TEAMS) num_threads(NUM_THREADS)
       for (i = 0; i < public.allPoints; i++) {
         kernel(public, private[i]);
       }

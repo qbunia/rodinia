@@ -4,680 +4,80 @@
 //===============================================================================================================================================================================================================
 //===============================================================================================================================================================================================================
 
-//======================================================================================================================================================
-//	LIBRARIES
-//======================================================================================================================================================
-
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
-#include <avilib.h>
-#include <avimod.h>
+#include "AVI/avilib.h"
+#include "AVI/avimod.h"
+#include <openacc.h>
 
-//======================================================================================================================================================
-//	STRUCTURES, GLOBAL STRUCTURE VARIABLES
-//======================================================================================================================================================
-
-#include "define.c"
-
-params_common_change common_change;
-params_common common;
-
-
-//  POINT
-int* Row[ALL_POINTS];
-int* Col[ALL_POINTS];
-int* tRowLoc[ALL_POINTS];
-int* tColLoc[ALL_POINTS];
-fp* d_T[ALL_POINTS];
-//  POINT NUMBER
-int point_no[ALL_POINTS];
-//  RIGHT TEMPLATE  FROM    TEMPLATE ARRAY
-int in_pointer[ALL_POINTS];
-//  AREA AROUND POINT       FROM    FRAME
-fp** d_in2;
-//  CONVOLUTION
-fp** d_conv;
-fp* d_in_mod; ???
-//  PAD ARRAY, VERTICAL CUMULATIVE SUM
-fp** d_in2_pad_cumv;
-//  SELECTION
-fp** d_in2_pad_cumv_sel;
-//  SELECTION 2, SUBTRACTION, HORIZONTAL CUMULATIVE SUM
-fp** d_in2_sub_cumh;
-//  SELECTION
-fp** d_in2_sub_cumh_sel;
-//  SELECTION 2, SUBTRACTION
-fp** d_in2_sub2;
-//  MULTIPLICATION
-fp** d_in2_sqr;
-//  SELECTION 2, SUBTRACTION
-fp** d_in2_sqr_sub2;
-//  FINAL
-fp** d_in_sqr;
-//  TEMPLATE MASK
-fp** d_tMask;
-//  MASK CONVOLUTION
-fp** d_mask_conv;
-
-
-//======================================================================================================================================================
-// KERNEL CODE
-//======================================================================================================================================================
-
+#include "define.h"
 #include "kernel.c"
 
-//===============================================================================================================================================================================================================
-//===============================================================================================================================================================================================================
-//	MAIN FUNCTION
-//===============================================================================================================================================================================================================
-//===============================================================================================================================================================================================================
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
 
-int main(int argc, char *argv []){
+//===============================================================================================================================================================================================================200
+//	WRITE DATA FUNCTION
+//===============================================================================================================================================================================================================200
 
-    //======================================================================================================================================================
-    //	VARIABLES
-    //======================================================================================================================================================
+void write_data(char *filename, int frameNo, int frames_processed,
+                int endoPoints, int *input_a, int *input_b, int epiPoints,
+                int *input_2a, int *input_2b) {
 
-    // counter
-    int i;
-    int frames_processed;
+  //================================================================================80
+  //	VARIABLES
+  //================================================================================80
 
-    // frames
-    char* video_file_name;
-    avi_t* frames;
-    fp* frame;
+  FILE *fid;
+  int i, j;
 
-    //======================================================================================================================================================
-    // 	FRAME
-    //======================================================================================================================================================
+  //================================================================================80
+  //	OPEN FILE FOR READING
+  //================================================================================80
 
-    if(argc!=3){
-        printf("ERROR: usage: heartwall <inputfile> <num of frames>\n");
-        exit(1);
+  fid = fopen(filename, "w+");
+  if (fid == NULL) {
+    printf("The file was not opened for writing\n");
+    return;
+  }
+
+  //================================================================================80
+  //	WRITE VALUES TO THE FILE
+  //================================================================================80
+  fprintf(fid, "Total AVI Frames: %d\n", frameNo);
+  fprintf(fid, "Frames Processed: %d\n", frames_processed);
+  fprintf(fid, "endoPoints: %d\n", endoPoints);
+  fprintf(fid, "epiPoints: %d", epiPoints);
+  for (j = 0; j < frames_processed; j++) {
+    fprintf(fid, "\n---Frame %d---", j);
+    fprintf(fid, "\n--endo--\n");
+    for (i = 0; i < endoPoints; i++) {
+      fprintf(fid, "%d\t", input_a[j + i * frameNo]);
     }
-
-    // open movie file
-    video_file_name = argv[1];
-    frames = (avi_t*)AVI_open_input_file(video_file_name, 1);														// added casting
-    if (frames == NULL)  {
-           AVI_print_error((char *) "Error with AVI_open_input_file");
-           return -1;
+    fprintf(fid, "\n");
+    for (i = 0; i < endoPoints; i++) {
+      // if(input_b[j*size+i] > 2000) input_b[j*size+i]=0;
+      fprintf(fid, "%d\t", input_b[j + i * frameNo]);
     }
-
-#pragma acc data \
-    create(common_change.frame[0:common.frame_elem]) \
-    create(common.endoRow[0:common.endo_mem]) \
-    create(common.endoCol[0:common.endo_mem]) \
-    copyout(common.tEndoRowLoc[0:common.endo_mem]) \
-    copyout(common.tEndoColLoc[0:common.endo_mem]) \
-    create(common.epiRow[0:common.epiPoints]) \
-    create(common.epiCol[0:common.epiPoints]) \
-    copyout(common.tEpiRowLoc[0:common.epiPoints*common.no_frames]) \
-    copyout(common.tEpiColLoc[0:common.epiPoints*common.no_frames]) \
-    create(common.endoT[0:common.in_elem*common.endoPoints]) \
-    create(common.epiT[0:common.in_elem*common.endoPoints])
-{
-    // common
-    common.no_frames = AVI_video_frames(frames);
-    common.frame_rows = AVI_video_height(frames);
-    common.frame_cols = AVI_video_width(frames);
-    common.frame_elem = common.frame_rows * common.frame_cols;
-    common.frame_mem = sizeof(fp) * common.frame_elem;
-
-    // pointers
-    common_change.frame = (fp*) malloc(common.frame_mem);
-
-    //======================================================================================================================================================
-    // 	CHECK INPUT ARGUMENTS
-    //======================================================================================================================================================
-
-    frames_processed = atoi(argv[2]);
-        if(frames_processed<0 || frames_processed>common.no_frames){
-            printf("ERROR: %d is an incorrect number of frames specified, select in the range of 0-%d\n", frames_processed, common.no_frames);
-            return 0;
+    fprintf(fid, "\n--epi--\n");
+    for (i = 0; i < epiPoints; i++) {
+      // if(input_2a[j*size_2+i] > 2000) input_2a[j*size_2+i]=0;
+      fprintf(fid, "%d\t", input_2a[j + i * frameNo]);
     }
-
-
-    //======================================================================================================================================================
-    //	HARDCODED INPUTS FROM MATLAB
-    //======================================================================================================================================================
-
-    //====================================================================================================
-    //	CONSTANTS
-    //====================================================================================================
-
-    common.sSize = 40;
-    common.tSize = 25;
-    common.maxMove = 10;
-    common.alpha = 0.87;
-
-    //====================================================================================================
-    //	ENDO POINTS
-    //====================================================================================================
-
-    common.endoPoints = ENDO_POINTS;
-    common.endo_mem = sizeof(int) * common.endoPoints;
-
-    common.endoRow = (int *)malloc(common.endo_mem);
-    common.endoRow[ 0] = 369;
-    common.endoRow[ 1] = 400;
-    common.endoRow[ 2] = 429;
-    common.endoRow[ 3] = 452;
-    common.endoRow[ 4] = 476;
-    common.endoRow[ 5] = 486;
-    common.endoRow[ 6] = 479;
-    common.endoRow[ 7] = 458;
-    common.endoRow[ 8] = 433;
-    common.endoRow[ 9] = 404;
-    common.endoRow[10] = 374;
-    common.endoRow[11] = 346;
-    common.endoRow[12] = 318;
-    common.endoRow[13] = 294;
-    common.endoRow[14] = 277;
-    common.endoRow[15] = 269;
-    common.endoRow[16] = 275;
-    common.endoRow[17] = 287;
-    common.endoRow[18] = 311;
-    common.endoRow[19] = 339;
-    #pragma update target(common.endoRow[0:common.endo_mem])
-
-    common.endoCol = (int *)malloc(common.endo_mem);
-    common.endoCol[ 0] = 408;
-    common.endoCol[ 1] = 406;
-    common.endoCol[ 2] = 397;
-    common.endoCol[ 3] = 383;
-    common.endoCol[ 4] = 354;
-    common.endoCol[ 5] = 322;
-    common.endoCol[ 6] = 294;
-    common.endoCol[ 7] = 270;
-    common.endoCol[ 8] = 250;
-    common.endoCol[ 9] = 237;
-    common.endoCol[10] = 235;
-    common.endoCol[11] = 241;
-    common.endoCol[12] = 254;
-    common.endoCol[13] = 273;
-    common.endoCol[14] = 300;
-    common.endoCol[15] = 328;
-    common.endoCol[16] = 356;
-    common.endoCol[17] = 383;
-    common.endoCol[18] = 401;
-    common.endoCol[19] = 411;
-    #pragma acc update target(common.endoCol[0:common.endo_mem])
-
-    //====================================================================================================
-    //	EPI POINTS
-    //====================================================================================================
-
-    common.epiPoints = EPI_POINTS;
-    common.epi_mem = sizeof(int) * common.epiPoints;
-
-    common.epiRow = (int *)malloc(common.epi_mem);
-    common.epiRow[ 0] = 390;
-    common.epiRow[ 1] = 419;
-    common.epiRow[ 2] = 448;
-    common.epiRow[ 3] = 474;
-    common.epiRow[ 4] = 501;
-    common.epiRow[ 5] = 519;
-    common.epiRow[ 6] = 535;
-    common.epiRow[ 7] = 542;
-    common.epiRow[ 8] = 543;
-    common.epiRow[ 9] = 538;
-    common.epiRow[10] = 528;
-    common.epiRow[11] = 511;
-    common.epiRow[12] = 491;
-    common.epiRow[13] = 466;
-    common.epiRow[14] = 438;
-    common.epiRow[15] = 406;
-    common.epiRow[16] = 376;
-    common.epiRow[17] = 347;
-    common.epiRow[18] = 318;
-    common.epiRow[19] = 291;
-    common.epiRow[20] = 275;
-    common.epiRow[21] = 259;
-    common.epiRow[22] = 256;
-    common.epiRow[23] = 252;
-    common.epiRow[24] = 252;
-    common.epiRow[25] = 257;
-    common.epiRow[26] = 266;
-    common.epiRow[27] = 283;
-    common.epiRow[28] = 305;
-    common.epiRow[29] = 331;
-    common.epiRow[30] = 360;
-    #pragma acc update target(common.epiRow[0:common.epiPoints])
-
-    common.epiCol = (int *)malloc(common.epi_mem);
-    common.epiCol[ 0] = 457;
-    common.epiCol[ 1] = 454;
-    common.epiCol[ 2] = 446;
-    common.epiCol[ 3] = 431;
-    common.epiCol[ 4] = 411;
-    common.epiCol[ 5] = 388;
-    common.epiCol[ 6] = 361;
-    common.epiCol[ 7] = 331;
-    common.epiCol[ 8] = 301;
-    common.epiCol[ 9] = 273;
-    common.epiCol[10] = 243;
-    common.epiCol[11] = 218;
-    common.epiCol[12] = 196;
-    common.epiCol[13] = 178;
-    common.epiCol[14] = 166;
-    common.epiCol[15] = 157;
-    common.epiCol[16] = 155;
-    common.epiCol[17] = 165;
-    common.epiCol[18] = 177;
-    common.epiCol[19] = 197;
-    common.epiCol[20] = 218;
-    common.epiCol[21] = 248;
-    common.epiCol[22] = 276;
-    common.epiCol[23] = 304;
-    common.epiCol[24] = 333;
-    common.epiCol[25] = 361;
-    common.epiCol[26] = 391;
-    common.epiCol[27] = 415;
-    common.epiCol[28] = 434;
-    common.epiCol[29] = 448;
-    common.epiCol[30] = 455;
-    #pragma acc update target(common.epiCol[0:common.epiPoints)
-
-    //====================================================================================================
-    //	ALL POINTS
-    //====================================================================================================
-
-    common.allPoints = ALL_POINTS;
-
-    //======================================================================================================================================================
-    // 	TEMPLATE SIZES
-    //======================================================================================================================================================
-
-    // common
-    common.in_rows = common.tSize + 1 + common.tSize;
-    common.in_cols = common.in_rows;
-    common.in_elem = common.in_rows * common.in_cols;
-    common.in_mem = sizeof(fp) * common.in_elem;
-
-    //======================================================================================================================================================
-    // 	CREATE ARRAY OF TEMPLATES FOR ALL POINTS
-    //======================================================================================================================================================
-
-    // common
-    common.endoT = (fp*) malloc(common.in_mem * common.endoPoints);
-    common.epiT = (fp*) malloc(common.in_mem * common.endoPoints);
-
-    //======================================================================================================================================================
-    //	SPECIFIC TO ENDO OR EPI TO BE SET HERE
-    //======================================================================================================================================================
-
-    #pragma acc kernels
-    for(i=0; i<common.endoPoints; i++){
-        unique[i].point_no = i;
-        unique[i].Row = common.endoRow;
-        unique[i].Col = common.endoCol;
-        unique[i].tRowLoc = common.tEndoRowLoc;
-        unique[i].tColLoc = common.tEndoColLoc;
-        unique[i].d_T = common.endoT;
+    fprintf(fid, "\n");
+    for (i = 0; i < epiPoints; i++) {
+      // if(input_2b[j*size_2+i] > 2000) input_2b[j*size_2+i]=0;
+      fprintf(fid, "%d\t", input_2b[j + i * frameNo]);
     }
-    #pragma acc kernels
-    for(i=common.endoPoints; i<common.allPoints; i++){
-        unique[i].point_no = i-common.endoPoints;
-        unique[i].Row = common.epiRow;
-        unique[i].Col = common.epiCol;
-        unique[i].tRowLoc = common.tEpiRowLoc;
-        unique[i].tColLoc = common.tEpiColLoc;
-        unique[i].d_T = common.epiT;
-    }
-
-    //======================================================================================================================================================
-    // 	RIGHT TEMPLATE 	FROM 	TEMPLATE ARRAY
-    //======================================================================================================================================================
-
-    // pointers
-    #pragma acc kernels
-    for(i=0; i<common.allPoints; i++){
-        unique[i].in_pointer = unique[i].point_no * common.in_elem;
-    }
-
-    //======================================================================================================================================================
-    // 	AREA AROUND POINT		FROM	FRAME
-    //======================================================================================================================================================
-
-    // common
-    common.in2_rows = 2 * common.sSize + 1;
-    common.in2_cols = 2 * common.sSize + 1;
-    common.in2_elem = common.in2_rows * common.in2_cols;
-    common.in2_mem = sizeof(fp) * common.in2_elem;
-
-    // pointers
-    d_in2 = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_in2[0] = (fp*) malloc(common.allPoints * common.in2_mem);
-    for(i=1; i<common.allPoints; i++) {
-        d_in2[i] = d_in2[i-1] + common.in2_elem;
-    }
-
-    //======================================================================================================================================================
-    // 	CONVOLUTION
-    //======================================================================================================================================================
-
-    // common
-    common.conv_rows = common.in_rows + common.in2_rows - 1;												// number of rows in I
-    common.conv_cols = common.in_cols + common.in2_cols - 1;												// number of columns in I
-    common.conv_elem = common.conv_rows * common.conv_cols;												// number of elements
-    common.conv_mem = sizeof(fp) * common.conv_elem;
-    common.ioffset = 0;
-    common.joffset = 0;
-
-    // pointers
-    d_conv = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_conv[0] = (fp*) malloc(common.allPoints * common.conv_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_conv[i] = d_conv[i-1] + common.conv_elem;
-    }
-
-    //======================================================================================================================================================
-    // 	CUMULATIVE SUM
-    //======================================================================================================================================================
-
-    //====================================================================================================
-    // 	PADDING OF ARRAY, VERTICAL CUMULATIVE SUM
-    //====================================================================================================
-
-    // common
-    common.in2_pad_add_rows = common.in_rows;
-    common.in2_pad_add_cols = common.in_cols;
-
-    common.in2_pad_cumv_rows = common.in2_rows + 2*common.in2_pad_add_rows;
-    common.in2_pad_cumv_cols = common.in2_cols + 2*common.in2_pad_add_cols;
-    common.in2_pad_cumv_elem = common.in2_pad_cumv_rows * common.in2_pad_cumv_cols;
-    common.in2_pad_cumv_mem = sizeof(fp) * common.in2_pad_cumv_elem;
-
-    // pointers
-    d_in2_pad_cumv = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_in2_pad_cumv[0] = (fp*) malloc(common.allPoints * common.in2_pad_cumv_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_in2_pad_cumv[i] = d_in2_pad_cumv[i-1] + common.in2_pad_cumv_elem;
-    }
-
-    //====================================================================================================
-    // 	SELECTION
-    //====================================================================================================
-
-    // common
-    common.in2_pad_cumv_sel_rowlow = 1 + common.in_rows;													// (1 to n+1)
-    common.in2_pad_cumv_sel_rowhig = common.in2_pad_cumv_rows - 1;
-    common.in2_pad_cumv_sel_collow = 1;
-    common.in2_pad_cumv_sel_colhig = common.in2_pad_cumv_cols;
-    common.in2_pad_cumv_sel_rows = common.in2_pad_cumv_sel_rowhig - common.in2_pad_cumv_sel_rowlow + 1;
-    common.in2_pad_cumv_sel_cols = common.in2_pad_cumv_sel_colhig - common.in2_pad_cumv_sel_collow + 1;
-    common.in2_pad_cumv_sel_elem = common.in2_pad_cumv_sel_rows * common.in2_pad_cumv_sel_cols;
-    common.in2_pad_cumv_sel_mem = sizeof(fp) * common.in2_pad_cumv_sel_elem;
-
-    // pointers
-    d_in2_pad_cumv_sel = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_in2_pad_cumv_sel[0] = (fp*) malloc(common.allPoints * common.in2_pad_cumv_sel_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_in2_pad_cumv_sel[i] = d_in2_pad_cumv_sel[i-1] + common.in2_pad_cumv_sel_elem;
-    }
-
-    //====================================================================================================
-    // 	SELECTION	2, SUBTRACTION, HORIZONTAL CUMULATIVE SUM
-    //====================================================================================================
-
-    // common
-    common.in2_pad_cumv_sel2_rowlow = 1;
-    common.in2_pad_cumv_sel2_rowhig = common.in2_pad_cumv_rows - common.in_rows - 1;
-    common.in2_pad_cumv_sel2_collow = 1;
-    common.in2_pad_cumv_sel2_colhig = common.in2_pad_cumv_cols;
-    common.in2_sub_cumh_rows = common.in2_pad_cumv_sel2_rowhig - common.in2_pad_cumv_sel2_rowlow + 1;
-    common.in2_sub_cumh_cols = common.in2_pad_cumv_sel2_colhig - common.in2_pad_cumv_sel2_collow + 1;
-    common.in2_sub_cumh_elem = common.in2_sub_cumh_rows * common.in2_sub_cumh_cols;
-    common.in2_sub_cumh_mem = sizeof(fp) * common.in2_sub_cumh_elem;
-
-    // pointers
-    d_in2_sub_cumh = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_in2_sub_cumh[0] = (fp*) malloc(common.allPoints * common.in2_sub_cumh_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_in2_sub_cumh[i] = d_in2_sub_cumh[i-1] + common.in2_sub_cumh_elem;
-    }
-
-    //====================================================================================================
-    // 	SELECTION
-    //====================================================================================================
-
-    // common
-    common.in2_sub_cumh_sel_rowlow = 1;
-    common.in2_sub_cumh_sel_rowhig = common.in2_sub_cumh_rows;
-    common.in2_sub_cumh_sel_collow = 1 + common.in_cols;
-    common.in2_sub_cumh_sel_colhig = common.in2_sub_cumh_cols - 1;
-    common.in2_sub_cumh_sel_rows = common.in2_sub_cumh_sel_rowhig - common.in2_sub_cumh_sel_rowlow + 1;
-    common.in2_sub_cumh_sel_cols = common.in2_sub_cumh_sel_colhig - common.in2_sub_cumh_sel_collow + 1;
-    common.in2_sub_cumh_sel_elem = common.in2_sub_cumh_sel_rows * common.in2_sub_cumh_sel_cols;
-    common.in2_sub_cumh_sel_mem = sizeof(fp) * common.in2_sub_cumh_sel_elem;
-
-    // pointers
-    d_in2_sub_cumh_sel = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_in2_sub_cumh_sel[0] = (fp*) malloc(common.allPoints * common.in2_sub_cumh_sel_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_in2_sub_cumh_sel[i] = d_in2_sub_cumh_sel[i-1] + common.in2_sub_cumh_sel_elem;
-    }
-
-    //====================================================================================================
-    //	SELECTION 2, SUBTRACTION
-    //====================================================================================================
-
-    // common
-    common.in2_sub_cumh_sel2_rowlow = 1;
-    common.in2_sub_cumh_sel2_rowhig = common.in2_sub_cumh_rows;
-    common.in2_sub_cumh_sel2_collow = 1;
-    common.in2_sub_cumh_sel2_colhig = common.in2_sub_cumh_cols - common.in_cols - 1;
-    common.in2_sub2_rows = common.in2_sub_cumh_sel2_rowhig - common.in2_sub_cumh_sel2_rowlow + 1;
-    common.in2_sub2_cols = common.in2_sub_cumh_sel2_colhig - common.in2_sub_cumh_sel2_collow + 1;
-    common.in2_sub2_elem = common.in2_sub2_rows * common.in2_sub2_cols;
-    common.in2_sub2_mem = sizeof(fp) * common.in2_sub2_elem;
-
-    // pointers
-    d_in2_sub2 = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_in2_sub2[0] = (fp*) malloc(common.allPoints * common.in2_sub2_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_in2_sub2[i] = d_in2_sub2[i-1] + common.in2_sub2_elem;
-    }
-
-    //======================================================================================================================================================
-    //	CUMULATIVE SUM 2
-    //======================================================================================================================================================
-
-    //====================================================================================================
-    //	MULTIPLICATION
-    //====================================================================================================
-
-    // common
-    common.in2_sqr_rows = common.in2_rows;
-    common.in2_sqr_cols = common.in2_cols;
-    common.in2_sqr_elem = common.in2_elem;
-    common.in2_sqr_mem = common.in2_mem;
-
-    // pointers
-    d_in2_sqr = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_in2_sqr[0] = (fp*) malloc(common.allPoints * common.in2_sqr_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_in2_sqr[i] = d_in2_sqr[i-1] + common.in2_elem;
-    }
-
-    //====================================================================================================
-    //	SELECTION 2, SUBTRACTION
-    //====================================================================================================
-
-    // common
-    common.in2_sqr_sub2_rows = common.in2_sub2_rows;
-    common.in2_sqr_sub2_cols = common.in2_sub2_cols;
-    common.in2_sqr_sub2_elem = common.in2_sub2_elem;
-    common.in2_sqr_sub2_mem = common.in2_sub2_mem;
-
-    // pointers
-    d_in2_sqr_sub2 = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_in2_sqr_sub2[0] = (fp*) malloc(common.allPoints * common.in2_sqr_sub2_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_in2_sqr_sub2[i] = d_in2_sqr_sub2[i-1] + common.in2_sub2_elem;
-    }
-
-    //======================================================================================================================================================
-    //	FINAL
-    //======================================================================================================================================================
-
-    // common
-    common.in_sqr_rows = common.in_rows;
-    common.in_sqr_cols = common.in_cols;
-    common.in_sqr_elem = common.in_elem;
-    common.in_sqr_mem = common.in_mem;
-
-    // pointers
-    d_in_sqr = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_in_sqr[0] = (fp*) malloc(common.allPoints * common.in_sqr_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_in_sqr[i] = d_in_sqr[i-1] + common.in_sqr_elem;
-    }
-
-    //======================================================================================================================================================
-    //	TEMPLATE MASK CREATE
-    //======================================================================================================================================================
-
-    // common
-    common.tMask_rows = common.in_rows + (common.sSize+1+common.sSize) - 1;
-    common.tMask_cols = common.tMask_rows;
-    common.tMask_elem = common.tMask_rows * common.tMask_cols;
-    common.tMask_mem = sizeof(float) * common.tMask_elem;
-
-    // pointers
-    d_tMask = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_tMask[0] = (fp*) malloc(common.allPoints * common.tMask_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_tMask[i] = d_tMask[i-1] + common.tMask_elem;
-    }
-
-    //======================================================================================================================================================
-    //	POINT MASK INITIALIZE
-    //======================================================================================================================================================
-
-    // common
-    common.mask_rows = common.maxMove;
-    common.mask_cols = common.mask_rows;
-    common.mask_elem = common.mask_rows * common.mask_cols;
-    common.mask_mem = sizeof(float) * common.mask_elem;
-
-    //======================================================================================================================================================
-    //	MASK CONVOLUTION
-    //======================================================================================================================================================
-
-    // common
-    common.mask_conv_rows = common.tMask_rows;												// number of rows in I
-    common.mask_conv_cols = common.tMask_cols;												// number of columns in I
-    common.mask_conv_elem = common.mask_conv_rows * common.mask_conv_cols;												// number of elements
-    common.mask_conv_mem = sizeof(float) * common.mask_conv_elem;
-    common.mask_conv_ioffset = (common.mask_rows-1)/2;
-    if((common.mask_rows-1) % 2 > 0.5){
-        common.mask_conv_ioffset = common.mask_conv_ioffset + 1;
-    }
-    common.mask_conv_joffset = (common.mask_cols-1)/2;
-    if((common.mask_cols-1) % 2 > 0.5){
-        common.mask_conv_joffset = common.mask_conv_joffset + 1;
-    }
-
-    // pointers
-    d_mask_conv = (fp**) malloc(common.allPoints * sizeof(fp*));
-    d_mask_conv[0] = (fp*) malloc(common.allPoints * common.mask_conv_mem);
-    for(i=1; i<common.allPoints; i++){
-        d_mask_conv[i] = d_mask_conv[i-1] + common.mask_conv_elem;
-    }
-
-    //====================================================================================================
-    //	PRINT FRAME PROGRESS START
-    //====================================================================================================
-
-    printf("frame progress: ");
-    fflush(NULL);
-
-    //====================================================================================================
-    //	LAUNCH
-    //====================================================================================================
-
-    for(common_change.frame_no=0; common_change.frame_no<frames_processed; common_change.frame_no++){
-
-        // Extract a cropped version of the first frame from the video file
-        frame = get_frame(	frames,						// pointer to video file
-                                        common_change.frame_no,				// number of frame that needs to be returned
-                                        0,								// cropped?
-                                        0,								// scaled?
-                                        1);							// converted
-
-        // copy frame to GPU memory
-        #pragma acc update target(common_change.frame[0:common.frame_elem])
-        cudaMemcpyToSymbol(d_common_change, &common_change, sizeof(params_common_change));
-
-        // launch GPU kernel
-        kernel();
-
-        // free frame after each loop iteration, since AVI library allocates memory for every frame fetched
-        free(frame);
-
-        // print frame progress
-        printf("%d ", common_change.frame_no);
-        fflush(NULL);
-
-    }
-
-    //====================================================================================================
-    //	PRINT FRAME PROGRESS END
-    //====================================================================================================
-
-    printf("\n");
-    fflush(NULL);
-
-} /* end acc data */
-
-    //======================================================================================================================================================
-    //	DEALLOCATION
-    //======================================================================================================================================================
-
-    //====================================================================================================
-    //	COMMON
-    //====================================================================================================
-
-    // frame
-    free(common_change.frame);
-
-    // endo points
-    free(common.endoRow);
-    free(common.endoCol);
-    free(common.tEndoRowLoc);
-    free(common.tEndoColLoc);
-
-    free(common.endoT);
-
-    // epi points
-    free(common.epiRow);
-    free(common.epiCol);
-    free(common.tEpiRowLoc);
-    free(common.tEpiColLoc);
-
-    free(common.epiT);
-
-    //====================================================================================================
-    //	POINTERS
-    //====================================================================================================
-
-    free(d_in2[0]);                 free(d_in2);
-    free(d_conv[0]);                free(d_conv);
-    free(d_in2_pad_cumv[0]);        free(d_in2_pad_cumv);
-    free(d_in2_pad_cumv_sel[0]);    free(d_in2_pad_cumv_sel);
-    free(d_in2_sub_cumh[0]);        free(d_in2_sub_cumh);
-    free(d_in2_sub_cumh_sel[0]);    free(d_in2_sub_cumh_sel);
-    free(d_in2_sub2[0]);            free(d_in2_sub2);
-    free(d_in2_sqr[0]);             free(d_in2_sqr);
-    free(d_in2_sqr_sub2[0]);        free(d_in2_sqr_sub2);
-    free(d_in_sqr[0]);              free(d_in_sqr);
-    free(d_tMask[0]);               free(d_tMask);
-    free(d_mask_conv[0]);           free(d_mask_conv);
-
+  }
+  // 	================================================================================80
+  //		CLOSE FILE
+  //	================================================================================80
+
+  fclose(fid);
 }
 
 //===============================================================================================================================================================================================================
@@ -685,3 +85,605 @@ int main(int argc, char *argv []){
 //	MAIN FUNCTION
 //===============================================================================================================================================================================================================
 //===============================================================================================================================================================================================================
+
+int main(int argc, char *argv[]) {
+
+  //======================================================================================================================================================
+  //	VARIABLES
+  //======================================================================================================================================================
+
+  // counters
+  int i;
+  int frames_processed;
+
+  // parameters
+  public_struct public;
+  private_struct private[ALL_POINTS];
+
+  //======================================================================================================================================================
+  // 	FRAMES
+  //======================================================================================================================================================
+
+  if (argc != 4) {
+    printf("ERROR: usage: heartwall <inputfile> <num of frames> <num of "
+           "threads>\n");
+    exit(1);
+  }
+
+  char *video_file_name;
+  video_file_name = argv[1];
+
+  avi_t *d_frames =
+      (avi_t *)AVI_open_input_file(video_file_name, 1); // added casting
+  if (d_frames == NULL) {
+    AVI_print_error((char *)"Error with AVI_open_input_file");
+    return -1;
+  }
+
+  public.d_frames = d_frames;
+  public.frames = AVI_video_frames(public.d_frames);
+  public.frame_rows = AVI_video_height(public.d_frames);
+  public.frame_cols = AVI_video_width(public.d_frames);
+  public.frame_elem = public.frame_rows * public.frame_cols;
+  public.frame_mem = sizeof(fp) * public.frame_elem;
+
+  //======================================================================================================================================================
+  // 	CHECK INPUT ARGUMENTS
+  //======================================================================================================================================================
+
+  frames_processed = atoi(argv[2]);
+  if (frames_processed < 0 || frames_processed > public.frames) {
+    printf("ERROR: %d is an incorrect number of frames specified, select in "
+           "the range of 0-%d\n",
+           frames_processed, public.frames);
+    return 0;
+  }
+
+  int omp_num_threads;
+  omp_num_threads = atoi(argv[3]);
+  if (omp_num_threads <= 0) {
+    printf("num of threads must be a positive integer");
+    return 0;
+  }
+
+  printf("num of threads: %d\n", omp_num_threads);
+
+  //======================================================================================================================================================
+  //	INPUTS
+  //======================================================================================================================================================
+
+  //====================================================================================================
+  //	ENDO POINTS
+  //====================================================================================================
+
+  public.endoPoints = ENDO_POINTS;
+  public.d_endo_mem = sizeof(int) * public.endoPoints;
+
+  public.h_endoRow = (int *)malloc(public.d_endo_mem);
+  public.h_endoRow[0] = 369;
+  public.h_endoRow[1] = 400;
+  public.h_endoRow[2] = 429;
+  public.h_endoRow[3] = 452;
+  public.h_endoRow[4] = 476;
+  public.h_endoRow[5] = 486;
+  public.h_endoRow[6] = 479;
+  public.h_endoRow[7] = 458;
+  public.h_endoRow[8] = 433;
+  public.h_endoRow[9] = 404;
+  public.h_endoRow[10] = 374;
+  public.h_endoRow[11] = 346;
+  public.h_endoRow[12] = 318;
+  public.h_endoRow[13] = 294;
+  public.h_endoRow[14] = 277;
+  public.h_endoRow[15] = 269;
+  public.h_endoRow[16] = 275;
+  public.h_endoRow[17] = 287;
+  public.h_endoRow[18] = 311;
+  public.h_endoRow[19] = 339;
+  public.d_endoRow = acc_malloc(public.d_endo_mem);
+  acc_memcpy_to_device(public.d_endoRow, public.h_endoRow, public.d_endo_mem);
+
+  public.h_endoCol = (int *)malloc(public.d_endo_mem);
+  public.h_endoCol[0] = 408;
+  public.h_endoCol[1] = 406;
+  public.h_endoCol[2] = 397;
+  public.h_endoCol[3] = 383;
+  public.h_endoCol[4] = 354;
+  public.h_endoCol[5] = 322;
+  public.h_endoCol[6] = 294;
+  public.h_endoCol[7] = 270;
+  public.h_endoCol[8] = 250;
+  public.h_endoCol[9] = 237;
+  public.h_endoCol[10] = 235;
+  public.h_endoCol[11] = 241;
+  public.h_endoCol[12] = 254;
+  public.h_endoCol[13] = 273;
+  public.h_endoCol[14] = 300;
+  public.h_endoCol[15] = 328;
+  public.h_endoCol[16] = 356;
+  public.h_endoCol[17] = 383;
+  public.h_endoCol[18] = 401;
+  public.h_endoCol[19] = 411;
+  public.d_endoCol = acc_malloc(public.d_endo_mem);
+  acc_memcpy_to_device(public.d_endoCol, public.h_endoCol, public.d_endo_mem);
+
+  public.h_tEndoRowLoc = (int *)malloc(public.d_endo_mem * public.frames);
+  public.d_tEndoRowLoc = acc_malloc(public.d_endo_mem * public.frames);
+  public.h_tEndoColLoc = (int *)malloc(public.d_endo_mem * public.frames);
+  public.d_tEndoColLoc = acc_malloc(public.d_endo_mem * public.frames);
+
+  //====================================================================================================
+  //	EPI POINTS
+  //====================================================================================================
+
+  public.epiPoints = EPI_POINTS;
+  public.d_epi_mem = sizeof(int) * public.epiPoints;
+
+  public.h_epiRow = (int *)malloc(public.d_epi_mem);
+  public.h_epiRow[0] = 390;
+  public.h_epiRow[1] = 419;
+  public.h_epiRow[2] = 448;
+  public.h_epiRow[3] = 474;
+  public.h_epiRow[4] = 501;
+  public.h_epiRow[5] = 519;
+  public.h_epiRow[6] = 535;
+  public.h_epiRow[7] = 542;
+  public.h_epiRow[8] = 543;
+  public.h_epiRow[9] = 538;
+  public.h_epiRow[10] = 528;
+  public.h_epiRow[11] = 511;
+  public.h_epiRow[12] = 491;
+  public.h_epiRow[13] = 466;
+  public.h_epiRow[14] = 438;
+  public.h_epiRow[15] = 406;
+  public.h_epiRow[16] = 376;
+  public.h_epiRow[17] = 347;
+  public.h_epiRow[18] = 318;
+  public.h_epiRow[19] = 291;
+  public.h_epiRow[20] = 275;
+  public.h_epiRow[21] = 259;
+  public.h_epiRow[22] = 256;
+  public.h_epiRow[23] = 252;
+  public.h_epiRow[24] = 252;
+  public.h_epiRow[25] = 257;
+  public.h_epiRow[26] = 266;
+  public.h_epiRow[27] = 283;
+  public.h_epiRow[28] = 305;
+  public.h_epiRow[29] = 331;
+  public.h_epiRow[30] = 360;
+  public.d_epiRow = acc_malloc(public.d_epi_mem);
+  acc_memcpy_to_device(public.d_epiRow, public.h_epiRow, public.d_epi_mem);
+
+  public.h_epiCol = (int *)malloc(public.d_epi_mem);
+  public.h_epiCol[0] = 457;
+  public.h_epiCol[1] = 454;
+  public.h_epiCol[2] = 446;
+  public.h_epiCol[3] = 431;
+  public.h_epiCol[4] = 411;
+  public.h_epiCol[5] = 388;
+  public.h_epiCol[6] = 361;
+  public.h_epiCol[7] = 331;
+  public.h_epiCol[8] = 301;
+  public.h_epiCol[9] = 273;
+  public.h_epiCol[10] = 243;
+  public.h_epiCol[11] = 218;
+  public.h_epiCol[12] = 196;
+  public.h_epiCol[13] = 178;
+  public.h_epiCol[14] = 166;
+  public.h_epiCol[15] = 157;
+  public.h_epiCol[16] = 155;
+  public.h_epiCol[17] = 165;
+  public.h_epiCol[18] = 177;
+  public.h_epiCol[19] = 197;
+  public.h_epiCol[20] = 218;
+  public.h_epiCol[21] = 248;
+  public.h_epiCol[22] = 276;
+  public.h_epiCol[23] = 304;
+  public.h_epiCol[24] = 333;
+  public.h_epiCol[25] = 361;
+  public.h_epiCol[26] = 391;
+  public.h_epiCol[27] = 415;
+  public.h_epiCol[28] = 434;
+  public.h_epiCol[29] = 448;
+  public.h_epiCol[30] = 455;
+  public.d_epiCol = acc_malloc(public.d_epi_mem);
+  acc_memcpy_to_device(public.d_epiCol, public.h_epiCol, public.d_epi_mem);
+
+  public.h_tEpiRowLoc = (int *)malloc(public.d_epi_mem * public.frames);
+  public.d_tEpiRowLoc = acc_malloc(public.d_epi_mem * public.frames);
+  public.h_tEpiColLoc = (int *)malloc(public.d_epi_mem * public.frames);
+  public.d_tEpiColLoc = acc_malloc(public.d_epi_mem * public.frames);
+
+  //====================================================================================================
+  //	ALL POINTS
+  //====================================================================================================
+
+  public.allPoints = ALL_POINTS;
+
+  //======================================================================================================================================================
+  //	CONSTANTS
+  //======================================================================================================================================================
+
+  public.tSize = 25;
+  public.sSize = 40;
+  public.maxMove = 10;
+  public.alpha = 0.87;
+
+  //======================================================================================================================================================
+  //	SUMS
+  //======================================================================================================================================================
+
+  for (i = 0; i < public.allPoints; i++) {
+    private[i].in_partial_sum = acc_malloc(sizeof(fp) * 2 * public.tSize + 1);
+    private[i].in_sqr_partial_sum =
+        acc_malloc(sizeof(fp) * 2 * public.tSize + 1);
+    private[i].par_max_val =
+        acc_malloc(sizeof(fp) * (2 * public.tSize + 2 * public.sSize + 1));
+    private[i].par_max_coo =
+        acc_malloc(sizeof(int) * (2 * public.tSize + 2 * public.sSize + 1));
+  }
+
+  //======================================================================================================================================================
+  // 	INPUT 2 (SAMPLE AROUND POINT)
+  //======================================================================================================================================================
+
+  public.in2_rows = 2 * public.sSize + 1;
+  public.in2_cols = 2 * public.sSize + 1;
+  public.in2_elem = public.in2_rows * public.in2_cols;
+  public.in2_mem = sizeof(fp) * public.in2_elem;
+
+  for (i = 0; i < public.allPoints; i++) {
+    private[i].d_in2 = acc_malloc(public.in2_mem);
+    private[i].d_in2_sqr = acc_malloc(public.in2_mem);
+  }
+
+  //======================================================================================================================================================
+  // 	INPUT (POINT TEMPLATE)
+  //======================================================================================================================================================
+
+  public.in_mod_rows = public.tSize + 1 + public.tSize;
+  public.in_mod_cols = public.in_mod_rows;
+  public.in_mod_elem = public.in_mod_rows * public.in_mod_cols;
+  public.in_mod_mem = sizeof(fp) * public.in_mod_elem;
+
+  for (i = 0; i < public.allPoints; i++) {
+    private[i].d_in_mod = acc_malloc(public.in_mod_mem);
+    private[i].d_in_sqr = acc_malloc(public.in_mod_mem);
+  }
+
+  //======================================================================================================================================================
+  // 	ARRAY OF TEMPLATES FOR ALL POINTS
+  //======================================================================================================================================================
+
+  public.d_endoT = acc_malloc(public.in_mod_mem * public.endoPoints);
+  public.d_epiT = acc_malloc(public.in_mod_mem * public.epiPoints);
+
+  //======================================================================================================================================================
+  // 	SETUP private POINTERS TO ROWS, COLS  AND TEMPLATE
+  //======================================================================================================================================================
+
+  for (i = 0; i < public.endoPoints; i++) {
+    private[i].point_no = i;
+    private[i].in_pointer = private[i].point_no * public.in_mod_elem;
+    private[i].d_Row = public.d_endoRow;         // original row coordinates
+    private[i].d_Col = public.d_endoCol;         // original col coordinates
+    private[i].d_tRowLoc = public.d_tEndoRowLoc; // updated row coordinates
+    private[i].d_tColLoc = public.d_tEndoColLoc; // updated row coordinates
+    private[i].d_T = public.d_endoT;             // templates
+  }
+
+  for (i = public.endoPoints; i < public.allPoints; i++) {
+    private[i].point_no = i - public.endoPoints;
+    private[i].in_pointer = private[i].point_no * public.in_mod_elem;
+    private[i].d_Row = public.d_epiRow;
+    private[i].d_Col = public.d_epiCol;
+    private[i].d_tRowLoc = public.d_tEpiRowLoc;
+    private[i].d_tColLoc = public.d_tEpiColLoc;
+    private[i].d_T = public.d_epiT;
+  }
+
+  //======================================================================================================================================================
+  // 	CONVOLUTION
+  //======================================================================================================================================================
+
+  public.ioffset = 0;
+  public.joffset = 0;
+  public.conv_rows =
+      public.in_mod_rows + public.in2_rows - 1; // number of rows in I
+  public.conv_cols =
+      public.in_mod_cols + public.in2_cols - 1; // number of columns in I
+  public.conv_elem = public.conv_rows * public.conv_cols; // number of elements
+  public.conv_mem = sizeof(fp) * public.conv_elem;
+
+  for (i = 0; i < public.allPoints; i++) {
+    private[i].d_conv = acc_malloc(public.conv_mem);
+  }
+
+  //======================================================================================================================================================
+  // 	CUMULATIVE SUM
+  //======================================================================================================================================================
+
+  //====================================================================================================
+  //	PAD ARRAY
+  //====================================================================================================
+  //====================================================================================================
+  //	VERTICAL CUMULATIVE SUM
+  //====================================================================================================
+
+  public.in2_pad_add_rows = public.in_mod_rows;
+  public.in2_pad_add_cols = public.in_mod_cols;
+  public.in2_pad_rows = public.in2_rows + 2 * public.in2_pad_add_rows;
+  public.in2_pad_cols = public.in2_cols + 2 * public.in2_pad_add_cols;
+  public.in2_pad_elem = public.in2_pad_rows * public.in2_pad_cols;
+  public.in2_pad_mem = sizeof(fp) * public.in2_pad_elem;
+
+  for (i = 0; i < public.allPoints; i++) {
+    private[i].d_in2_pad = acc_malloc(public.in2_pad_mem);
+  }
+
+  //====================================================================================================
+  //	SELECTION, SELECTION 2, SUBTRACTION
+  //====================================================================================================
+  //====================================================================================================
+  //	HORIZONTAL CUMULATIVE SUM
+  //====================================================================================================
+
+  public.in2_pad_cumv_sel_rowlow = 1 + public.in_mod_rows; // (1 to n+1)
+  public.in2_pad_cumv_sel_rowhig = public.in2_pad_rows - 1;
+  public.in2_pad_cumv_sel_collow = 1;
+  public.in2_pad_cumv_sel_colhig = public.in2_pad_cols;
+  public.in2_pad_cumv_sel2_rowlow = 1;
+  public.in2_pad_cumv_sel2_rowhig =
+      public.in2_pad_rows - public.in_mod_rows - 1;
+  public.in2_pad_cumv_sel2_collow = 1;
+  public.in2_pad_cumv_sel2_colhig = public.in2_pad_cols;
+  public.in2_sub_rows =
+      public.in2_pad_cumv_sel_rowhig - public.in2_pad_cumv_sel_rowlow + 1;
+  public.in2_sub_cols =
+      public.in2_pad_cumv_sel_colhig - public.in2_pad_cumv_sel_collow + 1;
+  public.in2_sub_elem = public.in2_sub_rows * public.in2_sub_cols;
+  public.in2_sub_mem = sizeof(fp) * public.in2_sub_elem;
+
+  for (i = 0; i < public.allPoints; i++) {
+    private[i].d_in2_sub = acc_malloc(public.in2_sub_mem);
+  }
+
+  //====================================================================================================
+  //	SELECTION, SELECTION 2, SUBTRACTION, SQUARE, NUMERATOR
+  //====================================================================================================
+
+  public.in2_sub_cumh_sel_rowlow = 1;
+  public.in2_sub_cumh_sel_rowhig = public.in2_sub_rows;
+  public.in2_sub_cumh_sel_collow = 1 + public.in_mod_cols;
+  public.in2_sub_cumh_sel_colhig = public.in2_sub_cols - 1;
+  public.in2_sub_cumh_sel2_rowlow = 1;
+  public.in2_sub_cumh_sel2_rowhig = public.in2_sub_rows;
+  public.in2_sub_cumh_sel2_collow = 1;
+  public.in2_sub_cumh_sel2_colhig =
+      public.in2_sub_cols - public.in_mod_cols - 1;
+  public.in2_sub2_sqr_rows =
+      public.in2_sub_cumh_sel_rowhig - public.in2_sub_cumh_sel_rowlow + 1;
+  public.in2_sub2_sqr_cols =
+      public.in2_sub_cumh_sel_colhig - public.in2_sub_cumh_sel_collow + 1;
+  public.in2_sub2_sqr_elem =
+      public.in2_sub2_sqr_rows * public.in2_sub2_sqr_cols;
+  public.in2_sub2_sqr_mem = sizeof(fp) * public.in2_sub2_sqr_elem;
+
+  for (i = 0; i < public.allPoints; i++) {
+    private[i].d_in2_sub2_sqr = acc_malloc(public.in2_sub2_sqr_mem);
+  }
+
+  //======================================================================================================================================================
+  //	CUMULATIVE SUM 2
+  //======================================================================================================================================================
+
+  //====================================================================================================
+  //	PAD ARRAY
+  //====================================================================================================
+  //====================================================================================================
+  //	VERTICAL CUMULATIVE SUM
+  //====================================================================================================
+
+  //====================================================================================================
+  //	SELECTION, SELECTION 2, SUBTRACTION
+  //====================================================================================================
+  //====================================================================================================
+  //	HORIZONTAL CUMULATIVE SUM
+  //====================================================================================================
+
+  //====================================================================================================
+  //	SELECTION, SELECTION 2, SUBTRACTION, DIFFERENTIAL LOCAL SUM, DENOMINATOR
+  // A, DENOMINATOR, CORRELATION
+  //====================================================================================================
+
+  //======================================================================================================================================================
+  //	TEMPLATE MASK CREATE
+  //======================================================================================================================================================
+
+  public.tMask_rows =
+      public.in_mod_rows + (public.sSize + 1 + public.sSize) - 1;
+  public.tMask_cols = public.tMask_rows;
+  public.tMask_elem = public.tMask_rows * public.tMask_cols;
+  public.tMask_mem = sizeof(fp) * public.tMask_elem;
+
+  for (i = 0; i < public.allPoints; i++) {
+    private[i].d_tMask = acc_malloc(public.tMask_mem);
+  }
+
+  //======================================================================================================================================================
+  //	POINT MASK INITIALIZE
+  //======================================================================================================================================================
+
+  public.mask_rows = public.maxMove;
+  public.mask_cols = public.mask_rows;
+  public.mask_elem = public.mask_rows * public.mask_cols;
+  public.mask_mem = sizeof(fp) * public.mask_elem;
+
+  //======================================================================================================================================================
+  //	MASK CONVOLUTION
+  //======================================================================================================================================================
+
+  public.mask_conv_rows = public.tMask_rows; // number of rows in I
+  public.mask_conv_cols = public.tMask_cols; // number of columns in I
+  public.mask_conv_elem =
+      public.mask_conv_rows * public.mask_conv_cols; // number of elements
+  public.mask_conv_mem = sizeof(fp) * public.mask_conv_elem;
+  public.mask_conv_ioffset = (public.mask_rows - 1) / 2;
+  if ((public.mask_rows - 1) % 2 > 0.5) {
+    public.mask_conv_ioffset = public.mask_conv_ioffset + 1;
+  }
+  public.mask_conv_joffset = (public.mask_cols - 1) / 2;
+  if ((public.mask_cols - 1) % 2 > 0.5) {
+    public.mask_conv_joffset = public.mask_conv_joffset + 1;
+  }
+
+  for (i = 0; i < public.allPoints; i++) {
+    private[i].d_mask_conv = acc_malloc(public.mask_conv_mem);
+  }
+
+  //======================================================================================================================================================
+  //	PRINT FRAME PROGRESS START
+  //======================================================================================================================================================
+
+  printf("frame progress: ");
+  fflush(NULL);
+
+  //======================================================================================================================================================
+  //	KERNEL
+  //======================================================================================================================================================
+
+  public.d_frame = acc_malloc(public.frame_mem);
+
+  for (public.frame_no = 0; public.frame_no < frames_processed;
+       public.frame_no++) {
+
+    //====================================================================================================
+    //	GETTING FRAME
+    //====================================================================================================
+
+    // Extract a cropped version of the first frame from the video file
+    float *host_frame =
+        get_frame(public.d_frames, // pointer to video file
+                  public.frame_no, // number of frame that needs to be returned
+                  0,               // cropped?
+                  0,               // scaled?
+                  1);              // converted
+    acc_memcpy_to_device(public.d_frame, host_frame, public.frame_mem);
+
+    //====================================================================================================
+    //	PROCESSING
+    //====================================================================================================
+#pragma acc data copyin(public, private [0:ALL_POINTS])
+    {
+#pragma acc parallel loop present(public, private) num_gangs(NUM_TEAMS)        \
+    num_workers(1) vector_length(NUM_THREADS)
+      for (i = 0; i < public.allPoints; i++) {
+        kernel(public, private[i]);
+      }
+    }
+    //====================================================================================================
+    //	FREE MEMORY FOR FRAME
+    //====================================================================================================
+
+    // free frame after each loop iteration, since AVI library allocates
+    // memory for every frame fetched
+    free(host_frame);
+
+    //====================================================================================================
+    //	PRINT FRAME PROGRESS
+    //====================================================================================================
+
+    printf("%d ", public.frame_no);
+    fflush(NULL);
+
+    //======================================================================================================================================================
+    //	PRINT FRAME PROGRESS END
+    //======================================================================================================================================================
+
+    printf("\n");
+    fflush(NULL);
+  }
+
+  acc_memcpy_from_device(public.h_tEndoRowLoc, public.d_tEndoRowLoc,
+                         public.d_endo_mem * public.frames);
+  acc_memcpy_from_device(public.h_tEndoColLoc, public.d_tEndoColLoc,
+                         public.d_endo_mem * public.frames);
+  acc_memcpy_from_device(public.h_tEpiRowLoc, public.d_tEpiRowLoc,
+                         public.d_epi_mem * public.frames);
+  acc_memcpy_from_device(public.h_tEpiColLoc, public.d_tEpiColLoc,
+                         public.d_epi_mem * public.frames);
+
+  //==================================================50
+  //	DUMP DATA TO FILE
+  //==================================================50
+#ifdef OUTPUT
+  write_data("result.log", public.frames, frames_processed, public.endoPoints,
+             public.h_tEndoRowLoc, public.h_tEndoColLoc, public.epiPoints,
+             public.h_tEpiRowLoc, public.h_tEpiColLoc);
+
+#endif
+
+  //======================================================================================================================================================
+  //	DEALLOCATION
+  //======================================================================================================================================================
+
+  //====================================================================================================
+  //	COMMON
+  //====================================================================================================
+
+  acc_free(public.d_endoRow);
+  acc_free(public.d_endoCol);
+  acc_free(public.d_tEndoRowLoc);
+  acc_free(public.d_tEndoColLoc);
+  acc_free(public.d_endoT);
+  free(public.h_endoRow);
+  free(public.h_endoCol);
+  free(public.h_tEndoRowLoc);
+  free(public.h_tEndoColLoc);
+
+  acc_free(public.d_epiRow);
+  acc_free(public.d_epiCol);
+  acc_free(public.d_tEpiRowLoc);
+  acc_free(public.d_tEpiColLoc);
+  acc_free(public.d_epiT);
+  free(public.h_epiRow);
+  free(public.h_epiCol);
+  free(public.h_tEpiRowLoc);
+  free(public.h_tEpiColLoc);
+
+  acc_free(public.d_frame);
+
+  //====================================================================================================
+  //	POINTERS
+  //====================================================================================================
+
+  for (i = 0; i < public.allPoints; i++) {
+    acc_free(private[i].in_partial_sum);
+    acc_free(private[i].in_sqr_partial_sum);
+    acc_free(private[i].par_max_val);
+    acc_free(private[i].par_max_coo);
+
+    acc_free(private[i].d_in2);
+    acc_free(private[i].d_in2_sqr);
+
+    acc_free(private[i].d_in_mod);
+    acc_free(private[i].d_in_sqr);
+
+    acc_free(private[i].d_conv);
+
+    acc_free(private[i].d_in2_pad);
+
+    acc_free(private[i].d_in2_sub);
+
+    acc_free(private[i].d_in2_sub2_sqr);
+
+    acc_free(private[i].d_tMask);
+    acc_free(private[i].d_mask_conv);
+  }
+}
+
+//========================================================================================================================================================================================================
+//========================================================================================================================================================================================================
+//	END OF FILE
+//========================================================================================================================================================================================================
+//========================================================================================================================================================================================================

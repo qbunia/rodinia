@@ -16,8 +16,6 @@ void kernel(public_struct public, private_struct private) {
   int rot_col;
   int in2_rowlow;
   int in2_collow;
-  int ic;
-  int jc;
   int jp1;
   int ja1, ja2;
   int ip1;
@@ -36,14 +34,9 @@ void kernel(public_struct public, private_struct private) {
   int pos_ori;
   fp temp;
   fp temp2;
-  int location;
   int cent;
   int tMask_row;
   int tMask_col;
-  fp largest_value_current = 0;
-  fp largest_value = 0;
-  int largest_coordinate_current = 0;
-  int largest_coordinate = 0;
   fp fin_max_val = 0;
   int fin_max_coo = 0;
   int largest_row;
@@ -60,7 +53,6 @@ void kernel(public_struct public, private_struct private) {
   int pointer;
   int ori_pointer;
   int loc_pointer;
-  int ei_mod;
 
   //======================================================================================================================================================
   //	GENERATE TEMPLATE
@@ -108,10 +100,12 @@ void kernel(public_struct public, private_struct private) {
 
     //==================================================
     //	1) SETUP POINTER TO POINT TO CURRENT FRAME FROM BATCH
-    //	2) SELECT INPUT 2 (SAMPLE AROUND POINT) FROM FRAME			SAVE IN d_in2
-    //(NOT LINEAR IN MEMORY, SO NEED TO SAVE OUTPUT FOR LATER EASY USE) 	3)
-    //SQUARE INPUT 2									SAVE IN
-    //d_in2_sqr
+    //	2) SELECT INPUT 2 (SAMPLE AROUND POINT) FROM FRAME
+    // SAVE IN d_in2 (NOT LINEAR IN MEMORY, SO NEED TO SAVE OUTPUT FOR LATER
+    // EASY
+    // USE)
+    // 3) SQUARE INPUT 2
+    // SAVE IN d_in2_sqr
     //==================================================
 
     // pointers and variables
@@ -134,11 +128,10 @@ void kernel(public_struct public, private_struct private) {
 
     //==================================================
     //	1) GET POINTER TO INPUT 1 (TEMPLATE FOR THIS POINT) IN TEMPLATE ARRAY
-    //(LINEAR IN MEMORY, SO DONT NEED TO SAVE, JUST GET POINTER) 	2) ROTATE INPUT
-    //1									SAVE IN
-    //d_in_mod
-    //	3) SQUARE INPUT 1									SAVE IN
-    //d_in_sqr
+    //(LINEAR IN MEMORY, SO DONT NEED TO SAVE, JUST GET POINTER) 	2)
+    // ROTATE INPUT
+    // 1 SAVE IN d_in_mod 	3) SQUARE INPUT 1
+    // SAVE IN d_in_sqr
     //==================================================
 
     // variables
@@ -190,8 +183,8 @@ void kernel(public_struct public, private_struct private) {
     denomT = sqrt((fp)(public.in_mod_elem - 1)) * deviation;
 
     //====================================================================================================
-    //	1) CONVOLVE INPUT 2 WITH ROTATED INPUT 1					SAVE IN
-    //d_conv
+    //	1) CONVOLVE INPUT 2 WITH ROTATED INPUT 1
+    // SAVE IN d_conv
     //====================================================================================================
 
     // work
@@ -248,8 +241,8 @@ void kernel(public_struct public, private_struct private) {
     //====================================================================================================
 
     //==================================================
-    //	1) PADD ARRAY										SAVE IN
-    //d_in2_pad
+    //	1) PADD ARRAY
+    // SAVE IN d_in2_pad
     //==================================================
 
     // work
@@ -273,8 +266,7 @@ void kernel(public_struct public, private_struct private) {
     }
 
     //==================================================
-    //	1) GET VERTICAL CUMULATIVE SUM						SAVE IN
-    //d_in2_pad
+    //	1) GET VERTICAL CUMULATIVE SUM SAVE IN d_in2_pad
     //==================================================
 
     for (ei_new = 0; ei_new < public.in2_pad_cols; ei_new++) {
@@ -294,8 +286,7 @@ void kernel(public_struct public, private_struct private) {
     //==================================================
     //	1) MAKE 1st SELECTION FROM VERTICAL CUMULATIVE SUM
     //	2) MAKE 2nd SELECTION FROM VERTICAL CUMULATIVE SUM
-    //	3) SUBTRACT THE TWO SELECTIONS						SAVE IN
-    //d_in2_sub
+    //	3) SUBTRACT THE TWO SELECTIONS SAVE IN d_in2_sub
     //==================================================
 
     // work
@@ -320,8 +311,8 @@ void kernel(public_struct public, private_struct private) {
     }
 
     //==================================================
-    //	1) GET HORIZONTAL CUMULATIVE SUM						SAVE IN
-    //d_in2_sub
+    //	1) GET HORIZONTAL CUMULATIVE SUM
+    // SAVE IN d_in2_sub
     //==================================================
 
     for (ei_new = 0; ei_new < public.in2_sub_rows; ei_new++) {
@@ -342,10 +333,8 @@ void kernel(public_struct public, private_struct private) {
     //	1) MAKE 1st SELECTION FROM HORIZONTAL CUMULATIVE SUM
     //	2) MAKE 2nd SELECTION FROM HORIZONTAL CUMULATIVE SUM
     //	3) SUBTRACT THE TWO SELECTIONS TO GET LOCAL SUM 1
-    //	4) GET CUMULATIVE SUM 1 SQUARED						SAVE IN
-    //d_in2_sub2_sqr
-    //	5) GET NUMERATOR									SAVE IN
-    //d_conv
+    //	4) GET CUMULATIVE SUM 1 SQUARED SAVE IN d_in2_sub2_sqr 	5) GET NUMERATOR
+    // SAVE IN d_conv
     //==================================================
 
     // work
@@ -383,8 +372,8 @@ void kernel(public_struct public, private_struct private) {
     //====================================================================================================
 
     //==================================================
-    //	1) PAD ARRAY										SAVE IN
-    //d_in2_pad
+    //	1) PAD ARRAY
+    // SAVE IN d_in2_pad
     //==================================================
 
     // work
@@ -408,8 +397,7 @@ void kernel(public_struct public, private_struct private) {
     }
 
     //==================================================
-    //	2) GET VERTICAL CUMULATIVE SUM						SAVE IN
-    //d_in2_pad
+    //	2) GET VERTICAL CUMULATIVE SUM SAVE IN d_in2_pad
     //==================================================
 
     // work
@@ -430,8 +418,7 @@ void kernel(public_struct public, private_struct private) {
     //==================================================
     //	1) MAKE 1st SELECTION FROM VERTICAL CUMULATIVE SUM
     //	2) MAKE 2nd SELECTION FROM VERTICAL CUMULATIVE SUM
-    //	3) SUBTRACT THE TWO SELECTIONS						SAVE IN
-    //d_in2_sub
+    //	3) SUBTRACT THE TWO SELECTIONS SAVE IN d_in2_sub
     //==================================================
 
     // work
@@ -456,8 +443,8 @@ void kernel(public_struct public, private_struct private) {
     }
 
     //==================================================
-    //	1) GET HORIZONTAL CUMULATIVE SUM						SAVE IN
-    //d_in2_sub
+    //	1) GET HORIZONTAL CUMULATIVE SUM
+    // SAVE IN d_in2_sub
     //==================================================
 
     for (ei_new = 0; ei_new < public.in2_sub_rows; ei_new++) {
