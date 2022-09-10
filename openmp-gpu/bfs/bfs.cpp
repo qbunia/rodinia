@@ -1,8 +1,8 @@
 #include <math.h>
-#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 
 #define NUM_TEAMS 256
 #define NUM_THREADS 1024
@@ -22,6 +22,13 @@ void Usage(int argc, char **argv) {
   fprintf(stderr, "Usage: %s <input_file> [<num_teams>] [<num_threads>]\n",
           argv[0]);
 }
+
+double get_time() {
+  struct timeval t;
+  gettimeofday(&t, NULL);
+  return (double)t.tv_sec + t.tv_usec * 1e-6;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Main Program
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,7 +116,7 @@ void BFSGraph(int argc, char **argv) {
   printf("Start traversing the tree\n");
 
   int k = 0;
-  double start_time = omp_get_wtime();
+  double start_time = get_time();
 #pragma omp target data map(                                                   \
     to                                                                         \
     : no_of_nodes, h_graph_mask [0:no_of_nodes],                               \
@@ -152,8 +159,8 @@ void BFSGraph(int argc, char **argv) {
       }
       k++;
     } while (stop);
-    double end_time = omp_get_wtime();
-    printf("Compute time: %lf\n", (end_time - start_time));
+    double end_time = get_time();
+    printf("Compute time: %lfs\n", (end_time - start_time));
   }
   // Store the result into a file
   FILE *fpo = fopen("result.log", "w");
