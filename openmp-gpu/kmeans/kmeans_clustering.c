@@ -220,6 +220,12 @@ float **kmeans_clustering(float **h_feature, /* in: [npoints][nfeatures] */
   }
 
   printf("num of threads = %d\n", num_omp_threads);
+  int total_num_threads = 0;
+  if (npoints <= num_omp_threads) {
+    total_num_threads = npoints;
+  } else {
+    total_num_threads = num_omp_threads;
+  }
 #pragma omp target data map(to                                                 \
                             : feature [0:npoints], membership [0:npoints],     \
                               new_centers [0:nclusters],                       \
@@ -232,33 +238,24 @@ float **kmeans_clustering(float **h_feature, /* in: [npoints][nfeatures] */
     do {
       delta = 0.0;
 #pragma omp target parallel map(tofrom : delta) num_threads(num_omp_threads)
-      {
-        int total_num_threads = 0;
-        if (npoints <= num_omp_threads) {
-          total_num_threads = npoints;
-        } else {
-          total_num_threads = num_omp_threads;
-        }
 #pragma omp for private(i, j, index)                                           \
     firstprivate(npoints, nclusters, nfeatures) reduction(+ : delta)
-        for (i = 0; i < npoints; i++) {
-          int tid = i % total_num_threads;
-          /* find the index of nestest cluster centers */
-          index =
-              find_nearest_point(feature[i], nfeatures, clusters, nclusters);
-          /* if membership changes, increase delta by 1 */
-          if (membership[i] != index)
-            delta += 1.0;
+      for (i = 0; i < npoints; i++) {
+        int tid = i % total_num_threads;
+        /* find the index of nestest cluster centers */
+        index = find_nearest_point(feature[i], nfeatures, clusters, nclusters);
+        /* if membership changes, increase delta by 1 */
+        if (membership[i] != index)
+          delta += 1.0;
 
-          /* assign the membership to object i */
-          membership[i] = index;
+        /* assign the membership to object i */
+        membership[i] = index;
 
-          /* update new cluster centers : sum of all objects located
-                 within */
-          partial_new_centers_len[tid][index]++;
-          for (j = 0; j < nfeatures; j++)
-            partial_new_centers[tid * nclusters + index][j] += feature[i][j];
-        }
+        /* update new cluster centers : sum of all objects located
+               within */
+        partial_new_centers_len[tid][index]++;
+        for (j = 0; j < nfeatures; j++)
+          partial_new_centers[tid * nclusters + index][j] += feature[i][j];
       } /* end of #pragma omp parallel */
 
       /* let the main thread perform the array reduction */
@@ -284,7 +281,6 @@ float **kmeans_clustering(float **h_feature, /* in: [npoints][nfeatures] */
         }
         new_centers_len[i] = 0; /* set back to 0 */
       }
-
     } while (delta > threshold && loop++ < 500);
   }
 
