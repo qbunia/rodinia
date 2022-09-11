@@ -1,16 +1,16 @@
-LOCAL_CC = gcc -g -O3 -Wall
-CC = pathCC
-CFLAGS = -O3 -acc
+CC = clang
+CC_FLAGS = -O3 -lm -fopenmp -fopenmp-targets=nvptx64 -Wall
 
+nn.out: nn.c
+	$(CC) -o $@ $< $(CC_FLAGS)
 
-all : nn
+hurricane_gen: hurricane_gen.c
+	$(CC) -o $@ $< -lm
 
-clean :
-	rm -rf *.o nn
+.PHONY: run clean
 
-nn : nn_openacc.cpp
-	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS) -lm 
+run: nn.out
+	./nn.out filelist_4 5 30 90
 
-hurricane_gen : hurricane_gen.c
-	$(LOCAL_CC) -o $@ $< -lm
-
+clean:
+	rm -rf *.o *.out
