@@ -118,11 +118,9 @@ int main(int argc, char *argv[]) {
       locations[i].lng = atof(rec_iter + 5);
     }
 
-#pragma omp target teams distribute parallel for map(to                        \
-                                                     : locations               \
-                                                     [0:rec_count])            \
-    map(from                                                                   \
-        : z [0:REC_WINDOW]) num_teams(NUM_TEAMS) num_threads(NUM_THREADS)
+#pragma acc parallel loop copyin(locations [0:rec_count])                      \
+    copyout(z [0:REC_WINDOW]) num_gangs(NUM_TEAMS) num_workers(1)              \
+        vector_length(NUM_THREADS)
     for (i = 0; i < rec_count; i++) {
       z[i] = sqrt(
           ((locations[i].lat - target_lat) * (locations[i].lat - target_lat)) +
