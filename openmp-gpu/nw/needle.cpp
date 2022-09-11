@@ -5,8 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-#define OPENMP
-// #define NUM_THREAD 4
+
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
 
 #define BLOCK_SIZE 16
 
@@ -118,10 +119,10 @@ void nw_optimized(int *input_itemsets, int *output_itemsets, int *referrence,
     map(input_itemsets [0:transfer_size])
   {
 
-#pragma omp target
+#pragma omp target teams distribute num_teams(NUM_TEAMS)
     for (int blk = 1; blk <= (max_cols - 1) / BLOCK_SIZE; blk++) {
 #pragma omp parallel for schedule(static) shared(input_itemsets, referrence)   \
-    firstprivate(blk, max_rows, max_cols, penalty)
+    firstprivate(blk, max_rows, max_cols, penalty) num_threads(NUM_THREADS)
       for (int b_index_x = 0; b_index_x < blk; ++b_index_x) {
         int b_index_y = blk - 1 - b_index_x;
         int input_itemsets_l[(BLOCK_SIZE + 1) * (BLOCK_SIZE + 1)]
@@ -173,10 +174,10 @@ void nw_optimized(int *input_itemsets, int *output_itemsets, int *referrence,
 
     printf("Processing bottom-right matrix\n");
 
-#pragma omp target
+#pragma omp target teams distribute num_teams(NUM_TEAMS)
     for (int blk = 2; blk <= (max_cols - 1) / BLOCK_SIZE; blk++) {
 #pragma omp parallel for schedule(static) shared(input_itemsets, referrence)   \
-    firstprivate(blk, max_rows, max_cols, penalty)
+    firstprivate(blk, max_rows, max_cols, penalty) num_threads(NUM_THREADS)
       for (int b_index_x = blk - 1; b_index_x < (max_cols - 1) / BLOCK_SIZE;
            ++b_index_x) {
         int b_index_y = (max_cols - 1) / BLOCK_SIZE + blk - 2 - b_index_x;
