@@ -1,9 +1,14 @@
 # C compiler
-CC = pathCC
-CC_FLAGS = -acc
+CC = nvc++
+CC_FLAGS = -g -O3 -acc
 
-needle: 
-	$(CC) $(CC_FLAGS) needle.cpp -o needle 
+needle.out: needle.cpp
+	$(CC) $(CC_FLAGS) needle.cpp -o needle.out
+
+.PHONY: run clean
+
+run: needle.out
+	./needle.out 2048 10 2
 
 clean:
-	rm -f needle 
+	rm -f *.o *.out *.log
