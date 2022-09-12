@@ -1,15 +1,18 @@
-CC = pathCC
+CC = nvc++
 SRC = pathfinder.cpp
-EXE = pathfinder
-FLAGS = -acc
+EXE = pathfinder.out
+FLAGS = -O3 -acc
 
-release:
+$(EXE): $(SRC)
 	$(CC) $(SRC) $(FLAGS) -o $(EXE)
 
-debug:
+debug: $(SRC)
 	$(CC) $(SRC) -g -Wall -o $(EXE)
 
+.PHONY: run clean
+
+run: $(EXE)
+	./pathfinder.out 100000 100 > result.log
+
 clean:
-	rm -f pathfinder
-
-
+	rm -f *.o *.out *.log

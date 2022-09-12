@@ -87,7 +87,10 @@ void run(int argc, char **argv) {
       src = dst;
       dst = temp;
 #pragma omp target teams distribute parallel for private(min)                  \
-    num_teams(NUM_TEAMS) num_threads(NUM_THREADS)
+    map(tofrom                                                                 \
+        : src [0:cols], dst [0:cols]) map(to                                   \
+                                          : data [0:rows * cols])              \
+        num_teams(NUM_TEAMS) num_threads(NUM_THREADS)
       for (int n = 0; n < cols; n++) {
         min = src[n];
         if (n > 0)
