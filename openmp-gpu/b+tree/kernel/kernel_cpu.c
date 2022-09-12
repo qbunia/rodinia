@@ -1,10 +1,9 @@
-// #ifdef __cplusplus
-// extern "C" {
-// #endif
-
 //========================================================================================================================================================================================================200
 //	DEFINE/INCLUDE
 //========================================================================================================================================================================================================200
+
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
 
 //======================================================================================================================================================150
 //	LIBRARIES
@@ -53,12 +52,6 @@ void kernel_cpu(int cores_arg,
   //	MCPU SETUP
   //======================================================================================================================================================150
 
-  int max_nthreads;
-  max_nthreads = omp_get_max_threads();
-  // printf("max # of threads = %d\n", max_nthreads);
-  omp_set_num_threads(cores_arg);
-  // printf("set # of threads = %d\n", cores_arg);
-
   int threadsPerBlock;
   threadsPerBlock = order < 1024 ? order : 1024;
 
@@ -74,17 +67,16 @@ void kernel_cpu(int cores_arg,
   int i;
 
 // process number of querries
-// #pragma omp parallel for private (i, thid)
-#pragma omp target teams distribute map(to                                     \
-                                        :                                      \
-                                        currKnode [0:count], offset [0:count]) \
-    map(to                                                                     \
-        : knodes [0:knodes_elem], keys [0:count]) map(tofrom                   \
-                                                      : ans [0:count])
+#pragma omp target teams distribute parallel for private(i, thid)              \
+    num_teams(NUM_TEAMS) num_threads(NUM_THREADS)                              \
+        map(to                                                                 \
+            : currKnode [0:count], offset [0:count])                           \
+            map(to                                                             \
+                : knodes [0:knodes_elem], keys [0:count]) map(tofrom           \
+                                                              : ans [0:count])
   for (bid = 0; bid < count; bid++) {
 
     // process levels of the tree
-#pragma omp parallel for private(i, thid)
     for (i = 0; i < maxheight; i++) {
 
       // process all leaves at each level
@@ -112,7 +104,6 @@ void kernel_cpu(int cores_arg,
     // At this point, we have a candidate leaf node which may contain
     // the target record.  Check each key to hopefully find the record
     //  process all leaves at each level
-#pragma omp parallel for
     for (thid = 0; thid < threadsPerBlock; thid++) {
 
       if (knodes[currKnode[bid]].keys[thid] == keys[bid]) {
@@ -143,7 +134,3 @@ void kernel_cpu(int cores_arg,
 //========================================================================================================================================================================================================200
 //	END
 //========================================================================================================================================================================================================200
-
-// #ifdef __cplusplus
-// }
-// #endif

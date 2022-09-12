@@ -1,10 +1,9 @@
-// #ifdef __cplusplus
-// extern "C" {
-// #endif
-
 //========================================================================================================================================================================================================200
 //	DEFINE/INCLUDE
 //========================================================================================================================================================================================================200
+
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
 
 //======================================================================================================================================================150
 //	LIBRARIES
@@ -85,19 +84,19 @@ void kernel_cpu_2(int cores_arg,
 
 // process number of querries
 // #pragma omp parallel for private (i, thid)
-#pragma omp target teams distribute map(to                                     \
-                                        :                                      \
-                                        currKnode [0:count], offset [0:count]) \
-    map(to                                                                     \
-        : start [0:count], end [0:count])                                      \
+#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS)          \
+    num_threads(NUM_THREADS) private(i, thid)                                  \
         map(to                                                                 \
-            : lastKnode [0:count], offset_2 [0:count])                         \
-            map(tofrom                                                         \
-                : recstart [0:count], reclength [0:count])
+            : currKnode [0:count], offset [0:count])                           \
+            map(to                                                             \
+                : start [0:count], end [0:count])                              \
+                map(to                                                         \
+                    : lastKnode [0:count], offset_2 [0:count])                 \
+                    map(tofrom                                                 \
+                        : recstart [0:count], reclength [0:count])
   for (bid = 0; bid < count; bid++) {
 
     // process levels of the tree
-#pragma omp parallel for private(i, thid)
     for (i = 0; i < maxheight; i++) {
 
       // process all leaves at each level
@@ -133,7 +132,6 @@ void kernel_cpu_2(int cores_arg,
     }
 
     // process leaves
-#pragma omp parallel for
     for (thid = 0; thid < threadsPerBlock; thid++) {
 
       // Find the index of the starting record
@@ -176,7 +174,3 @@ void kernel_cpu_2(int cores_arg,
 //========================================================================================================================================================================================================200
 //	END
 //========================================================================================================================================================================================================200
-
-// #ifdef __cplusplus
-// }
-// #endif

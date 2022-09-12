@@ -1849,7 +1849,7 @@ main(	int argc,
 	int cores_arg =1;
 	char *input_file = NULL;
 	char *command_file = NULL;
-	char *output="output.txt";
+	char *output="output.log";
 	FILE * pFile;
 
 
