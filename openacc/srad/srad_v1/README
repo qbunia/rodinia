@@ -50,6 +50,6 @@
 // 3) Number of rows in the input image. Needs to be integer > 0.
 // 4) Number of columns in the input image. Needs to be integer > 0.
 // Example:
-// a.out 100 0.5 502 458
+// ./srad.out 100 0.5 502 458
 //
 // for more information see main.c

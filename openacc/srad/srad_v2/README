@@ -1,5 +1,5 @@
 Usage:
-srad 128 128 0 31 0 31 4 0.5 2
+./srad.out 128 128 0 31 0 31 0.5 2
 
 128 //number of rows in the domain
 128 //number of cols in the domain

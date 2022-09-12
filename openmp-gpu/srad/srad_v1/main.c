@@ -110,7 +110,7 @@ int main(int argc, char *argv[]) {
   // 	GET INPUT PARAMETERS
   //================================================================================80
 
-  if (argc != 6) {
+  if (argc != 5) {
     printf("ERROR: wrong number of arguments\n");
     return 0;
   } else {
