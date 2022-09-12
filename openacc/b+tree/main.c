@@ -618,14 +618,11 @@ list_t *findRange(node *root, int start, int end) {
   list_t *retList = (list_t *)malloc(sizeof(list_t));
   list_init(retList, NULL, NULL);
 
-  int counter = 0;
   bool cont = true;
   while (cont && c != 0) {
     cont = false;
     for (i = 0; i < c->num_keys; i++) {
       if (c->keys[i] >= start && c->keys[i] <= end) {
-        // list_insert_tail(retList,(record *)c->pointers[i]);
-        counter++;
         cont = true;
       } else {
         cont = false;
@@ -710,16 +707,16 @@ void print_leaves(node *root) {
   while (true) {
     for (i = 0; i < c->num_keys; i++) {
       if (verbose_output)
-        // printf("%x ", (unsigned int)c->pointers[i]);
         printf("%d ", c->keys[i]);
     }
-    if (verbose_output)
-      // printf("%x ", (unsigned int)c->pointers[order - 1]);
+    if (verbose_output) {
       if (c->pointers[order - 1] != NULL) {
         printf(" | ");
         c = (node *)c->pointers[order - 1];
-      } else
+      } else {
         break;
+      }
+    }
   }
   printf("\n");
 }

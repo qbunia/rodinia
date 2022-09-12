@@ -1,7 +1,3 @@
-// # ifdef __cplusplus
-// extern "C" {
-// # endif
-
 //========================================================================================================================================================================================================200
 //======================================================================================================================================================150
 //====================================================================================================100
@@ -595,11 +591,11 @@ long transform_to_cuda(node *root, bool verbose) {
   if (verbose) {
     for (i = 0; i < size; i++)
       printf("%d ", krecords[i].value);
-    printf("\nNumber of records = %d, sizeof(record)=%d, total=%d\n", size,
+    printf("\nNumber of records = %ld, sizeof(record)=%ld, total=%ld\n", size,
            sizeof(record), size * sizeof(record));
-    printf("Number of knodes = %d, sizeof(knode)=%d, total=%d\n", nodeindex,
+    printf("Number of knodes = %ld, sizeof(knode)=%ld, total=%ld\n", nodeindex,
            sizeof(knode), (nodeindex) * sizeof(knode));
-    printf("\nDone Transformation. Mem used: %d\n", mem_used);
+    printf("\nDone Transformation. Mem used: %ld\n", mem_used);
   }
   gettimeofday(&two, NULL);
   double oneD = one.tv_sec + (double)one.tv_usec * .000001;
@@ -622,14 +618,11 @@ list_t *findRange(node *root, int start, int end) {
   list_t *retList = (list_t *)malloc(sizeof(list_t));
   list_init(retList, NULL, NULL);
 
-  int counter = 0;
   bool cont = true;
   while (cont && c != 0) {
     cont = false;
     for (i = 0; i < c->num_keys; i++) {
       if (c->keys[i] >= start && c->keys[i] <= end) {
-        // list_insert_tail(retList,(record *)c->pointers[i]);
-        counter++;
         cont = true;
       } else {
         cont = false;
@@ -714,16 +707,16 @@ void print_leaves(node *root) {
   while (true) {
     for (i = 0; i < c->num_keys; i++) {
       if (verbose_output)
-        // printf("%x ", (unsigned int)c->pointers[i]);
         printf("%d ", c->keys[i]);
     }
-    if (verbose_output)
-      // printf("%x ", (unsigned int)c->pointers[order - 1]);
+    if (verbose_output) {
       if (c->pointers[order - 1] != NULL) {
         printf(" | ");
         c = (node *)c->pointers[order - 1];
-      } else
+      } else {
         break;
+      }
+    }
   }
   printf("\n");
 }
@@ -779,10 +772,10 @@ void print_tree(node *root) {
       }
     }
     if (verbose_output)
-      printf("(%x)", n);
+      printf("(%p)", n);
     for (i = 0; i < n->num_keys; i++) {
       if (verbose_output)
-        printf("%x ", n->pointers[i]);
+        printf("%p ", n->pointers[i]);
       printf("%d ", n->keys[i]);
     }
     if (!n->is_leaf)
@@ -790,9 +783,9 @@ void print_tree(node *root) {
         enqueue((node *)n->pointers[i]);
     if (verbose_output) {
       if (n->is_leaf)
-        printf("%x ", n->pointers[order - 1]);
+        printf("%p ", n->pointers[order - 1]);
       else
-        printf("%x ", n->pointers[n->num_keys]);
+        printf("%p ", n->pointers[n->num_keys]);
     }
     printf("| ");
   }
@@ -1632,7 +1625,7 @@ int main(int argc, char **argv) {
   int cores_arg = 1;
   char *input_file = NULL;
   char *command_file = NULL;
-  char *output = "output.log";
+  const char *output = "output.log";
   FILE *pFile;
 
   // go through arguments
@@ -1727,14 +1720,15 @@ int main(int argc, char **argv) {
   fclose(commandFile);
 
   // For Debug
-  char *sPointer = commandBuffer;
   printf("Command Buffer: \n");
   printf("%s", commandBuffer);
   //
 
   pFile = fopen(output, "w+");
-  if (pFile == NULL)
-    fputs("Fail to open %s !\n", output);
+  if (pFile == NULL) {
+    fprintf(stderr, "Fail to open %s !\n", output);
+    exit(1);
+  }
   fprintf(pFile, "******starting******\n");
   fclose(pFile);
 
@@ -1921,7 +1915,7 @@ int main(int argc, char **argv) {
       // get # of queries from user
       int count;
       sscanf(commandPointer, "%d", &count);
-      while (*commandPointer != 32 && commandPointer != '\n')
+      while (*commandPointer != 32 && *commandPointer != '\n')
         commandPointer++;
 
       printf("\n ******command: k count=%d \n", count);
@@ -1935,16 +1929,10 @@ int main(int argc, char **argv) {
       // INPUT: records CPU allocation (setting pointer in mem variable)
       record *records = (record *)mem;
       long records_elem = (long)rootLoc / sizeof(record);
-      long records_mem = (long)rootLoc;
-      // printf("records_elem=%d, records_unit_mem=%d, records_mem=%d\n",
-      // (int)records_elem, sizeof(record), (int)records_mem);
 
       // INPUT: knodes CPU allocation (setting pointer in mem variable)
       knode *knodes = (knode *)((long)mem + (long)rootLoc);
       long knodes_elem = ((long)(mem_used) - (long)rootLoc) / sizeof(knode);
-      long knodes_mem = (long)(mem_used) - (long)rootLoc;
-      // printf("knodes_elem=%d, knodes_unit_mem=%d, knodes_mem=%d\n",
-      // (int)knodes_elem, sizeof(knode), (int)knodes_mem);
 
       // INPUT: currKnode CPU allocation
       long *currKnode;
@@ -2003,7 +1991,8 @@ int main(int argc, char **argv) {
 
       pFile = fopen(output, "aw+");
       if (pFile == NULL) {
-        fputs("Fail to open %s !\n", output);
+        fprintf(stderr, "Fail to open %s !\n", output);
+        exit(1);
       }
 
       fprintf(pFile, "\n ******command: k count=%d \n", count);
@@ -2054,12 +2043,12 @@ int main(int argc, char **argv) {
       // get # of queries from user
       int count;
       sscanf(commandPointer, "%d", &count);
-      while (*commandPointer != 32 && commandPointer != '\n')
+      while (*commandPointer != 32 && *commandPointer != '\n')
         commandPointer++;
 
       int rSize;
       sscanf(commandPointer, "%d", &rSize);
-      while (*commandPointer != 32 && commandPointer != '\n')
+      while (*commandPointer != 32 && *commandPointer != '\n')
         commandPointer++;
 
       printf("\n******command: j count=%d, rSize=%d \n", count, rSize);
@@ -2073,9 +2062,6 @@ int main(int argc, char **argv) {
       // INPUT: knodes CPU allocation (setting pointer in mem variable)
       knode *knodes = (knode *)((long)mem + (long)rootLoc);
       long knodes_elem = ((long)(mem_used) - (long)rootLoc) / sizeof(knode);
-      long knodes_mem = (long)(mem_used) - (long)rootLoc;
-      // printf("knodes_elem=%d, knodes_unit_mem=%d, knodes_mem=%d\n",
-      // (int)knodes_elem, sizeof(knode), (int)knodes_mem);
 
       // INPUT: currKnode CPU allocation
       long *currKnode;
@@ -2160,7 +2146,8 @@ int main(int argc, char **argv) {
       // }
       pFile = fopen(output, "aw+");
       if (pFile == NULL) {
-        fputs("Fail to open %s !\n", output);
+        fprintf(stderr, "Fail to open %s !\n", output);
+        exit(1);
       }
 
       fprintf(pFile, "\n******command: j count=%d, rSize=%d \n", count, rSize);
@@ -2209,7 +2196,3 @@ int main(int argc, char **argv) {
 //========================================================================================================================================================================================================200
 //	END
 //========================================================================================================================================================================================================200
-
-// # ifdef __cplusplus
-// }
-// # endif

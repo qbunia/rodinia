@@ -9,7 +9,6 @@
 //	LIBRARIES
 //======================================================================================================================================================150
 
-#include <omp.h>    // (in directory known to compiler)
 #include <stdio.h>  // (in directory known to compiler)
 #include <stdlib.h> // (in directory known to compiler)
 
@@ -62,12 +61,6 @@ void kernel_cpu_2(int cores_arg,
   //======================================================================================================================================================150
   //	MCPU SETUP
   //======================================================================================================================================================150
-
-  int max_nthreads;
-  max_nthreads = omp_get_max_threads();
-  // printf("max # of threads = %d\n", max_nthreads);
-  omp_set_num_threads(cores_arg);
-  // printf("set # of threads = %d\n", cores_arg);
 
   int threadsPerBlock;
   threadsPerBlock = order < 1024 ? order : 1024;
