@@ -20,7 +20,7 @@
 #include <stdio.h>					// (in path known to compiler)			needed by printf
 #include <stdlib.h>					// (in path known to compiler)			needed by malloc
 #include <stdbool.h>				// (in path known to compiler)			needed by true/false
-
+#include <omp.h>
 //======================================================================================================================================================150
 //	UTILITIES
 //======================================================================================================================================================150
@@ -38,7 +38,7 @@
 //	KERNEL
 //======================================================================================================================================================150
 
-#include "./kernel/kernel_acc.h"				// (in library path specified here)
+#include "./kernel/kernel_gpu.h"				// (in library path specified here)
 
 //========================================================================================================================================================================================================200
 //	MAIN FUNCTION
@@ -86,12 +86,38 @@ main(	int argc,
 	//======================================================================================================================================================150
 
 	// assing default values
+	dim_cpu.cores_arg = 1;
 	dim_cpu.boxes1d_arg = 1;
 
 	// go through arguments
 	for(dim_cpu.cur_arg=1; dim_cpu.cur_arg<argc; dim_cpu.cur_arg++){
+		// check if -cores
+		if(strcmp(argv[dim_cpu.cur_arg], "-cores")==0){
+			// check if value provided
+			if(argc>=dim_cpu.cur_arg+1){
+				// check if value is a number
+				if(isInteger(argv[dim_cpu.cur_arg+1])==1){
+					dim_cpu.cores_arg = atoi(argv[dim_cpu.cur_arg+1]);
+					if(dim_cpu.cores_arg<0){
+						printf("ERROR: Wrong value to -cores parameter, cannot be <=0\n");
+						return 0;
+					}
+					dim_cpu.cur_arg = dim_cpu.cur_arg+1;
+				}
+				// value is not a number
+				else{
+					printf("ERROR: Value to -cores parameter in not a number\n");
+					return 0;
+				}
+			}
+			// value not provided
+			else{
+				printf("ERROR: Missing value to -cores parameter\n");
+				return 0;
+			}
+		}
 		// check if -boxes1d
-		if(strcmp(argv[dim_cpu.cur_arg], "-boxes1d")==0){
+		else if(strcmp(argv[dim_cpu.cur_arg], "-boxes1d")==0){
 			// check if value provided
 			if(argc>=dim_cpu.cur_arg+1){
 				// check if value is a number
@@ -123,7 +149,7 @@ main(	int argc,
 	}
 
 	// Print configuration
-	printf("Configuration used: boxes1d = %d\n", dim_cpu.boxes1d_arg);
+	printf("Configuration used: cores = %d, boxes1d = %d\n", dim_cpu.cores_arg, dim_cpu.boxes1d_arg);
 
 	time2 = get_time();
 
@@ -229,16 +255,16 @@ main(	int argc,
 	// input (distances)
 	rv_cpu = (FOUR_VECTOR*)malloc(dim_cpu.space_mem);
 	for(i=0; i<dim_cpu.space_elem; i=i+1){
-		rv_cpu[i].v = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
-		rv_cpu[i].x = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
-		rv_cpu[i].y = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
-		rv_cpu[i].z = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
+		rv_cpu[i].v = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
+		rv_cpu[i].x = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
+		rv_cpu[i].y = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
+		rv_cpu[i].z = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
 	}
 
 	// input (charge)
 	qv_cpu = (fp*)malloc(dim_cpu.space_mem2);
 	for(i=0; i<dim_cpu.space_elem; i=i+1){
-		qv_cpu[i] = (rand()%10 + 1) / 10;			// get a number in the range 0.1 - 1.0
+		qv_cpu[i] = (rand()%10 + 1) / 10.0;			// get a number in the range 0.1 - 1.0
 	}
 
 	// output (forces)
@@ -257,25 +283,34 @@ main(	int argc,
 	//======================================================================================================================================================150
 
 	//====================================================================================================100
-	//	CPU/MCPU
+	//	GPU
 	//====================================================================================================100
-
-	#pragma acc data copy(fv_cpu[0:dim_cpu.space_mem]) \
-		copyin(box_cpu[0:dim_cpu.box_mem],rv_cpu[0:dim_cpu.space_mem],qv_cpu[0:dim_cpu.space_mem2])
-	{
-	kernel_acc(	par_cpu,
+  
+ {
+	kernel_gpu(	par_cpu,
 				dim_cpu,
 				box_cpu,
 				rv_cpu,
 				qv_cpu,
 				fv_cpu);
-	} /* end pragma acc data */
-
+}
 	time6 = get_time();
 
 	//======================================================================================================================================================150
 	//	SYSTEM MEMORY DEALLOCATION
 	//======================================================================================================================================================150
+
+	// dump results
+#ifdef OUTPUT
+        FILE *fptr;
+	fptr = fopen("result.txt", "w");	
+	for(i=0; i<dim_cpu.space_elem; i=i+1){
+        	fprintf(fptr, "%f, %f, %f, %f\n", fv_cpu[i].v, fv_cpu[i].x, fv_cpu[i].y, fv_cpu[i].z);
+	}
+	fclose(fptr);
+#endif       	
+
+
 
 	free(rv_cpu);
 	free(qv_cpu);

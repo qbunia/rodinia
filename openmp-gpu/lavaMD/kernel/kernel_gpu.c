@@ -10,9 +10,13 @@ extern "C" {
 //	LIBRARIES
 //======================================================================================================================================================150
 
+#include <omp.h>									// (in path known to compiler)			needed by openmp
 #include <stdlib.h>									// (in path known to compiler)			needed by malloc
 #include <stdio.h>									// (in path known to compiler)			needed by printf
 #include <math.h>									// (in path known to compiler)			needed by exp
+
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
 
 //======================================================================================================================================================150
 //	MAIN FUNCTION HEADER
@@ -27,21 +31,23 @@ extern "C" {
 #include "./../util/timer/timer.h"					// (in library path specified to compiler)	needed by timer
 
 //======================================================================================================================================================150
-//	KERNEL_ACC FUNCTION HEADER
+//	KERNEL_CPU FUNCTION HEADER
 //======================================================================================================================================================150
 
-#include "kernel_acc.h"								// (in the current directory)
+#include "kernel_gpu.h"								// (in the current directory)
 
 //========================================================================================================================================================================================================200
 //	PLASMAKERNEL_GPU
 //========================================================================================================================================================================================================200
 
-void  kernel_acc(	par_str par, 
+void  kernel_gpu(	par_str par, 
 					dim_str dim,
 					box_str* box,
 					FOUR_VECTOR* rv,
 					fp* qv,
-					FOUR_VECTOR* fv)
+					FOUR_VECTOR* fv
+                       
+          )
 {
 
 	//======================================================================================================================================================150
@@ -91,6 +97,8 @@ void  kernel_acc(	par_str par,
 	//	MCPU SETUP
 	//======================================================================================================================================================150
 
+	omp_set_num_threads(dim.cores_arg);
+
 	time2 = get_time();
 
 	//======================================================================================================================================================150
@@ -106,7 +114,28 @@ void  kernel_acc(	par_str par,
 	//	PROCESS INTERACTIONS
 	//======================================================================================================================================================150
 
-	#pragma acc parallel loop present(box,rv,qv,fv)
+//	#pragma omp	parallel for \
+	//			private(i, j, k) \
+	//			private(first_i, rA, fA) \
+//				private(pointer, first_j, rB, qB) \
+	//			private(r2, u2, fs, vij, fxij, fyij, fzij, d)
+ /*
+ void  kernel_cpu(	par_str par, 
+					dim_str dim,
+					box_str* box,
+					FOUR_VECTOR* rv,
+					fp* qv,
+					FOUR_VECTOR* fv
+                       
+          )
+          */
+ #pragma omp target data map(tofrom: fv[0:dim.space_elem])
+ #pragma omp target data map(to: par, dim) map(to:rv[0:dim.space_elem], qv[0:dim.space_elem]) map(to: box[0:dim.number_boxes])
+ #pragma omp target teams distribute parallel for num_teams(NUM_TEAMS) num_threads(NUM_THREADS) \
+        private(i, j, k) \
+				private(first_i, rA, fA) \
+				private(pointer, first_j, rB, qB) \
+				private(r2, u2, fs, vij, fxij, fyij, fzij, d)
 	for(l=0; l<dim.number_boxes; l=l+1){
 
 		//------------------------------------------------------------------------------------------100
@@ -125,7 +154,7 @@ void  kernel_acc(	par_str par,
 		//------------------------------------------------------------------------------------------100
 		//	Do for the # of (home+neighbor) boxes
 		//------------------------------------------------------------------------------------------100
-		#pragma acc loop seq
+
 		for (k=0; k<(1+box[l].nn); k++) 
 		{
 
@@ -156,11 +185,10 @@ void  kernel_acc(	par_str par,
 			//----------------------------------------50
 			//	Do for the # of particles in home box
 			//----------------------------------------50
-			#pragma acc loop seq
+
 			for (i=0; i<NUMBER_PAR_PER_BOX; i=i+1){
 
 				// do for the # of particles in current (home or neighbor) box
-				#pragma acc loop seq
 				for (j=0; j<NUMBER_PAR_PER_BOX; j=j+1){
 
 					// // coefficients
