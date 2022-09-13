@@ -32,7 +32,13 @@ on BlueGene/L." In Proceedings of the 2005 Supercomputing Conference (SC 05). Se
 //======================================================================================================================================================150
 
 The code takes the followint parameters:
+-cores		(number of CPU cores to be uses for execution)
 -boxes1d		(number of boxes in one dimension, the total number of boxes will be that^3)
 
 The code can be run as follows:
-./lavaMD -boxes1d 10
+./lavaMD -cores 4 -boxes1d 10
+
+######OUTPUT FOR VALIDATION########
+USAGE:
+make clean
+make OUTPUT=Y

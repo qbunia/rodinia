@@ -6,54 +6,58 @@
           # .
           # .
 	# command n
+ifdef OUTPUT
+override OUTPUT = -DOUTPUT
+endif
 
-#C_C = pathcc
-#C_C_FLAG = -acc
 C_C = pgcc
-C_C_FLAG = -acc -Minfo -I /usr/include/i386-linux-gnu/ -L /usr/lib/i386-linux-gnu/ -g
+#OMP_LIB = -lgomp
+CC_FLAG = -O3 -acc
 
 # link objects (binaries) together
 a.out:		main.o \
-			./kernel/kernel_acc.o \
+			./kernel/kernel_gpu.o \
 			./util/num/num.o \
 			./util/timer/timer.o
-	$(C_C) $(C_C_FLAG) main.o \
-			./kernel/kernel_acc.o \
+	$(C_C)	main.o \
+			./kernel/kernel_gpu.o \
 			./util/num/num.o \
 			./util/timer/timer.o \
 			-lm \
+			$(CC_FLAG) \
 			-o lavaMD
 # compile function files into objects (binaries)
 main.o:		main.h \
 			main.c \
-			./kernel/kernel_acc.h \
-			./kernel/kernel_acc.c \
+			./kernel/kernel_gpu.h \
+			./kernel/kernel_gpu.c \
 			./util/num/num.h \
 			./util/num/num.c \
 			./util/timer/timer.h \
 			./util/timer/timer.c
-	$(C_C) $(C_C_FLAG) main.c \
+	$(C_C)	${OUTPUT} main.c \
 			-c \
 			-o main.o \
 			-O3
 
-./kernel/kernel_acc.o:	./kernel/kernel_acc.h \
-						./kernel/kernel_acc.c
-	$(C_C) $(C_C_FLAG) 	./kernel/kernel_acc.c \
+./kernel/kernel_gpu.o:	./kernel/kernel_gpu.h \
+						./kernel/kernel_gpu.c
+	$(C_C)				./kernel/kernel_gpu.c \
 						-c \
-						-o ./kernel/kernel_acc.o \
-						-O3
+						-o ./kernel/kernel_gpu.o \
+						-O3 \
+						$(CC_FLAG)
 
 ./util/num/num.o:	./util/num/num.h \
 					./util/num/num.c
-	$(C_C) $(C_C_FLAG) ./util/num/num.c \
+	$(C_C)			./util/num/num.c \
 					-c \
 					-o ./util/num/num.o \
 					-O3
 
 ./util/timer/timer.o:	./util/timer/timer.h \
 						./util/timer/timer.c
-	$(C_C) $(C_C_FLAG) 	./util/timer/timer.c \
+	$(C_C)				./util/timer/timer.c \
 						-c \
 						-o ./util/timer/timer.o \
 						-O3
@@ -64,4 +68,5 @@ clean:
 		./kernel/*.o \
 		./util/num/*.o \
 		./util/timer/*.o \
+                ./util/device/*.o \
 		lavaMD
