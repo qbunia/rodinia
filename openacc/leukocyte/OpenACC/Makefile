@@ -1,7 +1,7 @@
 include ../../../common/make.config
 
 # C compiler
-CC = pathcc
+CC = pgcc
 CC_FLAGS = -g -O3 -Wall -acc -I$(MATRIX_DIR)
 
 # Matrix library path
