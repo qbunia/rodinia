@@ -4,7 +4,7 @@ endif
 
 
 # C compiler
-CC = gcc
+CC = clang
 CC_FLAGS = -g -O3 -Wall -fopenmp -I$(MATRIX_DIR)
 
 # Matrix library path
