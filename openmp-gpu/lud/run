@@ -1,1 +1,1 @@
-./openacc/lud_openacc -i ../../data/lud/512.dat 
+./openmp-gpu/lud_openmp_gpu -i ../../data/lud/512.dat 

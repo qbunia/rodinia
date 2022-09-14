@@ -1,7 +1,7 @@
 all: lud_openacc
 
 lud_openacc:
-	cd openacc; make
+	cd openmp-gpu; make
 
 clean:
-	cd openacc; make clean
+	cd openmp-gpu; make clean

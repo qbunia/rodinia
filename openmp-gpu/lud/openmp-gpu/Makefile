@@ -9,19 +9,19 @@ DEBUG          := YES
 PROFILE        := NO
 
 # ------------  name of the executable  ----------------------------------------
-EXECUTABLE      := lud_openacc
+EXECUTABLE      := lud_openmp_gpu
 
 # ------------  list of all source files  --------------------------------------
-SOURCES         := lud.c lud_openacc.c ../common/common.c 
+SOURCES         := lud.c lud_openmp_gpu.c ../common/common.c 
 
 # ------------  compiler  ------------------------------------------------------
-CC              := pathcc
-CXX             := pathCC
+CC              := clang
+CXX             := clang
 
 # ------------  compiler flags  ------------------------------------------------
 DEBUG_CFLAGS    := -O0 -g
 RELEASE_CFLAGS  := -O3 
-COMMON_CFLAGS   := -acc
+COMMON_CFLAGS   := -fopenmp -fopenmp-targets=nvptx64
 
 # ------------  compiler defs  ------------------------------------------------
 DEBUG_CDEFS    := 
@@ -31,7 +31,7 @@ COMMON_CDEFS   :=
 # ------------  linker flags  --------------------------------------------------
 DEBUG_LDFLAGS    := -g
 RELEASE_LDFLAGS  := 
-COMMON_LDFLAGS   := -acc
+COMMON_LDFLAGS   := -O3 -fopenmp -fopenmp-targets=nvptx64
 
 ifeq (YES, ${DEBUG})
   CFLAGS       := ${DEBUG_CFLAGS} ${DEBUG_CDEFS}

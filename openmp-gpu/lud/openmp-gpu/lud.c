@@ -35,7 +35,7 @@ static struct option long_options[] = {
 };
 
 extern void
-lud_openacc(float *m, int matrix_dim);
+lud_openmp_gpu(float *m, int matrix_dim);
 
 int
 main ( int argc, char *argv[] )
@@ -99,7 +99,7 @@ main ( int argc, char *argv[] )
   }
 
       stopwatch_start(&sw);
-      lud_openacc(m, matrix_dim);
+      lud_openmp_gpu(m, matrix_dim);
       stopwatch_stop(&sw);
       printf("Time consumed(ms): %lf\n", 1000*get_interval_by_sec(&sw));
 
