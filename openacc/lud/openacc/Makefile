@@ -15,8 +15,8 @@ EXECUTABLE      := lud_openacc
 SOURCES         := lud.c lud_openacc.c ../common/common.c 
 
 # ------------  compiler  ------------------------------------------------------
-CC              := pathcc
-CXX             := pathCC
+CC              := nvc++
+CXX             := nvc++
 
 # ------------  compiler flags  ------------------------------------------------
 DEBUG_CFLAGS    := -O0 -g
