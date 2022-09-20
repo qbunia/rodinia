@@ -1,14 +1,14 @@
-include ../../common/make.config
+CC = clang++
+CC_FLAGS = -g -O3 -fopenmp -fopenmp-targets=nvptx64 -Wall
 
-CC = pathcc
-CC_FLAGS = -g -O3 -acc
+sc.out: streamcluster.cpp
+	$(CC) $(CC_FLAGS) streamcluster.cpp -o sc.out
 
-TARGET_G = sc_gpu
+.PHONY: run clean
 
-$(TARGET_G): streamcluster.cpp streamcluster_kernel.cpp
-	$(CC) $(CC_FLAGS) streamcluster.cpp streamcluster_kernel.cpp -o $(TARGET_G)
-	
+run: sc.out
+	./sc.out 10 20 256 65536 65536 1000 none output.log 4
 
 clean:
-	rm -f *.o *~ *.txt $(TARGET_G) *.linkinfo
+	rm -f *.o *.out *.log
 	
