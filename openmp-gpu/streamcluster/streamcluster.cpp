@@ -17,6 +17,7 @@
 #include <iostream>
 #include <limits.h>
 #include <math.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,6 +69,9 @@ static bool *switch_membership; // whether to switch membership in pgain
 static bool *is_center;         // whether a point is a center
 static int *center_table;       // index table of centers
 float *block;
+float *coord_d;
+bool isCoordChanged = false;
+int iter_index = 0;
 
 static int nproc; // # of threads
 static int c, d;
@@ -180,6 +184,15 @@ float dist(Point p1, Point p2, int dim) {
   result -= s;
 #endif
   return (result);
+}
+
+float dist_d(int p1, int p2, int dim, float *coord) {
+  float result = 0.0;
+  for (int i = 0; i < dim; i++) {
+    float tmp = coord[p1 * dim + i] - coord[p2 * dim + i];
+    result += tmp * tmp;
+  }
+  return result;
 }
 #pragma omp end declare target
 
@@ -450,16 +463,29 @@ double pgain(long x, Points *points, double z, long int *numcenters, int pid,
 
   // OpenMP parallelization
   long chunksize = points->num;
-#pragma omp target teams distribute parallel for map(tofrom                    \
-                                                     : points, points->p       \
-                                                               [0:chunksize])  \
+  long num = points->num;
+  int dim = points->dim;
+  if (isCoordChanged || iter_index == 0) {
+    for (int i = k1; i < k2; i++) {
+      for (int j = 0; j < dim; j++) {
+        coord_d[dim * i + j] = points->p[i].coord[j];
+      }
+    }
+#pragma omp target update to(coord_d [0:num * dim])
+  }
+#pragma omp target teams distribute parallel for map(                          \
+    to                                                                         \
+    : points, points->p [0:chunksize], center_table [0:chunksize])             \
     map(tofrom                                                                 \
-        : switch_membership [0:chunksize], center_table [0:chunksize],         \
-          cost_of_opening_x, lower [0:stride * (nproc + 1)]) num_teams(256)    \
-        num_threads(1024) reduction(+ : cost_of_opening_x)
+        : cost_of_opening_x)                                                   \
+        map(tofrom                                                             \
+            : switch_membership [0:chunksize], lower [0:stride * (nproc + 1)]) \
+            num_teams(256) num_threads(1024) reduction(+ : cost_of_opening_x)
   for (i = k1; i < k2; i++) {
-    float x_cost =
-        dist(points->p[i], points->p[x], points->dim) * points->p[i].weight;
+    // float x_cost2 =
+    // dist(points->p[i], points->p[x], points->dim) * points->p[i].weight;
+    float x_cost = dist_d(i, x, dim, coord_d) * points->p[i].weight;
+    // assert(x_cost == x_cost2);
     float current_cost = points->p[i].cost;
 
     if (x_cost < current_cost) {
@@ -589,6 +615,7 @@ double pgain(long x, Points *points, double z, long int *numcenters, int pid,
     time_gain += t3 - t0;
 #endif
   // printf("cost=%f\n", -gl_cost_of_opening_x);
+  iter_index++;
   return -gl_cost_of_opening_x;
 }
 
@@ -613,42 +640,36 @@ float pFL(Points *points, int *feasible, int numfeasible, float z, long *k,
   long coordSize = numberOfPoints * points->dim;
 
   change = cost;
-/* continue until we run iter iterations without improvement */
-/* stop instead if improvement is less than e */
-#pragma omp target data map(tofrom                                             \
-                            : center_table [0:numberOfPoints])                 \
-    map(to                                                                     \
-        : points, points->p [0:numberOfPoints])
-  {
-    while (change / cost > 1.0 * e) {
-      change = 0.0;
-      /* randomize order in which centers are considered */
+  /* continue until we run iter iterations without improvement */
+  /* stop instead if improvement is less than e */
+  while (change / cost > 1.0 * e) {
+    change = 0.0;
+    /* randomize order in which centers are considered */
 
-      if (pid == 0) {
-        intshuffle(feasible, numfeasible);
-      }
-#ifdef ENABLE_THREADS
-      pthread_barrier_wait(barrier);
-#endif
-      for (i = 0; i < iter; i++) {
-        x = i % numfeasible;
-        // printf("iteration %d started********\n", i);
-        change += pgain(feasible[x], points, z, k, pid, barrier);
-        c++;
-        // printf("iteration %d finished @@@@@@\n", i);
-      }
-
-      cost -= change;
-#ifdef PRINTINFO
-      if (pid == 0) {
-        fprintf(stderr, "%d centers, cost %lf, total distance %lf\n", *k, cost,
-                cost - z * (*k));
-      }
-#endif
-#ifdef ENABLE_THREADS
-      pthread_barrier_wait(barrier);
-#endif
+    if (pid == 0) {
+      intshuffle(feasible, numfeasible);
     }
+#ifdef ENABLE_THREADS
+    pthread_barrier_wait(barrier);
+#endif
+    for (i = 0; i < iter; i++) {
+      x = i % numfeasible;
+      // printf("iteration %d started********\n", i);
+      change += pgain(feasible[x], points, z, k, pid, barrier);
+      c++;
+      // printf("iteration %d finished @@@@@@\n", i);
+    }
+
+    cost -= change;
+#ifdef PRINTINFO
+    if (pid == 0) {
+      fprintf(stderr, "%d centers, cost %lf, total distance %lf\n", *k, cost,
+              cost - z * (*k));
+    }
+#endif
+#ifdef ENABLE_THREADS
+    pthread_barrier_wait(barrier);
+#endif
   }
   return (cost);
 }
@@ -988,6 +1009,7 @@ void *localSearchSub(void *arg_) {
 }
 
 void localSearch(Points *points, long kmin, long kmax, long *kfinal) {
+
 #ifdef PROFILE
   double t1 = gettime();
 #endif
@@ -1165,6 +1187,7 @@ void streamCluster(PStream *stream, long kmin, long kmax, int dim,
 
     fprintf(stderr, "finish local search\n");
     contcenters(&points);
+    isCoordChanged = true;
     if (kfinal + centers.num > centersize) {
       // here we don't handle the situation where # of centers gets too large.
       fprintf(stderr, "oops! no more space for centers\n");
@@ -1266,10 +1289,15 @@ int main(int argc, char **argv) {
 
   double t1 = gettime();
 
+  isCoordChanged = false;
+  coord_d = (float *)malloc(chunksize * dim * sizeof(float));
 #ifdef ENABLE_PARSEC_HOOKS
   __parsec_roi_begin();
 #endif
-  streamCluster(stream, kmin, kmax, dim, chunksize, clustersize, outfilename);
+#pragma omp target data map(alloc : coord_d [0:chunksize * dim])
+  {
+    streamCluster(stream, kmin, kmax, dim, chunksize, clustersize, outfilename);
+  }
 #ifdef ENABLE_PARSEC_HOOKS
   __parsec_roi_end();
 #endif
@@ -1279,6 +1307,8 @@ int main(int argc, char **argv) {
   printf("time = %lf\n", t2 - t1);
 
   delete stream;
+
+  free(coord_d);
 
   printf("time pgain = %lf\n", time_gain);
   printf("time pgain_dist = %lf\n", time_gain_dist);
