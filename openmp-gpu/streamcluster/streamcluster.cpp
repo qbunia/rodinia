@@ -75,7 +75,6 @@ int iter_index = 0;
 
 static int nproc; // # of threads
 static int c, d;
-static int ompthreads;
 
 // instrumentation code
 #ifdef PROFILE
@@ -110,18 +109,6 @@ int isIdentical(float *i, float *j, int D)
     return 1;
   else
     return 0;
-}
-
-/* comparator for floating point numbers */
-static int floatcomp(const void *i, const void *j) {
-  float a, b;
-  a = *(float *)(i);
-  b = *(float *)(j);
-  if (a > b)
-    return (1);
-  if (a < b)
-    return (-1);
-  return (0);
 }
 
 /* shuffle points into random order */
@@ -186,7 +173,7 @@ float dist(Point p1, Point p2, int dim) {
   return (result);
 }
 
-float dist_d(int p1, int p2, int dim, float *coord) {
+float d_dist(int p1, int p2, int dim, float *coord) {
   float result = 0.0;
   for (int i = 0; i < dim; i++) {
     float tmp = coord[p1 * dim + i] - coord[p2 * dim + i];
@@ -195,6 +182,15 @@ float dist_d(int p1, int p2, int dim, float *coord) {
   return result;
 }
 #pragma omp end declare target
+
+#define D_DIST(p1, p2, dim, coord, ret)                                        \
+  {                                                                            \
+    ret = 0.0;                                                                 \
+    for (int k = 0; k < dim; k++) {                                            \
+      float tmp = coord[p1 * dim + k] - coord[p2 * dim + k];                   \
+      ret += tmp * tmp;                                                        \
+    }                                                                          \
+  }
 
 /* run speedy on the points, return total cost of solution */
 float pspeedy(Points *points, float z, long *kcenter, int pid,
@@ -215,7 +211,6 @@ float pspeedy(Points *points, float z, long *kcenter, int pid,
 
   static double totalcost;
 
-  static bool open = false;
   static double *costs; // cost for each thread.
   static int i;
 
@@ -275,7 +270,6 @@ float pspeedy(Points *points, float z, long *kcenter, int pid,
 #ifdef ENABLE_THREADS
         pthread_mutex_lock(&mutex);
 #endif
-        open = true;
 #ifdef ENABLE_THREADS
         pthread_mutex_unlock(&mutex);
         pthread_cond_broadcast(&cond);
@@ -290,7 +284,6 @@ float pspeedy(Points *points, float z, long *kcenter, int pid,
 #ifdef ENABLE_THREADS
         pthread_barrier_wait(barrier);
 #endif
-        open = false;
 #ifdef ENABLE_THREADS
         pthread_barrier_wait(barrier);
 #endif
@@ -299,7 +292,6 @@ float pspeedy(Points *points, float z, long *kcenter, int pid,
 #ifdef ENABLE_THREADS
     pthread_mutex_lock(&mutex);
 #endif
-    open = true;
 #ifdef ENABLE_THREADS
     pthread_mutex_unlock(&mutex);
     pthread_cond_broadcast(&cond);
@@ -308,7 +300,6 @@ float pspeedy(Points *points, float z, long *kcenter, int pid,
 #ifdef ENABLE_THREADS
   pthread_barrier_wait(barrier);
 #endif
-  open = false;
   double mytotal = 0;
   for (int k = k1; k < k2; k++) {
     mytotal += points->p[k].cost;
@@ -484,7 +475,10 @@ double pgain(long x, Points *points, double z, long int *numcenters, int pid,
   for (i = k1; i < k2; i++) {
     // float x_cost2 =
     // dist(points->p[i], points->p[x], points->dim) * points->p[i].weight;
-    float x_cost = dist_d(i, x, dim, coord_d) * points->p[i].weight;
+    float res;
+    D_DIST(i, x, dim, coord_d, res);
+    float x_cost = res * points->p[i].weight;
+    // float x_cost = d_dist(i, x, dim, coord_d) * points->p[i].weight;
     // assert(x_cost == x_cost2);
     float current_cost = points->p[i].cost;
 
@@ -635,9 +629,6 @@ float pFL(Points *points, int *feasible, int numfeasible, float z, long *k,
   long i;
   long x;
   double change;
-  long numberOfPoints = points->num;
-  long workMemSize = (*k + 1) * (numberOfPoints + 1);
-  long coordSize = numberOfPoints * points->dim;
 
   change = cost;
   /* continue until we run iter iterations without improvement */
@@ -753,7 +744,6 @@ float pkmedian(Points *points, long kmin, long kmax, long *kfinal, int pid,
                pthread_barrier_t *barrier) {
   int i;
   double cost;
-  double lastcost;
   double hiz, loz, z;
 
   static long k;
@@ -764,7 +754,6 @@ float pkmedian(Points *points, long kmin, long kmax, long *kfinal, int pid,
   if (pid == 0)
     hizs = (double *)calloc(nproc, sizeof(double));
   hiz = loz = 0.0;
-  long numberOfPoints = points->num;
   long ptDimension = points->dim;
 
   // my block
@@ -883,7 +872,6 @@ float pkmedian(Points *points, long kmin, long kmax, long *kfinal, int pid,
     /* first get a rough estimate on the FL solution */
     //    pthread_barrier_wait(barrier);
 
-    lastcost = cost;
     cost = pFL(points, feasible, numfeasible, z, &k, cost,
                (long)(ITER * kmax * log((double)kmax)), 0.1, pid, barrier);
 
@@ -1169,7 +1157,7 @@ void streamCluster(PStream *stream, long kmin, long kmax, int dim,
     fprintf(stderr, "read %ld points\n", numRead);
 
     if (stream->ferror() ||
-        numRead < (unsigned int)chunksize && !stream->feof()) {
+        (numRead < (unsigned int)chunksize && !stream->feof())) {
       fprintf(stderr, "error reading data!\n");
       exit(1);
     }
@@ -1229,7 +1217,6 @@ int main(int argc, char **argv) {
   char *infilename = new char[MAXNAMESIZE];
   long kmin, kmax, n, chunksize, clustersize;
   int dim;
-  int numthreads;
   c = 0;
   d = 0;
 #ifdef PARSEC_VERSION
