@@ -427,6 +427,7 @@ double pgain(long x, Points *points, double z, long int *numcenters, int pid) {
       // would save z by closing; now we have to subtract from the savings
       // the extra cost of reassigning that median and its members
       int assign = d_points[i].assign;
+#pragma omp atomic
       lower[center_table[assign]] += current_cost - x_cost;
     }
   }
