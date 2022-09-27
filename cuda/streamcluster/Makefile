@@ -4,7 +4,7 @@ NVCC = $(CUDA_DIR)/bin/nvcc
 
 NVCC_FLAGS = -I$(CUDA_DIR)/include
 
-TARGET_G = sc_gpu
+TARGET_G = sc_gpu.out
 
 
 # make dbg=1 tells nvcc to add debugging symbols to the binary
@@ -30,5 +30,5 @@ $(TARGET_G): streamcluster_cuda_cpu.cpp streamcluster_cuda.cu streamcluster_head
 	
 
 clean:
-	rm -f *.o *~ *.txt $(TARGET_G) *.linkinfo
+	rm -f *.o *.log $(TARGET_G) *.linkinfo
 	
