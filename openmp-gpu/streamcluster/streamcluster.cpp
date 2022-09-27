@@ -17,7 +17,6 @@
 #include <iostream>
 #include <limits.h>
 #include <math.h>
-#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -399,7 +398,7 @@ double pgain(long x, Points *points, double z, long int *numcenters, int pid) {
     : d_points [0:chunksize], center_table [0:chunksize])                      \
     map(tofrom                                                                 \
         : switch_membership [0:chunksize], lower [0:stride * (nproc + 1)])     \
-        num_teams(1024) num_threads(256) reduction(+ : cost_of_opening_x)
+        num_teams(1024) num_threads(512) reduction(+ : cost_of_opening_x)
   for (int i = k1; i < k2; i++) {
     // float x_cost2 =
     // dist(points->p[i], points->p[x], points->dim) * points->p[i].weight;

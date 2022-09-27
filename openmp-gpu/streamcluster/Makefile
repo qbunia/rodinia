@@ -7,7 +7,7 @@ sc.out: streamcluster.cpp
 .PHONY: run clean
 
 run: sc.out
-	./sc.out 10 20 256 65536 65536 1000 none output.log 4
+	./sc.out 10 20 256 65536 65536 1000 none output.log 1
 
 clean:
 	rm -f *.o *.out *.log
