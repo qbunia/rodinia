@@ -1,8 +1,8 @@
 PREFIX=${PARSECDIR}/pkgs/kernels/streamcluster/inst/${PARSECPLAT}
 
-TARGET_C = sc_cpu
+TARGET_C = sc_cpu.out
 
-TARGET_O = sc_omp
+TARGET_O = sc_omp.out
 
 ifdef version
   ifeq "$(version)" "parallel"
@@ -12,13 +12,12 @@ endif
 
 all: cpu omp
 
-cpu:
+cpu: $(TARGET_C)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) streamcluster_original.cpp -o $(TARGET_C) $(LIBS) -DENABLE_THREADS -pthread
 
-omp:
-	g++ -O3 -fopenmp -o $(TARGET_O) streamcluster_omp.cpp
+omp: $(TARGET_O)
+	clang++ -Wall -g -O3 -fopenmp -o $(TARGET_O) streamcluster_omp.cpp
 
-
+.PHONY: clean
 clean:
-	rm -f *.o *~ *.txt sc_cpu sc_omp
-	
+	rm -f *.o *.out *.log

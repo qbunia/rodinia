@@ -381,7 +381,6 @@ double pgain(long x, Points *points, double z, long int *numcenters, int pid) {
   double *gl_lower = &work_mem[nproc * stride];
 
   // OpenMP parallelization
-  long chunksize = points->num;
   long num = points->num;
   int dim = points->dim;
   if (isCoordChanged || iter_index == 0) {
@@ -392,20 +391,17 @@ double pgain(long x, Points *points, double z, long int *numcenters, int pid) {
     }
 #pragma acc update device(coord_d [0:num * dim])
   }
+
   Point *d_points = points->p;
-#pragma acc parallel loop copyin(d_points [0:chunksize],                       \
-                                 center_table [0:chunksize])                   \
-    copy(switch_membership [0:chunksize], lower [0:stride * (nproc + 1)])      \
+#pragma acc parallel loop copyin(d_points [0:num], center_table [0:num],       \
+                                 coord_d [0:num * dim])                        \
+    copy(switch_membership [0:num], lower [0:stride * (nproc + 1)])            \
         num_gangs(1024) num_workers(1) vector_length(512)                      \
     reduction(+ : cost_of_opening_x)
   for (int i = k1; i < k2; i++) {
-    // float x_cost2 =
-    // dist(points->p[i], points->p[x], points->dim) * points->p[i].weight;
     float res;
     D_DIST(i, x, dim, coord_d, res);
     float x_cost = res * d_points[i].weight;
-    // float x_cost = d_dist(i, x, dim, coord_d) * points->p[i].weight;
-    // assert(x_cost == x_cost2);
     float current_cost = d_points[i].cost;
 
     if (x_cost < current_cost) {
@@ -1146,7 +1142,7 @@ int main(int argc, char **argv) {
 #ifdef ENABLE_PARSEC_HOOKS
   __parsec_roi_begin();
 #endif
-#pragma acc data create(coord_d [0:chunksize * dim])
+#pragma acc data copyin(coord_d [0:chunksize * dim])
   {
     streamCluster(stream, kmin, kmax, dim, chunksize, clustersize, outfilename);
   }

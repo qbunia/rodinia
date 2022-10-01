@@ -1,13 +1,23 @@
-CC = nvc++
-CC_FLAGS = -g -O3 -acc -Wall
+GCC = g++
+GCC_FLAGS = -fopenacc
 
-sc.out: streamcluster.cpp
-	$(CC) $(CC_FLAGS) streamcluster.cpp -o sc.out
+NV = nvc++
+NV_FLAGS = -acc
+
+CC_FLAGS = -g -O3 -Wall
+
+sc_nv.out: streamcluster.cpp
+	$(NV) $(NV_FLAGS) $(CC_FLAGS) streamcluster.cpp -o $@
+
+sc_gcc.out: streamcluster.cpp
+	$(GCC) $(GCC_FLAGS) $(CC_FLAGS) streamcluster.cpp -o $@
+
+all: sc_gcc.out sc_nv.out
 
 .PHONY: run clean
 
-run: sc.out
-	./sc.out 10 20 256 65536 65536 1000 none output.log 1
+run: sc_nv.out
+	./sc_nv.out 10 20 256 65536 65536 1000 none output.log 1
 
 clean:
 	rm -f *.o *.out *.log
