@@ -1,18 +1,30 @@
-CC = clang++
+LLVM = clang++
+LLVM_FLAGS = -fopenmp -fopenmp-targets=nvptx64
+
+NV = nvc++
+NV_FLAGS = -mp=gpu
+
+GCC = g++
+GCC_FLAGS = -fopenmp
+
 SRC = pathfinder.cpp
-EXE = pathfinder.out
-FLAGS = -O3 -fopenmp -fopenmp-targets=nvptx64
+CC_FLAGS = -g -O3 -Wall
 
-$(EXE): $(SRC)
-	$(CC) $(SRC) $(FLAGS) -o $(EXE)
+pf_llvm.out: $(SRC)
+	$(LLVM) $(LLVM_FLAGS) $(CC_FLAGS) $(SRC) -o $@
 
-debug: $(SRC)
-	$(CC) $(SRC) -g -Wall -o $(EXE)
+pf_nv.out: $(SRC)
+	$(NV) $(NV_FLAGS) $(CC_FLAGS) $(SRC) -o $@
+
+pf_gcc.out: $(SRC)
+	$(GCC) $(GCC_FLAGS) $(CC_FLAGS) $(SRC) -o $@
+
+all: pf_llvm.out pf_gcc.out pf_nv.out
 
 .PHONY: run clean
 
-run: $(EXE)
-	./pathfinder.out 100000 100 > result.log
+run: pf_llvm.out
+	./pf_llvm.out 100000 100 > result.log
 
 clean:
 	rm -f *.o *.out *.log

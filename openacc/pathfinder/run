@@ -1,1 +1,1 @@
-./pathfinder.out 100000 100 > result.log
+./pf_nv.out 100000 100 > result.log

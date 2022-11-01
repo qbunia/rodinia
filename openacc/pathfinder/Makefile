@@ -1,18 +1,24 @@
-CC = nvc++
+GCC = g++
+GCC_FLAGS = -fopenacc
+
+NV = nvc++
+NV_FLAGS = -acc
+
 SRC = pathfinder.cpp
-EXE = pathfinder.out
-FLAGS = -O3 -acc
+CC_FLAGS = -g -O3 -Wall
 
-$(EXE): $(SRC)
-	$(CC) $(SRC) $(FLAGS) -o $(EXE)
+pf_nv.out: $(SRC)
+	$(NV) $(NV_FLAGS) $(CC_FLAGS) $(SRC) -o $@
 
-debug: $(SRC)
-	$(CC) $(SRC) -g -Wall -o $(EXE)
+pf_gcc.out: $(SRC)
+	$(GCC) $(GCC_FLAGS) $(CC_FLAGS) $(SRC) -o $@
+
+all: pf_gcc.out pf_nv.out
 
 .PHONY: run clean
 
-run: $(EXE)
-	./pathfinder.out 100000 100 > result.log
+run: pf_nv.out
+	./pf_nv.out 100000 100 > result.log
 
 clean:
 	rm -f *.o *.out *.log
