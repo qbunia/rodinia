@@ -1,13 +1,13 @@
-LLVM = clang++
+LLVM = clang
 LLVM_FLAGS = -fopenmp -fopenmp-targets=nvptx64
 
-NV = nvc++
+NV = nvc
 NV_FLAGS = -mp=gpu
 
-GCC = g++
+GCC = gcc
 GCC_FLAGS = -fopenmp
 
-SRC = pathfinder.cpp
+SRC = pathfinder.c
 CC_FLAGS = -g -O3 -Wall
 
 pf_llvm.out: $(SRC)

@@ -1,10 +1,10 @@
-GCC = g++
+GCC = gcc
 GCC_FLAGS = -fopenacc
 
-NV = nvc++
+NV = nvc
 NV_FLAGS = -acc
 
-SRC = pathfinder.cpp
+SRC = pathfinder.c
 CC_FLAGS = -g -O3 -Wall
 
 pf_nv.out: $(SRC)

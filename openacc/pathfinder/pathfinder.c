@@ -30,8 +30,8 @@ void init(int argc, char **argv) {
     printf("Usage: pathfiner width num_of_steps\n");
     exit(0);
   }
-  data = new int[rows * cols];
-  result = new int[cols];
+  data = (int *)malloc(rows * cols * sizeof(int));
+  result = (int *)malloc(cols * sizeof(int));
 
   int seed = M_SEED;
   srand(seed);
@@ -74,7 +74,7 @@ void run(int argc, char **argv) {
   int min;
 
   dst = result;
-  src = new int[cols];
+  src = (int *)malloc(cols * sizeof(int));
 
   pin_stats_reset();
 #pragma acc data copy(src [0:cols], dst [0:cols]) copyin(data [0:rows * cols])
@@ -109,7 +109,7 @@ void run(int argc, char **argv) {
   printf("\n");
 #endif
 
-  delete[] data;
-  delete[] dst;
-  delete[] src;
+  free(data);
+  free(dst);
+  free(src);
 }
