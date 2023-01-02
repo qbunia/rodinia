@@ -55,14 +55,8 @@ __global__ void OUT__2__5397__BFSGraph__151__kernel__(int *no_of_nodesp__,bool *
       }
   }
 }
-#ifdef __cplusplus
-}
-#endif
 __device__ char OUT__1__5397__BFSGraph__133__kernel___exec_mode = 0;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 __global__ void OUT__1__5397__BFSGraph__133__kernel__(int *no_of_nodesp__,struct Node *_dev_h_graph_nodes,bool *_dev_h_graph_mask,bool *_dev_h_updating_graph_mask,bool *_dev_h_graph_visited,int *_dev_h_graph_edges,int *_dev_h_cost)
 {
   int tid;
