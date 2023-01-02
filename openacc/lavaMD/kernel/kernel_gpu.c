@@ -15,8 +15,7 @@ extern "C" {
 #include <stdio.h>									// (in path known to compiler)			needed by printf
 #include <math.h>									// (in path known to compiler)			needed by exp
 
-#define NUM_TEAMS 256
-#define NUM_THREADS 1024
+#define NUM_THREADS 128
 
 //======================================================================================================================================================150
 //	MAIN FUNCTION HEADER
@@ -131,19 +130,20 @@ void  kernel_gpu(	par_str par,
           */
  #pragma acc data copy(fv[0:dim.space_elem])
  #pragma acc data copyin(par, dim) copyin(rv[0:dim.space_elem], qv[0:dim.space_elem]) copyin(box[0:dim.number_boxes])
- /*#pragma omp target teams distribute parallel for num_teams(NUM_TEAMS) num_threads(NUM_THREADS) \
+/* #pragma acc parallel loop \
+        num_gangs(dim.number_boxes) num_workers(NUM_THREADS) \
         private(i, j, k) \
 				private(first_i, rA, fA) \
 				private(pointer, first_j, rB, qB) \
-				private(r2, u2, fs, vij, fxij, fyij, fzij, d)*/
+				private(r2, u2, fs, vij, fxij, fyij, fzij, d)
+*/
   #pragma acc parallel loop \
-        num_gangs(NUM_TEAMS) num_workers(1) vector_length(NUM_THREADS) \
+        num_gangs(dim.number_boxes) num_workers(1) vector_length(NUM_THREADS) \
         private(i, j, k) \
 				private(first_i, rA, fA) \
 				private(pointer, first_j, rB, qB) \
 				private(r2, u2, fs, vij, fxij, fyij, fzij, d)
 	for(l=0; l<dim.number_boxes; l=l+1){
-     printf("this is a test from GPU");
 		//------------------------------------------------------------------------------------------100
 		//	home box - box parameters
 		//------------------------------------------------------------------------------------------100

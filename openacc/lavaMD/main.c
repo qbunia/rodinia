@@ -299,14 +299,12 @@ main(	int argc,
 	//======================================================================================================================================================150
 
 	// dump results
-#ifdef OUTPUT
         FILE *fptr;
 	fptr = fopen("result.txt", "w");	
 	for(i=0; i<dim_cpu.space_elem; i=i+1){
         	fprintf(fptr, "%f, %f, %f, %f\n", fv_cpu[i].v, fv_cpu[i].x, fv_cpu[i].y, fv_cpu[i].z);
 	}
-	fclose(fptr);
-#endif       	
+	fclose(fptr);     	
 
 
 
@@ -333,8 +331,8 @@ main(	int argc,
 
 	// printf("%15.12f s, %15.12f % : SYS MEM: FRE\n", 					(float) (time7-time6) / 1000000, (float) (time7-time6) / (float) (time7-time0) * 100);
 
-	// printf("Total time:\n");
-	// printf("%.12f s\n", 												(float) (time7-time0) / 1000000);
+	 printf("Total time:\n");
+	 printf("%.12f s\n", 												(float) (time6-time5) / 1000000);
 
 	//======================================================================================================================================================150
 	//	RETURN

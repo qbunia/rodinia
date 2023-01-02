@@ -6,9 +6,6 @@
           # .
           # .
 	# command n
-ifdef OUTPUT
-override OUTPUT = -DOUTPUT
-endif
 
 C_C = pgcc
 ACC_FLAG = -g -O3 -acc -Wall
@@ -34,7 +31,7 @@ main.o:		main.h \
 			./util/num/num.c \
 			./util/timer/timer.h \
 			./util/timer/timer.c
-	$(C_C)	${OUTPUT} main.c \
+	$(C_C) main.c \
 			-c \
 			-o main.o \
 			-O3
