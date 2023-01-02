@@ -137,6 +137,7 @@ void  kernel_gpu(	par_str par,
 				private(pointer, first_j, rB, qB) \
 				private(r2, u2, fs, vij, fxij, fyij, fzij, d)*/
   #pragma acc parallel loop \
+        num_gangs(NUM_TEAMS) num_workers(1) vector_length(NUM_THREADS) \
         private(i, j, k) \
 				private(first_i, rA, fA) \
 				private(pointer, first_j, rB, qB) \

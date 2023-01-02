@@ -11,8 +11,7 @@ override OUTPUT = -DOUTPUT
 endif
 
 C_C = pgcc
-#OMP_LIB = -lgomp
-CC_FLAG = -O3 -acc
+ACC_FLAG = -g -O3 -acc -Wall
 
 # link objects (binaries) together
 a.out:		main.o \
@@ -24,7 +23,7 @@ a.out:		main.o \
 			./util/num/num.o \
 			./util/timer/timer.o \
 			-lm \
-			$(CC_FLAG) \
+			$(ACC_FLAG) \
 			-o lavaMD
 # compile function files into objects (binaries)
 main.o:		main.h \
@@ -46,7 +45,7 @@ main.o:		main.h \
 						-c \
 						-o ./kernel/kernel_gpu.o \
 						-O3 \
-						$(CC_FLAG)
+						$(ACC_FLAG)
 
 ./util/num/num.o:	./util/num/num.h \
 					./util/num/num.c
