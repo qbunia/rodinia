@@ -16,7 +16,7 @@ extern "C" {
 #include <math.h>									// (in path known to compiler)			needed by exp
 
 #define NUM_TEAMS 256
-#define NUM_THREADS 1024
+#define NUM_THREADS 128
 
 //======================================================================================================================================================150
 //	MAIN FUNCTION HEADER
@@ -131,7 +131,7 @@ void  kernel_gpu(	par_str par,
           */
  #pragma omp target data map(tofrom: fv[0:dim.space_elem])
  #pragma omp target data map(to: par, dim) map(to:rv[0:dim.space_elem], qv[0:dim.space_elem]) map(to: box[0:dim.number_boxes])
- #pragma omp target teams distribute parallel for num_teams(NUM_TEAMS) num_threads(NUM_THREADS) \
+ #pragma omp target teams distribute parallel for num_teams(dim.number_boxes) num_threads(NUM_THREADS) \
         private(i, j, k) \
 				private(first_i, rA, fA) \
 				private(pointer, first_j, rB, qB) \

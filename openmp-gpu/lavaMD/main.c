@@ -299,14 +299,12 @@ main(	int argc,
 	//======================================================================================================================================================150
 
 	// dump results
-#ifdef OUTPUT
         FILE *fptr;
 	fptr = fopen("result.txt", "w");	
 	for(i=0; i<dim_cpu.space_elem; i=i+1){
         	fprintf(fptr, "%f, %f, %f, %f\n", fv_cpu[i].v, fv_cpu[i].x, fv_cpu[i].y, fv_cpu[i].z);
 	}
-	fclose(fptr);
-#endif       	
+	fclose(fptr);     	
 
 
 
