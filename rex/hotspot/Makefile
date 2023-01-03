@@ -13,8 +13,8 @@ all: hotspot.out
 clean: 
 	rm -rf ${OBJS} *.log *.out *.cubin
 
-hotspot.out: rex_lib_nvidia.cubin rose_hotspot.cpp register_cubin.cpp
-	clang -O3 -g rose_hotspot.cpp register_cubin.cpp -o $@ -L${LLVM_OPENMP_INSTALL}/lib -lomptarget -lomp
+hotspot.out: rex_lib_nvidia.cubin rose_hotspot.c register_cubin.cpp
+	clang -O3 -g rose_hotspot.c register_cubin.cpp -o $@ -L${LLVM_OPENMP_INSTALL}/lib -lomptarget -lomp
 
 .PHONY:
 # nvcc from CUDA 11.5 only officially supports GCC 11 or older. To use GCC 12, `-allow-unsupported-compiler` has to be specified.
