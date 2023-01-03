@@ -37,11 +37,11 @@ void single_iteration(double *result,double *temp,double *power,int row,int col,
     int _num_blocks_ = 256;
     int64_t __device_id = 0;
     void *__host_ptr = (void *)(&OUT__1__5416__single_iteration__32__id__);
-    void *__args_base[] = {&row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result, temp, power};
-    void *__args[] = {&row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result + 0, temp + 0, power + 0};
-    int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col)))};
-    int64_t __arg_types[] = {33, 33, 33, 33, 33, 33, 33, 33, 34, 35, 33};
-    int32_t __arg_num = 11;
+    void *__args_base[] = {&amb_temp, &row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result, temp, power};
+    void *__args[] = {&amb_temp, &row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result + 0, temp + 0, power + 0};
+    int64_t __arg_sizes[] = {((int64_t )(sizeof(double ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col)))};
+    int64_t __arg_types[] = {33, 33, 33, 33, 33, 33, 33, 33, 33, 34, 35, 33};
+    int32_t __arg_num = 12;
     __tgt_target_teams(__device_id,__host_ptr,__arg_num,__args_base,__args,__arg_sizes,__arg_types,_num_blocks_,_threads_per_block_);
   }
 {
