@@ -100,30 +100,26 @@ void hotspot_opt1(float *pIn, float* tIn, float *tOut,
 
     cc = 1.0 - (2.0*ce + 2.0*cn + 3.0*ct);
 
-    int c,w,e,n,s,b,t;
-    int x,y,z;
+    int c=0,w=0,e=0,n=0,s=0,b=0,t=0;
+    int x=0,y=0,z=0;
     int i = 0;
-    //#pragma omp target data map(to: tIn[0: size])
-    //#pragma omp target data map(from: tOut[0: size])
-    //#pragma omp target data map(to: c,w,e,n,s,b,t,x,y,z,nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, i)
-    //#pragma omp target teams distribute parallel for num_teams(1) num_threads(1)
+
+    #pragma omp target data map(to: tIn[0: size],pIn[0:size]) map(tofrom: tOut[0: size])
+    #pragma omp target data map(to: c,w,e,n,s,b,t,x,y,z,nx, nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, i, numiter)
+    #pragma omp target teams distribute parallel for num_teams(16) num_threads(128)
     for(int tmp = 0; tmp < numiter; tmp++ )
     {
- 
-        #pragma omp parallel for num_threads(128) collapse(3)
         for(z = 0; z < nz; z++) {
             for(y = 0; y < ny; y++) {
                 for(x = 0; x < nx; x++)
                 {
                     c = x + y * nx + z * nx * ny;
-
                     w = (x == 0) ? c      : c - 1;
                     e = (x == nx - 1) ? c : c + 1;
                     n = (y == 0) ? c      : c - nx;
                     s = (y == ny - 1) ? c : c + nx;
                     b = (z == 0) ? c      : c - nx * ny;
                     t = (z == nz - 1) ? c : c + nx * ny;
-
                     tOut[c] = tIn[c]*cc + tIn[n]*cn + tIn[s]*cs + tIn[e]*ce + tIn[w]*cw + tIn[t]*ct + tIn[b]*cb + (dt/Cap) * pIn[c] + ct*amb_temp;
               }
             }
@@ -133,7 +129,6 @@ void hotspot_opt1(float *pIn, float* tIn, float *tOut,
         tOut = temp; 
         i++;
     }
-
 }
 
 void computeTempCPU(float *pIn, float* tIn, float *tOut, 
@@ -247,12 +242,17 @@ int main(int argc, char** argv)
     readinput(tempIn, numRows, numCols, layers, tfile);
 
     memcpy(tempCopy,tempIn, size * sizeof(float));
-
+    long long start = get_time();
     hotspot_opt1(powerIn, tempIn, tempOut, numCols, numRows, layers, Cap, Rx, Ry, Rz, dt,iterations,size);
+    long long end1 = get_time();
+
     computeTempCPU(powerIn, tempCopy, answer, numCols, numRows, layers, Cap, Rx, Ry, Rz, dt,iterations);
+    long long end2 = get_time();
 
     float acc = accuracy(tempOut,answer,numRows*numCols*layers);
     printf("Accuracy: %e\n",acc);
+    printf("time for serial version: %lld\n",end2-end1);
+    printf("time for OpenMP Offloading version: %lld\n",end1-start);
     writeoutput(tempOut,numRows, numCols, layers, ofile);
     free(tempIn);
     free(tempOut); free(powerIn);
