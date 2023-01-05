@@ -1,12 +1,11 @@
 #include "rex_kmp.h" 
-char OUT__2__5640__single_iteration__113__id__ = 0;
-struct __tgt_offload_entry OUT__2__5640__single_iteration__113__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__2__5640__single_iteration__113__id__)), "OUT__2__5640__single_iteration__113__kernel__", 0, 0, 0};
-char OUT__1__5640__single_iteration__33__id__ = 0;
-struct __tgt_offload_entry OUT__1__5640__single_iteration__33__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__1__5640__single_iteration__33__id__)), "OUT__1__5640__single_iteration__33__kernel__", 0, 0, 0};
+char OUT__2__5416__single_iteration__112__id__ = 0;
+struct __tgt_offload_entry OUT__2__5416__single_iteration__112__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__2__5416__single_iteration__112__id__)), "OUT__2__5416__single_iteration__112__kernel__", 0, 0, 0};
+char OUT__1__5416__single_iteration__32__id__ = 0;
+struct __tgt_offload_entry OUT__1__5416__single_iteration__32__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__1__5416__single_iteration__32__id__)), "OUT__1__5416__single_iteration__32__kernel__", 0, 0, 0};
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
-using namespace std;
 #define STR_SIZE 256
 /* maximum power density possible (say 300W for a 10mm x 10mm chip)	*/
 #define MAX_PD (3.0e6)
@@ -33,24 +32,24 @@ void single_iteration(double *result,double *temp,double *power,int row,int col,
   int r;
   int c;
 {
-// Launch CUDA kernel ...
+/* Launch CUDA kernel ... */
     int _threads_per_block_ = 128;
     int _num_blocks_ = 256;
     int64_t __device_id = 0;
-    void *__host_ptr = (void *)(&OUT__1__5640__single_iteration__33__id__);
-    void *__args_base[] = {&row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result, temp, power};
-    void *__args[] = {&row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result + 0, temp + 0, power + 0};
-    int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col)))};
-    int64_t __arg_types[] = {33, 33, 33, 33, 33, 33, 33, 33, 34, 35, 33};
-    int32_t __arg_num = 11;
+    void *__host_ptr = (void *)(&OUT__1__5416__single_iteration__32__id__);
+    void *__args_base[] = {&amb_temp, &row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result, temp, power};
+    void *__args[] = {&amb_temp, &row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result + 0, temp + 0, power + 0};
+    int64_t __arg_sizes[] = {((int64_t )(sizeof(double ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col)))};
+    int64_t __arg_types[] = {33, 33, 33, 33, 33, 33, 33, 33, 33, 34, 35, 33};
+    int32_t __arg_num = 12;
     __tgt_target_teams(__device_id,__host_ptr,__arg_num,__args_base,__args,__arg_sizes,__arg_types,_num_blocks_,_threads_per_block_);
   }
 {
-// Launch CUDA kernel ...
+/* Launch CUDA kernel ... */
     int _threads_per_block_ = 128;
     int _num_blocks_ = 256;
     int64_t __device_id = 0;
-    void *__host_ptr = (void *)(&OUT__2__5640__single_iteration__113__id__);
+    void *__host_ptr = (void *)(&OUT__2__5416__single_iteration__112__id__);
     void *__args_base[] = {&row, &col, result, temp};
     void *__args[] = {&row, &col, result + 0, temp + 0};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col)))};
@@ -78,7 +77,7 @@ void compute_tran_temp(double *result,int num_iterations,double *temp,double *po
   double step = 0.001 / max_slope;
 #ifdef VERBOSE
 #endif
-// Translated from #pragma omp target data ...
+/* Translated from #pragma omp target data ... */
 {
     int32_t __arg_num = 3;
     int64_t __arg_types[] = {34, 35, 33};
@@ -116,7 +115,7 @@ void read_input(double *vect,int grid_rows,int grid_cols,char *file)
     fatal("file could not be opened for reading");
   for (i = 0; i < grid_rows * grid_cols; i++) {
     fgets(str,256,fp);
-    if ((feof(fp))) 
+    if (feof(fp)) 
       fatal("not enough lines in file");
     if (sscanf(str,"%lf",&val) != 1) 
       fatal("invalid file format");

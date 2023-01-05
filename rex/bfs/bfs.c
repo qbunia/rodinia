@@ -1,4 +1,5 @@
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -70,7 +71,8 @@ void BFSGraph(int argc, char **argv) {
   fscanf(fp, "%d", &no_of_nodes);
 
   // allocate host memory
-  Node *h_graph_nodes = (Node *)malloc(sizeof(Node) * no_of_nodes);
+  struct Node *h_graph_nodes =
+      (struct Node *)malloc(sizeof(struct Node) * no_of_nodes);
   bool *h_graph_mask = (bool *)malloc(sizeof(bool) * no_of_nodes);
   bool *h_updating_graph_mask = (bool *)malloc(sizeof(bool) * no_of_nodes);
   bool *h_graph_visited = (bool *)malloc(sizeof(bool) * no_of_nodes);
