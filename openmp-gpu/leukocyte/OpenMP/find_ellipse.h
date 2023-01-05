@@ -4,8 +4,9 @@
 #include "avilib.h"
 #include "matrix.h"
 #include "misc_math.h"
-#include <math.h>
 #include <stdlib.h>
+//#include <math.h>
+//#include <math_functions.h>
 #include <omp.h>
 
 // Number of threads for OpenMP to use

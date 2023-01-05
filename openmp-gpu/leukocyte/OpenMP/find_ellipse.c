@@ -93,12 +93,12 @@ MAT * ellipsematching(MAT * grad_x, MAT * grad_y) {
 	}
 
 	// Compute the (x,y) pixel offsets of each sample point in each sample circle
-	int tX[NCIRCLES][NPOINTS], tY[NCIRCLES][NPOINTS];
+	int tX[NCIRCLES*NPOINTS], tY[NCIRCLES*NPOINTS];
 	for (k = 0; k < NCIRCLES; k++) {
 		double rad = (double) (MIN_RAD + 2 * k); 
 		for (n = 0; n < NPOINTS; n++) {
-			tX[k][n] = (int) (cos(theta[n]) * rad);
-			tY[k][n] = (int) (sin(theta[n]) * rad);
+			tX[k*NCIRCLES+n] = (int) (cos(theta[n]) * rad);
+			tY[k*NCIRCLES+n] = (int) (sin(theta[n]) * rad);
 		}
 	}
 	
@@ -107,13 +107,18 @@ MAT * ellipsematching(MAT * grad_x, MAT * grad_y) {
 	// Allocate memory for the result matrix
 	int height = grad_x->m, width = grad_x->n;
 	MAT * gicov = m_get(height, width);
-	
-	// Split the work among multiple threads, if OPEN is defined
-	#ifdef OPEN
-	#pragma omp parallel for num_threads(omp_num_threads)
-	#endif
+  int grad_m = grad_x->m;
+  int grad_n = grad_y->n;
+  unsigned int grad_mem_size = grad_m * grad_n;
+   printf("length of grad_x: %d\n", (grad_x));
 	// Scan from left to right, top to bottom, computing GICOV values
+#pragma omp target data map(tofrom: gicov[0:grad_mem_size])
+#pragma omp target data map(to: sin_angle[0:NPOINTS], cos_angle[0:NPOINTS]) 
+#pragma omp target data map(to:tX[0:NCIRCLES*NPOINTS], tY[0:NCIRCLES*NPOINTS]) 
+#pragma omp target data map(to:grad_x, grad_y)
+#pragma omp target teams distribute parallel for num_teams(1) num_threads(1)
 	for (i = MaxR; i < width - MaxR; i++) {
+   printf("test");
 		double Grad[NPOINTS];
 		int j, k, n, x, y;
 		
@@ -126,8 +131,8 @@ MAT * ellipsematching(MAT * grad_x, MAT * grad_y) {
 				// Iterate across each sample point in the current stencil
 				for (n = 0; n < NPOINTS; n++)	{
 					// Determine the x- and y-coordinates of the current sample point
-					y = j + tY[k][n];
-					x = i + tX[k][n];
+					y = j + tY[k*NCIRCLES+n];
+					x = i + tX[k*NCIRCLES+n];
 					
 					// Compute the combined gradient value at the current sample point
 					Grad[n] = m_get_val(grad_x, y, x) * cos_angle[n] + m_get_val(grad_y, y, x) * sin_angle[n];

@@ -1,6 +1,5 @@
 #include "misc_math.h"
 #include <stdlib.h>
-#include <math.h>
 
 
 #define THRESHOLD_double 0.000001
