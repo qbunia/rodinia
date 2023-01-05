@@ -1,6 +1,5 @@
-include ~/rodinia_3.0/common/make.config
 
-CC := $(CUDA_DIR)/bin/nvcc
+CC := nvcc
 
 INCLUDE := $(CUDA_DIR)/include
 
@@ -10,7 +9,7 @@ EXE = 3D
 
 OUTPUT = *.out
 
-FLAGS = -g -G #-arch sm_20 --ptxas-options=-v
+FLAGS = -g -G -arch sm_60 --ptxas-options=-v
 release: $(SRC)
 	$(CC) $(KERNEL_DIM) $(FLAGS) $(SRC) -o $(EXE) -I$(INCLUDE) -L$(CUDA_LIB_DIR) 
 
