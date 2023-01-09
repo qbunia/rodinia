@@ -131,7 +131,7 @@ void  kernel_gpu(	par_str par,
           */
  //dim.number_boxes = 1000; box[l].nn = 11;
  //The collapse clause improved the performance by 4s.
- #pragma omp target teams distribute parallel for map(tofrom: fv[0:dim.space_elem]) map(to: par, dim, rv[0:dim.space_elem], qv[0:dim.space_elem], box[0:dim.number_boxes]) num_teams(dim.number_boxes) num_threads(NUM_THREADS) \
+ #pragma omp target teams distribute map(tofrom: fv[0:dim.space_elem]) map(to: par, dim, rv[0:dim.space_elem], qv[0:dim.space_elem], box[0:dim.number_boxes]) num_teams(dim.number_boxes)  \
         private(i, j, k) \
 				private(first_i, rA, fA) \
 				private(pointer, first_j, rB, qB) \
@@ -188,7 +188,7 @@ void  kernel_gpu(	par_str par,
 			//----------------------------------------50
       //NUMBER_PAR_PER_BOX = 100;
       //This part improved the performance by 1s
-      #pragma omp parallel for collapse(2)
+      #pragma omp parallel for num_threads(NUM_THREADS) collapse(2)
 			for (i=0; i<NUMBER_PAR_PER_BOX; i=i+1){
 
 				// do for the # of particles in current (home or neighbor) box
