@@ -16,7 +16,7 @@ extern "C" {
 #include <math.h>									// (in path known to compiler)			needed by exp
 
 #define NUM_TEAMS 256
-#define NUM_THREADS 128
+#define NUM_THREADS 512
 
 //======================================================================================================================================================150
 //	MAIN FUNCTION HEADER
