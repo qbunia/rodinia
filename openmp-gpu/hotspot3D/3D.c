@@ -103,12 +103,11 @@ void hotspot_opt1(float *pIn, float* tIn, float *tOut,
     int c=0,w=0,e=0,n=0,s=0,b=0,t=0;
     int x=0,y=0,z=0;
     int i = 0;
-
-    #pragma omp target data map(to: tIn[0: size],pIn[0:size]) map(tofrom: tOut[0: size])
-    #pragma omp target data map(to: c,w,e,n,s,b,t,x,y,z,nx, nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, i, numiter)
-    #pragma omp target teams distribute parallel for num_teams(16) num_threads(128)
+    //100 iterations and the size is 512*512*8
+    #pragma omp target teams distribute map(to: tIn[0: size], pIn[0:size], c,w,e,n,s,b,t,x,y,z,nx, nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, i, numiter) map(tofrom: tOut[0: size]) num_teams(128)
     for(int tmp = 0; tmp < numiter; tmp++ )
     {
+        #pragma omp parallel for num_threads(1024) collapse(3) private(x,y,z)
         for(z = 0; z < nz; z++) {
             for(y = 0; y < ny; y++) {
                 for(x = 0; x < nx; x++)
@@ -250,6 +249,10 @@ int main(int argc, char** argv)
     long long end2 = get_time();
 
     float acc = accuracy(tempOut,answer,numRows*numCols*layers);
+    printf("iterations: %d\n",iterations);
+    printf("x: %d\n",numCols);
+    printf("y: %d\n",numRows);
+    printf("z: %d\n",layers);
     printf("Accuracy: %e\n",acc);
     printf("time for serial version: %lld\n",end2-end1);
     printf("time for OpenMP Offloading version: %lld\n",end1-start);
