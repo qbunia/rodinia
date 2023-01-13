@@ -16,7 +16,7 @@ extern "C" {
 #include <math.h>									// (in path known to compiler)			needed by exp
 
 #define NUM_TEAMS 256
-#define NUM_THREADS 512
+#define NUM_THREADS 128
 
 //======================================================================================================================================================150
 //	MAIN FUNCTION HEADER
@@ -130,13 +130,11 @@ void  kernel_gpu(	par_str par,
           )
           */
  //dim.number_boxes = 1000; box[l].nn = 11;
- //The collapse clause improved the performance by 4s.
  #pragma omp target teams distribute map(tofrom: fv[0:dim.space_elem]) map(to: par, dim, rv[0:dim.space_elem], qv[0:dim.space_elem], box[0:dim.number_boxes]) num_teams(dim.number_boxes)  \
         private(i, j, k) \
 				private(first_i, rA, fA) \
 				private(pointer, first_j, rB, qB) \
-				private(r2, u2, fs, vij, fxij, fyij, fzij, d) \
-        collapse(2)
+				private(r2, u2, fs, vij, fxij, fyij, fzij, d)
 	for(l=0; l<dim.number_boxes; l=l+1){
 
 		//------------------------------------------------------------------------------------------100

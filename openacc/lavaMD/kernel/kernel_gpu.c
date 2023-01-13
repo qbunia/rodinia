@@ -128,16 +128,9 @@ void  kernel_gpu(	par_str par,
                        
           )
           */
- #pragma acc data copy(fv[0:dim.space_elem])
- #pragma acc data copyin(par, dim) copyin(rv[0:dim.space_elem], qv[0:dim.space_elem]) copyin(box[0:dim.number_boxes])
-/* #pragma acc parallel loop \
-        num_gangs(dim.number_boxes) num_workers(NUM_THREADS) \
-        private(i, j, k) \
-				private(first_i, rA, fA) \
-				private(pointer, first_j, rB, qB) \
-				private(r2, u2, fs, vij, fxij, fyij, fzij, d)
-*/
+
   #pragma acc parallel loop \
+        copy(fv[0:dim.space_elem]) copyin(rv[0:dim.space_elem], qv[0:dim.space_elem], box[0:dim.number_boxes], par, dim) \
         num_gangs(dim.number_boxes) num_workers(1) vector_length(NUM_THREADS) \
         private(i, j, k) \
 				private(first_i, rA, fA) \
@@ -191,7 +184,8 @@ void  kernel_gpu(	par_str par,
 			//----------------------------------------50
 			//	Do for the # of particles in home box
 			//----------------------------------------50
-
+      //0.28s to 0.18s with collapse clause.
+      #pragma acc loop collapse(2)
 			for (i=0; i<NUMBER_PAR_PER_BOX; i=i+1){
 
 				// do for the # of particles in current (home or neighbor) box
