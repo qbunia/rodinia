@@ -103,13 +103,13 @@ void hotspot_opt1(float *pIn, float* tIn, float *tOut,
     int c=0,w=0,e=0,n=0,s=0,b=0,t=0;
     int x=0,y=0,z=0;
     int i = 0;
-
-    #pragma acc data copyin(tIn[0: size],pIn[0:size]) copy(tOut[0: size])
-    #pragma acc data copyin(c,w,e,n,s,b,t,x,y,z,nx, nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, i, numiter)
-    #pragma acc parallel loop num_gangs(16) num_workers(1) vector_length(128) \
-        private(x, y, z)
+ 
+    #pragma acc data copyin(tIn[0:size],pIn[0:size]) copy(tOut[0:size]) copyin(c,w,e,n,s,b,t,x,y,z,nx, nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, i, numiter)
+    #pragma acc parallel loop num_gangs(NUM_TEAMS) num_workers(1) vector_length(NUM_THREADS) \
+        private(x, y, z) 
     for(int tmp = 0; tmp < numiter; tmp++ )
     {
+       //#pragma acc loop collapse(3)
         for(z = 0; z < nz; z++) {
             for(y = 0; y < ny; y++) {
                 for(x = 0; x < nx; x++)
