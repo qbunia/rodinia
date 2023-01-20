@@ -97,11 +97,11 @@ MAT * ellipsematching(MAT * grad_x, MAT * grad_y) {
 	for (k = 0; k < NCIRCLES; k++) {
 		double rad = (double) (MIN_RAD + 2 * k); 
 		for (n = 0; n < NPOINTS; n++) {
-			tX[k*NCIRCLES+n] = (int) (cos(theta[n]) * rad);
-			tY[k*NCIRCLES+n] = (int) (sin(theta[n]) * rad);
+			tX[k*NPOINTS+n] = (int) (cos(theta[n]) * rad);
+			tY[k*NPOINTS+n] = (int) (sin(theta[n]) * rad);
 		}
 	}
-	
+ 
 	int MaxR = MAX_RAD + 2;
 	
 	// Allocate memory for the result matrix
@@ -109,57 +109,77 @@ MAT * ellipsematching(MAT * grad_x, MAT * grad_y) {
 	MAT * gicov = m_get(height, width);
   int grad_m = grad_x->m;
   int grad_n = grad_y->n;
-  unsigned int grad_mem_size = grad_m * grad_n;
-   printf("length of grad_x: %d\n", (grad_x));
+  unsigned int grad_size = grad_m * grad_n;
+  unsigned int grad_mem_size = sizeof(float) * grad_m * grad_n;
+   //printf("length of grad_x: %d\n", (grad_x));
 	// Scan from left to right, top to bottom, computing GICOV values
-#pragma omp target data map(tofrom: gicov[0:grad_mem_size])
+
+ 	// Allocate host memory for grad_x and grad_y
+	float *host_grad_x = (float*) malloc(grad_mem_size);
+	float *host_grad_y = (float*) malloc(grad_mem_size);
+	// initalize float versions of grad_x and grad_y
+	int m, n1;
+   host_grad_x[0] = (float) m_get_val(grad_x, 0, 0);
+	for (m = 0; m < grad_m; m++) {
+		for (n1 = 0; n1 < grad_n; n1++) {
+			host_grad_x[(n1 * grad_m) + m] = (float) m_get_val(grad_x, m, n1);
+			host_grad_y[(n1 * grad_m) + m] = (float) m_get_val(grad_y, m, n1);
+		}
+	}
+float *host_gicov = (float*) malloc(grad_mem_size);
+
+/*#pragma omp target data map(tofrom: host_gicov[0:grad_size]) map(to: MaxR,width,height)
 #pragma omp target data map(to: sin_angle[0:NPOINTS], cos_angle[0:NPOINTS]) 
 #pragma omp target data map(to:tX[0:NCIRCLES*NPOINTS], tY[0:NCIRCLES*NPOINTS]) 
-#pragma omp target data map(to:grad_x, grad_y)
-#pragma omp target teams distribute parallel for num_teams(1) num_threads(1)
+#pragma omp target data map(to:host_grad_x[0:grad_size], host_grad_y[0:grad_size])
+#pragma omp target teams distribute parallel for num_teams(1) num_threads(1)*/
+#pragma omp target teams distribute parallel for num_teams(1) num_threads(1) \
+    map(tofrom: host_gicov[0:grad_size]) \
+    map(to: MaxR,width,height,sin_angle[0:NPOINTS], cos_angle[0:NPOINTS],tX[0:NCIRCLES*NPOINTS], tY[0:NCIRCLES*NPOINTS],host_grad_x[0:grad_size], host_grad_y[0:grad_size])
 	for (i = MaxR; i < width - MaxR; i++) {
-   printf("test");
 		double Grad[NPOINTS];
 		int j, k, n, x, y;
 		
 		for (j = MaxR; j < height - MaxR; j++) {
 			// Initialize the maximal GICOV score to 0
 			double max_GICOV = 0;	
-			
 			// Iterate across each stencil
-			for (k = 0; k < NCIRCLES; k++) {
-				// Iterate across each sample point in the current stencil
-				for (n = 0; n < NPOINTS; n++)	{
-					// Determine the x- and y-coordinates of the current sample point
-					y = j + tY[k*NCIRCLES+n];
-					x = i + tX[k*NCIRCLES+n];
-					
-					// Compute the combined gradient value at the current sample point
-					Grad[n] = m_get_val(grad_x, y, x) * cos_angle[n] + m_get_val(grad_y, y, x) * sin_angle[n];
-				}
-				
-				// Compute the mean gradient value across all sample points
-				double sum = 0.0;
-				for (n = 0; n < NPOINTS; n++) sum += Grad[n];
-				double mean = sum / (double)NPOINTS;
-				
-				// Compute the variance of the gradient values
-				double var = 0.0;				
-				for (n = 0; n < NPOINTS; n++)	{
-					sum = Grad[n] - mean;
-					var += sum * sum;
-				}				
-				var = var / (double) (NPOINTS - 1);
-				
-				// Keep track of the maximal GICOV value seen so far
-				if (mean * mean / var > max_GICOV) {
-					m_set_val(gicov, j, i, mean / sqrt(var));
-					max_GICOV = mean * mean / var;
-				}
-			}
-		}
-	}
-	
+	    for (k = 0; k < NCIRCLES; k++) {
+		    // Variables used to compute the mean and variance
+		    //  of the gradients along the current stencil
+     	  float sum = 0, M2 = 0, mean = 0;
+		    // Iterate across each sample point in the current stencil
+        for (n = 0; n < NPOINTS; n++) {
+			    // Determine the x- and y-coordinates of the current sample point
+			    y = j + tY[(k * NPOINTS) + n];
+			    x = i + tX[(k * NPOINTS) + n];
+			    // Compute the combined gradient value at the current sample point
+			    float p = host_grad_x[x * grad_m + y] * cos_angle[n] + host_grad_x[x * grad_m + y] * sin_angle[n];
+			    // Update the running total
+			    sum += p;
+			    // Partially compute the variance
+			    float delta = p - mean;
+			    mean = mean + (delta / (float) (n + 1));
+		      M2 = M2 + (delta * (p - mean));
+        }
+		
+        // Finish computing the mean
+        mean = sum / ((float) NPOINTS);
+        // Finish computing the variance
+        float var = M2 / ((float) (NPOINTS - 1));
+		
+        // Keep track of the maximal GICOV value seen so far
+        if (((mean * mean) / var) > max_GICOV) max_GICOV = (mean * mean) / var;
+	    }
+	    // Store the maximal GICOV value
+	    //gicov[(i * grad_m) + j] = max_GICOV;
+      host_gicov[(i * grad_m) + j] = max_GICOV;
+    }
+  }
+	//MAT *gicov = m_get(grad_m, grad_n);
+	for (m = 0; m < grad_m; m++)
+		for (n = 0; n < grad_n; n++)
+			m_set_val(gicov, m, n, host_gicov[(n * grad_m) + m]);
 	return gicov;
 }
 
