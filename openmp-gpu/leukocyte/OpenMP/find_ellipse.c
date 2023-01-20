@@ -151,14 +151,17 @@ MAT * ellipsematching(MAT * grad_x, MAT * grad_y) {
       grad_y_dev[m*grad_y_n+n] = grad_y->me[m][n];
     }
   }
-  
-//int num_teams = grad_n - (2 * MaxR);
-//int num_threads = grad_m - (2 * MaxR);
 
-//#pragma omp target teams distribute parallel for num_teams(1) num_threads(1) \
+  int grad_m = grad_x->m;
+  int grad_n = grad_y->n;
+  
+  int num_teams = grad_n - (2 * MaxR);
+  int num_threads = grad_m - (2 * MaxR);
+
+//#pragma omp target teams distribute parallel for num_teams(num_teams) num_threads(num_threads) \
 //    map(tofrom: host_gicov[0:grad_size]) \
 //    map(to: MaxR,width,height,sin_angle[0:NPOINTS], cos_angle[0:NPOINTS],tX[0:NCIRCLES*NPOINTS], tY[0:NCIRCLES*NPOINTS],host_grad_x[0:grad_size], host_grad_y[0:grad_size])
-#pragma omp target teams distribute parallel for num_teams(1) num_threads(1) \
+#pragma omp target teams distribute parallel for num_teams(num_teams) num_threads(num_threads) \
     map(to:   sin_angle[0:NPOINTS], cos_angle[0:NPOINTS], tX[0:NCIRCLES*NPOINTS], tY[0:NCIRCLES*NPOINTS], grad_x_dev[0:grad_x_m*grad_x_n], grad_y_dev[0:grad_y_m*grad_y_n]) \
     map(from: gicov_dev[0:height*width])
 	for (i = MaxR; i < width - MaxR; i++) {
@@ -306,10 +309,12 @@ MAT * dilate_f(MAT * img_in, MAT * strel) {
 	#pragma omp parallel for num_threads(omp_num_threads)
 	#endif
  */
-//int num_teams = grad_n - (2 * MaxR);
-//int num_threads = img_in->m * img_in->n;
+ 
+  //int num_teams = grad_n - (2 * MaxR);
+  int num_teams = 1;
+  int num_threads = img_in->m * img_in->n;
 
-#pragma omp target teams distribute parallel for num_teams(1) num_threads(1) \
+#pragma omp target teams distribute parallel for num_teams(num_teams) num_threads(num_threads) \
     map(to: img_dev[0:img_m*img_n], strel_dev[0:strel_m*strel_n]) \
     map(from: dilated_dev[0:img_m*img_n])
 	// Iterate across the input matrix
