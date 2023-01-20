@@ -1,5 +1,6 @@
 #include "find_ellipse.h"
 #include <sys/time.h>
+//#include <math.h>
 
 
 // The number of sample points per ellipse
@@ -107,6 +108,8 @@ MAT * ellipsematching(MAT * grad_x, MAT * grad_y) {
 	// Allocate memory for the result matrix
 	int height = grad_x->m, width = grad_x->n;
 	MAT * gicov = m_get(height, width);
+  
+  /*
   int grad_m = grad_x->m;
   int grad_n = grad_y->n;
   unsigned int grad_size = grad_m * grad_n;
@@ -119,23 +122,45 @@ MAT * ellipsematching(MAT * grad_x, MAT * grad_y) {
 	float *host_grad_y = (float*) malloc(grad_mem_size);
 	// initalize float versions of grad_x and grad_y
 	int m, n1;
-   host_grad_x[0] = (float) m_get_val(grad_x, 0, 0);
+  host_grad_x[0] = (float) m_get_val(grad_x, 0, 0);
 	for (m = 0; m < grad_m; m++) {
 		for (n1 = 0; n1 < grad_n; n1++) {
 			host_grad_x[(n1 * grad_m) + m] = (float) m_get_val(grad_x, m, n1);
 			host_grad_y[(n1 * grad_m) + m] = (float) m_get_val(grad_y, m, n1);
 		}
 	}
-float *host_gicov = (float*) malloc(grad_mem_size);
+  float *host_gicov = (float*) malloc(grad_mem_size);
+  */
+  
+  // prepare to offloading
+  int grad_x_m = grad_x->m; int grad_x_n = grad_x->n;
+  int grad_y_m = grad_y->m; int grad_y_n = grad_y->n;
+  
+  double *gicov_dev  = (double *)malloc(height*width*sizeof(double));
+  double *grad_x_dev = (double *)malloc(grad_x_m*grad_x_n*sizeof(double));
+  double *grad_y_dev = (double *)malloc(grad_y_m*grad_y_n*sizeof(double));
+  
+  for (int m = 0; m < grad_x_m; m++) {
+    for (int n = 0; n < grad_x_n; n++) {
+      grad_x_dev[m*grad_x_n+n] = grad_x->me[m][n];
+    }
+  }
+  
+  for (int m = 0; m < grad_y_m; m++) {
+    for (int n = 0; n < grad_y_n; n++) {
+      grad_y_dev[m*grad_y_n+n] = grad_y->me[m][n];
+    }
+  }
+  
+//int num_teams = grad_n - (2 * MaxR);
+//int num_threads = grad_m - (2 * MaxR);
 
-/*#pragma omp target data map(tofrom: host_gicov[0:grad_size]) map(to: MaxR,width,height)
-#pragma omp target data map(to: sin_angle[0:NPOINTS], cos_angle[0:NPOINTS]) 
-#pragma omp target data map(to:tX[0:NCIRCLES*NPOINTS], tY[0:NCIRCLES*NPOINTS]) 
-#pragma omp target data map(to:host_grad_x[0:grad_size], host_grad_y[0:grad_size])
-#pragma omp target teams distribute parallel for num_teams(1) num_threads(1)*/
+//#pragma omp target teams distribute parallel for num_teams(1) num_threads(1) \
+//    map(tofrom: host_gicov[0:grad_size]) \
+//    map(to: MaxR,width,height,sin_angle[0:NPOINTS], cos_angle[0:NPOINTS],tX[0:NCIRCLES*NPOINTS], tY[0:NCIRCLES*NPOINTS],host_grad_x[0:grad_size], host_grad_y[0:grad_size])
 #pragma omp target teams distribute parallel for num_teams(1) num_threads(1) \
-    map(tofrom: host_gicov[0:grad_size]) \
-    map(to: MaxR,width,height,sin_angle[0:NPOINTS], cos_angle[0:NPOINTS],tX[0:NCIRCLES*NPOINTS], tY[0:NCIRCLES*NPOINTS],host_grad_x[0:grad_size], host_grad_y[0:grad_size])
+    map(to:   sin_angle[0:NPOINTS], cos_angle[0:NPOINTS], tX[0:NCIRCLES*NPOINTS], tY[0:NCIRCLES*NPOINTS], grad_x_dev[0:grad_x_m*grad_x_n], grad_y_dev[0:grad_y_m*grad_y_n]) \
+    map(from: gicov_dev[0:height*width])
 	for (i = MaxR; i < width - MaxR; i++) {
 		double Grad[NPOINTS];
 		int j, k, n, x, y;
@@ -147,39 +172,84 @@ float *host_gicov = (float*) malloc(grad_mem_size);
 	    for (k = 0; k < NCIRCLES; k++) {
 		    // Variables used to compute the mean and variance
 		    //  of the gradients along the current stencil
-     	  float sum = 0, M2 = 0, mean = 0;
+     	  //float sum = 0, M2 = 0, mean = 0;
 		    // Iterate across each sample point in the current stencil
         for (n = 0; n < NPOINTS; n++) {
 			    // Determine the x- and y-coordinates of the current sample point
 			    y = j + tY[(k * NPOINTS) + n];
 			    x = i + tX[(k * NPOINTS) + n];
 			    // Compute the combined gradient value at the current sample point
-			    float p = host_grad_x[x * grad_m + y] * cos_angle[n] + host_grad_x[x * grad_m + y] * sin_angle[n];
-			    // Update the running total
+			    //float p = host_grad_x[x * grad_m + y] * cos_angle[n] + host_grad_x[x * grad_m + y] * sin_angle[n];
+          Grad[n] = grad_x_dev[y*grad_x_n+x]*cos_angle[n] + grad_y_dev[y*grad_y_n+x]*sin_angle[n]; // use *_dev as var names
+			    
+          // Update the running total
+          /*
 			    sum += p;
 			    // Partially compute the variance
 			    float delta = p - mean;
 			    mean = mean + (delta / (float) (n + 1));
 		      M2 = M2 + (delta * (p - mean));
+           */
         }
-		
+        
+        // Compute the mean grad across all sample points
+        double sum = 0.0;
+        for (int n = 0; n < NPOINTS; n++) {
+          sum = sum + Grad[n];
+        }
+        
+        double mean = sum / (double)NPOINTS;
+        
+        // Compute the var of grad
+        double var = 0.0;
+        for (int n = 0; n < NPOINTS; n++) {
+          sum = Grad[n] - mean;
+          var = var + sum*sum;
+        }
+        
+        var = var / (double)(NPOINTS-1);
+        
+        // Keep track of max_GICOV
+        if (mean*mean / var > max_GICOV) {
+          gicov_dev[j*width+i] = mean / sqrt(var);
+          max_GICOV = mean * mean / var;
+          
+        }
+        
         // Finish computing the mean
+        /*
         mean = sum / ((float) NPOINTS);
         // Finish computing the variance
         float var = M2 / ((float) (NPOINTS - 1));
 		
         // Keep track of the maximal GICOV value seen so far
         if (((mean * mean) / var) > max_GICOV) max_GICOV = (mean * mean) / var;
+         */
+         
 	    }
+         
 	    // Store the maximal GICOV value
 	    //gicov[(i * grad_m) + j] = max_GICOV;
-      host_gicov[(i * grad_m) + j] = max_GICOV;
+      //host_gicov[(i * grad_m) + j] = max_GICOV;
+      
     }
   }
+  
+  double val;
+	for (int i = MaxR; i < width - MaxR; i++) {
+		for (int j = MaxR; j < height - MaxR; j++) {
+			val = gicov_dev[j*width+i];
+      m_set_val(gicov, j, i, val);
+    }
+  }
+  
 	//MAT *gicov = m_get(grad_m, grad_n);
+ /*
 	for (m = 0; m < grad_m; m++)
 		for (n = 0; n < grad_n; n++)
 			m_set_val(gicov, m, n, host_gicov[(n * grad_m) + m]);
+   */
+   
 	return gicov;
 }
 
@@ -206,40 +276,79 @@ MAT * structuring_element(int radius) {
 //  using the specified structuring element
 MAT * dilate_f(MAT * img_in, MAT * strel) {
 	MAT * dilated = m_get(img_in->m, img_in->n);
-	
+  
 	// Find the center of the structuring element
 	int el_center_i = strel->m / 2, el_center_j = strel->n / 2, i;
-	
+ 
+  // get info from MAT struct: double
+  int img_m = img_in->m; int img_n = img_in->n;
+  int strel_m = strel->m;int strel_n = strel->n;
+  
+  double *dilated_dev = (double *)malloc(img_n*img_m*sizeof(double));
+  double *img_dev     = (double *)malloc(img_n*img_m*sizeof(double));
+  double *strel_dev   = (double *)malloc(strel_n*strel_m*sizeof(double)); 
+  
+  for (int m = 0; m < img_m; m++) {
+    for (int n = 0; n < img_n; n++) {
+      img_dev[m*img_n+n] = img_in->me[m][n];
+    }
+  }
+ 
+  for (int m = 0; m < strel_m; m++) {
+    for (int n = 0; n < strel_n; n++) {
+      strel_dev[m*strel_n+n] = strel->me[m][n];
+    }
+  }
+  
+ /*
 	// Split the work among multiple threads, if OPEN is defined
 	#ifdef OPEN
 	#pragma omp parallel for num_threads(omp_num_threads)
 	#endif
+ */
+//int num_teams = grad_n - (2 * MaxR);
+//int num_threads = img_in->m * img_in->n;
+
+#pragma omp target teams distribute parallel for num_teams(1) num_threads(1) \
+    map(to: img_dev[0:img_m*img_n], strel_dev[0:strel_m*strel_n]) \
+    map(from: dilated_dev[0:img_m*img_n])
 	// Iterate across the input matrix
-	for (i = 0; i < img_in->m; i++) {
+	for (i = 0; i < img_m; i++) {
 		int j, el_i, el_j, x, y;
-		for (j = 0; j < img_in->n; j++) {
+		for (j = 0; j < img_n; j++) {
 			double max = 0.0, temp;
 			// Iterate across the structuring element
-			for (el_i = 0; el_i < strel->m; el_i++) {
-				for (el_j = 0; el_j < strel->n; el_j++) {
+			for (el_i = 0; el_i < strel_m; el_i++) {
+				for (el_j = 0; el_j < strel_n; el_j++) {
 					y = i - el_center_i + el_i;
 					x = j - el_center_j + el_j;
 					// Make sure we have not gone off the edge of the matrix
-					if (y >=0 && x >= 0 && y < img_in->m && x < img_in->n && m_get_val(strel, el_i, el_j) != 0) {
+					//if (y >=0 && x >= 0 && y < img_m && x < img_n && m_get_val(strel, el_i, el_j) != 0) {
+          if (y >=0 && x >= 0 && y < img_m && x < img_n && strel_dev[el_i*strel_n+el_j] != 0) {
 						// Determine if this is maximal value seen so far
-						temp = m_get_val(img_in, y, x);
+						//temp = m_get_val(img_in, y, x);
+            temp = img_dev[y*img_n+x];
 						if (temp > max)	max = temp;
 					}
 				}
 			}
 			// Store the maximum value found
-			m_set_val(dilated, i, j, max);
+      dilated_dev[i*img_n+j] = max;
+			//m_set_val(dilated, i, j, max);
 		}
 	}
-
+ 
+  // target region ends
+  double max;
+  for (int i = 0; i < img_m; i++) {
+    for (int j = 0; j < img_n; j++) {
+      max = dilated_dev[i*img_n+j];
+      m_set_val(dilated, i, j, max);
+    }
+  }
+ 
 	return dilated;
 }
-
 
 //M = # of sampling points in each segment
 //N = number of segment of curve
