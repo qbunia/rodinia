@@ -91,7 +91,7 @@ void writeoutput(float *vect, int grid_rows, int grid_cols, int layers, char *fi
 void hotspot_opt1(float *pIn, float* tIn, float *tOut, 
         int nx, int ny, int nz, float Cap, 
         float Rx, float Ry, float Rz, 
-        float dt, int numiter, int size) 
+        float dt, int numiter,  int size) 
 {   float ce, cw, cn, cs, ct, cb, cc;
     float stepDivCap = dt / Cap;
     ce = cw =stepDivCap/ Rx;
@@ -100,33 +100,34 @@ void hotspot_opt1(float *pIn, float* tIn, float *tOut,
 
     cc = 1.0 - (2.0*ce + 2.0*cn + 3.0*ct);
 
-    int c,w,e,n,s,b,t;
-    int x,y,z;
+    int c=0,w=0,e=0,n=0,s=0,b=0,t=0;
+    int x=0,y=0,z=0;
     int i = 0;
-    do{
-    #pragma omp target teams distribute parallel for map(to: tIn[0: size], pIn[0:size], c,w,e,n,s,b,t,x,y,z,nx, nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, numiter) map(tofrom: tOut[0: size]) num_teams(128) num_threads(1024) collapse(3) private(x,y,z,w,e,n,s,b,t)
-        for(z = 0; z < nz; z++)
-            for(y = 0; y < ny; y++)
+    //100 iterations and the size is 512*512*8
+    #pragma omp target teams distribute map(to: tIn[0: size], pIn[0:size], c,w,e,n,s,b,t,x,y,z,nx, nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, i, numiter) map(tofrom: tOut[0: size]) num_teams(128)
+    for(int tmp = 0; tmp < numiter; tmp++ )
+    {
+        #pragma omp parallel for num_threads(1024) collapse(3) private(x,y,z)
+        for(z = 0; z < nz; z++) {
+            for(y = 0; y < ny; y++) {
                 for(x = 0; x < nx; x++)
                 {
                     c = x + y * nx + z * nx * ny;
-
                     w = (x == 0) ? c      : c - 1;
                     e = (x == nx - 1) ? c : c + 1;
                     n = (y == 0) ? c      : c - nx;
                     s = (y == ny - 1) ? c : c + nx;
                     b = (z == 0) ? c      : c - nx * ny;
                     t = (z == nz - 1) ? c : c + nx * ny;
-
                     tOut[c] = tIn[c]*cc + tIn[n]*cn + tIn[s]*cs + tIn[e]*ce + tIn[w]*cw + tIn[t]*ct + tIn[b]*cb + (dt/Cap) * pIn[c] + ct*amb_temp;
-                }
+              }
+            }
+        }
         float *temp = tIn;
         tIn = tOut;
         tOut = temp; 
         i++;
     }
-    while(i < numiter);
-
 }
 
 void computeTempCPU(float *pIn, float* tIn, float *tOut, 
