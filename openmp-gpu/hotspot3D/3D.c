@@ -104,7 +104,10 @@ void hotspot_opt1(float *pIn, float* tIn, float *tOut,
     int x,y,z;
     int i = 0;
     do{
-    #pragma omp target teams distribute parallel for map(to: tIn[0: size], pIn[0:size], c,w,e,n,s,b,t,x,y,z,nx, nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, numiter) map(tofrom: tOut[0: size]) num_teams(128) num_threads(1024) collapse(3) private(x,y,z,w,e,n,s,b,t)
+    #pragma omp target teams distribute parallel for \
+    map(to: tIn[0: size], pIn[0:size], c,w,e,n,s,b,t,x,y,z,nx, nz,ny,ce, cw, cn, cs, ct, cb, cc, dt, Cap, ct, amb_temp, numiter) \
+    map(tofrom: tOut[0: size]) num_teams(128) \
+    num_threads(1024) collapse(3) private(x,y,z,c,w,e,n,s,b,t,ce, cw, cn, cs, ct, cb, cc)
         for(z = 0; z < nz; z++)
             for(y = 0; y < ny; y++)
                 for(x = 0; x < nx; x++)
