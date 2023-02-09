@@ -129,9 +129,9 @@ void BFSGraph(int argc,char **argv)
       stop = 0;
 {
 /* Launch CUDA kernel ... */
+        int64_t __device_id = 0;
         int _threads_per_block_ = omp_num_threads;
         int _num_blocks_ = omp_num_teams;
-        int64_t __device_id = 0;
         void *__host_ptr = (void *)(&OUT__1__4476__BFSGraph__135__id__);
         void *__args_base[] = {&no_of_nodes, h_graph_nodes, h_graph_mask, h_updating_graph_mask, h_graph_visited, h_graph_edges, h_cost};
         void *__args[] = {&no_of_nodes, h_graph_nodes, h_graph_mask, h_updating_graph_mask, h_graph_visited, h_graph_edges, h_cost};
@@ -142,9 +142,9 @@ void BFSGraph(int argc,char **argv)
       }
 {
 /* Launch CUDA kernel ... */
+        int64_t __device_id = 0;
         int _threads_per_block_ = omp_num_threads;
         int _num_blocks_ = omp_num_teams;
-        int64_t __device_id = 0;
         void *__host_ptr = (void *)(&OUT__2__4476__BFSGraph__153__id__);
         void *__args_base[] = {&no_of_nodes, h_graph_mask, h_updating_graph_mask, h_graph_visited, &stop};
         void *__args[] = {&no_of_nodes, h_graph_mask, h_updating_graph_mask, h_graph_visited, &stop};
