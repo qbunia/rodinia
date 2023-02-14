@@ -9,6 +9,9 @@ default: gaussian.out
 
 all: gaussian.out
 
+run: gaussian.out
+	./$< ../../data/gaussian/matrix1024.txt
+
 .PHONY:
 clean: 
 	rm -rf ${OBJS} *.log *.out *.cubin

@@ -17,6 +17,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
 #include "rex_nvidia.h" 
 extern int Size;
 extern float *a;
@@ -96,9 +98,9 @@ void PrintAry(float *,int );
 #ifdef __cplusplus
 extern "C" {
 #endif
-__device__ char OUT__3__5564__Fan2__196__kernel___exec_mode = 0;
+__device__ char OUT__3__5422__Fan2__199__kernel___exec_mode = 0;
 
-__global__ void OUT__3__5564__Fan2__196__kernel__(int *Sizep__,int *tp__,float *_dev_m,float *_dev_b)
+__global__ void OUT__3__5422__Fan2__199__kernel__(int *Sizep__,int *tp__,float *_dev_m,float *_dev_b)
 {
   typedef int int64_t;
   int _p_i;
@@ -117,13 +119,19 @@ __global__ void OUT__3__5564__Fan2__196__kernel__(int *Sizep__,int *tp__,float *
       }
   }
 }
-__device__ char OUT__2__5564__Fan2__188__kernel___exec_mode = 0;
+__device__ char OUT__2__5422__Fan2__191__kernel___exec_mode = 0;
 
-__global__ void OUT__2__5564__Fan2__188__kernel__(int *Sizep__,int *tp__,float *_dev_m,float *_dev_a)
+__global__ void OUT__2__5422__Fan2__191__kernel__(int *Sizep__,int *tp__,float *_dev_m,float *_dev_a)
 {
   typedef int int64_t;
   int _p_i;
   int _p_j;
+  int __i_total_iters__0__ = ( *Sizep__ - 1 -  *tp__ - 1 - 0 + 1) % 1 == 0?( *Sizep__ - 1 -  *tp__ - 1 - 0 + 1) / 1 : ( *Sizep__ - 1 -  *tp__ - 1 - 0 + 1) / 1 + 1;
+  int __j_total_iters__1__ = ( *Sizep__ -  *tp__ - 1 - 0 + 1) % 1 == 0?( *Sizep__ -  *tp__ - 1 - 0 + 1) / 1 : ( *Sizep__ -  *tp__ - 1 - 0 + 1) / 1 + 1;
+  int __final_total_iters__2__ = 1 * __i_total_iters__0__ * __j_total_iters__1__;
+  int __i_interval__3__ = __j_total_iters__1__ * 1;
+  int __j_interval__4__ = 1;
+  int __collapsed_index__5__;
 {
     int _dev_lower;
     int _dev_upper;
@@ -132,17 +140,18 @@ __global__ void OUT__2__5564__Fan2__188__kernel__(int *Sizep__,int *tp__,float *
     int _dev_loop_stride;
     int _dev_thread_num = getCUDABlockThreadCount(1);
     int _dev_thread_id = getLoopIndexFromCUDAVariables(1);
-    XOMP_static_sched_init(0, *Sizep__ - 1 -  *tp__ - 1,1,1,_dev_thread_num,_dev_thread_id,&_dev_loop_chunk_size,&_dev_loop_sched_index,&_dev_loop_stride);
-    while(XOMP_static_sched_next(&_dev_loop_sched_index, *Sizep__ - 1 -  *tp__ - 1,1,_dev_loop_stride,_dev_loop_chunk_size,_dev_thread_num,_dev_thread_id,&_dev_lower,&_dev_upper))
-      for (_p_i = _dev_lower; _p_i <= _dev_upper; _p_i += 1) {
-        for (_p_j = 0; _p_j <  *Sizep__ -  *tp__; _p_j++) 
-          _dev_a[ *Sizep__ * (_p_i + 1 +  *tp__) + (_p_j +  *tp__)] -= _dev_m[ *Sizep__ * (_p_i + 1 +  *tp__) +  *tp__] * _dev_a[ *Sizep__ *  *tp__ + (_p_j +  *tp__)];
+    XOMP_static_sched_init(0,__final_total_iters__2__ - 1,1,1,_dev_thread_num,_dev_thread_id,&_dev_loop_chunk_size,&_dev_loop_sched_index,&_dev_loop_stride);
+    while(XOMP_static_sched_next(&_dev_loop_sched_index,__final_total_iters__2__ - 1,1,_dev_loop_stride,_dev_loop_chunk_size,_dev_thread_num,_dev_thread_id,&_dev_lower,&_dev_upper))
+      for (__collapsed_index__5__ = _dev_lower; __collapsed_index__5__ <= _dev_upper; __collapsed_index__5__ += 1) {
+        _p_i = __collapsed_index__5__ / __i_interval__3__ * 1 + 0;
+        _p_j = __collapsed_index__5__ % __i_interval__3__ * 1 + 0;
+        _dev_a[ *Sizep__ * (_p_i + 1 +  *tp__) + (_p_j +  *tp__)] -= _dev_m[ *Sizep__ * (_p_i + 1 +  *tp__) +  *tp__] * _dev_a[ *Sizep__ *  *tp__ + (_p_j +  *tp__)];
       }
   }
 }
-__device__ char OUT__1__5564__Fan1__174__kernel___exec_mode = 0;
+__device__ char OUT__1__5422__Fan1__177__kernel___exec_mode = 0;
 
-__global__ void OUT__1__5564__Fan1__174__kernel__(int *Sizep__,int *tp__,float *_dev_m,float *_dev_a)
+__global__ void OUT__1__5422__Fan1__177__kernel__(int *Sizep__,int *tp__,float *_dev_m,float *_dev_a)
 {
   typedef int int64_t;
   int _p_i;

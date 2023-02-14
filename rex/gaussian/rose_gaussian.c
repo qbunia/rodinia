@@ -1,10 +1,10 @@
 #include "rex_kmp.h" 
-char OUT__3__5564__Fan2__196__id__ = 0;
-struct __tgt_offload_entry OUT__3__5564__Fan2__196__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__3__5564__Fan2__196__id__)), "OUT__3__5564__Fan2__196__kernel__", 0, 0, 0};
-char OUT__2__5564__Fan2__188__id__ = 0;
-struct __tgt_offload_entry OUT__2__5564__Fan2__188__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__2__5564__Fan2__188__id__)), "OUT__2__5564__Fan2__188__kernel__", 0, 0, 0};
-char OUT__1__5564__Fan1__174__id__ = 0;
-struct __tgt_offload_entry OUT__1__5564__Fan1__174__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__1__5564__Fan1__174__id__)), "OUT__1__5564__Fan1__174__kernel__", 0, 0, 0};
+char OUT__3__5422__Fan2__199__id__ = 0;
+struct __tgt_offload_entry OUT__3__5422__Fan2__199__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__3__5422__Fan2__199__id__)), "OUT__3__5422__Fan2__199__kernel__", 0, 0, 0};
+char OUT__2__5422__Fan2__191__id__ = 0;
+struct __tgt_offload_entry OUT__2__5422__Fan2__191__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__2__5422__Fan2__191__id__)), "OUT__2__5422__Fan2__191__kernel__", 0, 0, 0};
+char OUT__1__5422__Fan1__177__id__ = 0;
+struct __tgt_offload_entry OUT__1__5422__Fan1__177__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__1__5422__Fan1__177__id__)), "OUT__1__5422__Fan1__177__kernel__", 0, 0, 0};
 /*-----------------------------------------------------------
  ** gaussian.c -- The program is to solve a linear system Ax = b
  **   by using Gaussian Elimination. The algorithm on page 101
@@ -24,6 +24,8 @@ struct __tgt_offload_entry OUT__1__5564__Fan1__174__omp_offload_entry__ __attrib
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
 int Size;
 float *a;
 float *b;
@@ -162,10 +164,10 @@ void Fan1(float *m,float *a,int Size,int t)
   int i;
 {
 /* Launch CUDA kernel ... */
-    int _threads_per_block_ = 128;
-    int _num_blocks_ = 256;
     int64_t __device_id = 0;
-    void *__host_ptr = (void *)(&OUT__1__5564__Fan1__174__id__);
+    int _threads_per_block_ = 1024;
+    int _num_blocks_ = 256;
+    void *__host_ptr = (void *)(&OUT__1__5422__Fan1__177__id__);
     void *__args_base[] = {&Size, &t, m, a};
     void *__args[] = {&Size, &t, m + 0, a + 0};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(float ) * (Size * Size))), ((int64_t )(sizeof(float ) * (Size * Size)))};
@@ -185,10 +187,10 @@ void Fan2(float *m,float *a,float *b,int Size,int j1,int t)
   int j;
 {
 /* Launch CUDA kernel ... */
-    int _threads_per_block_ = 128;
-    int _num_blocks_ = 256;
     int64_t __device_id = 0;
-    void *__host_ptr = (void *)(&OUT__2__5564__Fan2__188__id__);
+    int _threads_per_block_ = 1024;
+    int _num_blocks_ = 256;
+    void *__host_ptr = (void *)(&OUT__2__5422__Fan2__191__id__);
     void *__args_base[] = {&Size, &t, m, a};
     void *__args[] = {&Size, &t, m + 0, a + 0};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(float ) * (Size * Size))), ((int64_t )(sizeof(float ) * (Size * Size)))};
@@ -198,10 +200,10 @@ void Fan2(float *m,float *a,float *b,int Size,int j1,int t)
   }
 {
 /* Launch CUDA kernel ... */
-    int _threads_per_block_ = 128;
-    int _num_blocks_ = 256;
     int64_t __device_id = 0;
-    void *__host_ptr = (void *)(&OUT__3__5564__Fan2__196__id__);
+    int _threads_per_block_ = 1024;
+    int _num_blocks_ = 256;
+    void *__host_ptr = (void *)(&OUT__3__5422__Fan2__199__id__);
     void *__args_base[] = {&Size, &t, m, b};
     void *__args[] = {&Size, &t, m + 0, b + 0};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(float ) * (Size * Size))), ((int64_t )(sizeof(float ) * Size))};
