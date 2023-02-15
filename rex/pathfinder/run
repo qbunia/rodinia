@@ -1,1 +1,1 @@
-./pf_llvm.out 100000 100 > result.log
+./pf.out 100000 1000 > result.log

@@ -5,7 +5,7 @@ ifeq (${CUDA_ARCH},)
 	CUDA_ARCH := sm_70
 endif
 
-pf_llvm.out: rex_lib_nvidia.cubin rose_pathfinder.c register_cubin.cpp
+pf.out: rex_lib_nvidia.cubin rose_pathfinder.c register_cubin.cpp
 	clang -O3 -g rose_pathfinder.c register_cubin.cpp -o $@ -L${LLVM_OPENMP_INSTALL}/lib -lomptarget -lomp
 
 .PHONY:
@@ -15,8 +15,8 @@ rex_lib_nvidia.cubin: rex_lib_pathfinder.cu rex_nvidia.cu
 
 .PHONY: run clean
 
-run: pf_llvm.out
-	./pf_llvm.out 100000 100 > result.log
+run: pf.out
+	./$< 100000 1000 > result.log
 
 clean:
 	rm -f *.o *.out *.log *.cubin
