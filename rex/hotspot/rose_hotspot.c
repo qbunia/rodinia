@@ -1,8 +1,8 @@
 #include "rex_kmp.h" 
-char OUT__2__5416__single_iteration__112__id__ = 0;
-struct __tgt_offload_entry OUT__2__5416__single_iteration__112__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__2__5416__single_iteration__112__id__)), "OUT__2__5416__single_iteration__112__kernel__", 0, 0, 0};
-char OUT__1__5416__single_iteration__32__id__ = 0;
-struct __tgt_offload_entry OUT__1__5416__single_iteration__32__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__1__5416__single_iteration__32__id__)), "OUT__1__5416__single_iteration__32__kernel__", 0, 0, 0};
+char OUT__2__5274__single_iteration__113__id__ = 0;
+struct __tgt_offload_entry OUT__2__5274__single_iteration__113__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__2__5274__single_iteration__113__id__)), "OUT__2__5274__single_iteration__113__kernel__", 0, 0, 0};
+char OUT__1__5274__single_iteration__35__id__ = 0;
+struct __tgt_offload_entry OUT__1__5274__single_iteration__35__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__1__5274__single_iteration__35__id__)), "OUT__1__5274__single_iteration__35__kernel__", 0, 0, 0};
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -15,6 +15,8 @@ struct __tgt_offload_entry OUT__1__5416__single_iteration__32__omp_offload_entry
 #define K_SI 100
 /* capacitance fitting factor	*/
 #define FACTOR_CHIP 0.5
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
 /* chip parameters	*/
 double t_chip = 0.0005;
 double chip_height = 0.016;
@@ -33,10 +35,10 @@ void single_iteration(double *result,double *temp,double *power,int row,int col,
   int c;
 {
 /* Launch CUDA kernel ... */
-    int _threads_per_block_ = 128;
-    int _num_blocks_ = 256;
     int64_t __device_id = 0;
-    void *__host_ptr = (void *)(&OUT__1__5416__single_iteration__32__id__);
+    int _threads_per_block_ = 1024;
+    int _num_blocks_ = 256;
+    void *__host_ptr = (void *)(&OUT__1__5274__single_iteration__35__id__);
     void *__args_base[] = {&amb_temp, &row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result, temp, power};
     void *__args[] = {&amb_temp, &row, &col, &Cap, &Rx, &Ry, &Rz, &step, &delta, result + 0, temp + 0, power + 0};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(double ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col)))};
@@ -46,10 +48,10 @@ void single_iteration(double *result,double *temp,double *power,int row,int col,
   }
 {
 /* Launch CUDA kernel ... */
-    int _threads_per_block_ = 128;
-    int _num_blocks_ = 256;
     int64_t __device_id = 0;
-    void *__host_ptr = (void *)(&OUT__2__5416__single_iteration__112__id__);
+    int _threads_per_block_ = 1024;
+    int _num_blocks_ = 256;
+    void *__host_ptr = (void *)(&OUT__2__5274__single_iteration__113__id__);
     void *__args_base[] = {&row, &col, result, temp};
     void *__args[] = {&row, &col, result + 0, temp + 0};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(double ) * (row * col))), ((int64_t )(sizeof(double ) * (row * col)))};

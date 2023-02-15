@@ -12,6 +12,9 @@
 /* capacitance fitting factor	*/
 #define FACTOR_CHIP 0.5
 
+#define NUM_TEAMS 256
+#define NUM_THREADS 1024
+
 /* chip parameters	*/
 double t_chip = 0.0005;
 double chip_height = 0.016;
@@ -30,11 +33,9 @@ void single_iteration(double *result, double *temp, double *power, int row,
   int r, c;
 
 #pragma omp target teams distribute parallel for collapse(2)                   \
-    map(from                                                                   \
-        : result [0:row * col]) map(to                                         \
-                                    : power [0:row * col])                     \
-        map(tofrom                                                             \
-            : temp [0:row * col])
+    map(from : result[0 : row * col]) map(to : power[0 : row * col])           \
+    map(tofrom : temp[0 : row * col]) num_teams(NUM_TEAMS)                     \
+    num_threads(NUM_THREADS)
   for (r = 0; r < row; r++)
     for (c = 0; c < col; c++) {
       /*	Corner 1	*/
@@ -110,9 +111,8 @@ void single_iteration(double *result, double *temp, double *power, int row,
     }
 
 #pragma omp target teams distribute parallel for collapse(2)                   \
-    map(from                                                                   \
-        : result [0:row * col]) map(tofrom                                     \
-                                    : temp [0:row * col])
+    map(from : result[0 : row * col]) map(tofrom : temp[0 : row * col])        \
+    num_teams(NUM_TEAMS) num_threads(NUM_THREADS)
   for (r = 0; r < row; r++) {
     for (c = 0; c < col; c++) {
       temp[r * col + c] = result[r * col + c];
@@ -147,11 +147,8 @@ void compute_tran_temp(double *result, int num_iterations, double *temp,
   fprintf(stdout, "Rx: %g\tRy: %g\tRz: %g\tCap: %g\n", Rx, Ry, Rz, Cap);
 #endif
 
-#pragma omp target data map(from                                               \
-                            : result [0:row * col]) map(to                     \
-                                                        : power [0:row * col]) \
-    map(tofrom                                                                 \
-        : temp [0:row * col])
+#pragma omp target data map(from : result[0 : row * col])                      \
+    map(to : power[0 : row * col]) map(tofrom : temp[0 : row * col])
   {
     for (int i = 0; i < num_iterations; i++) {
 #ifdef VERBOSE
