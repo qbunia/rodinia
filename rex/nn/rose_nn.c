@@ -1,6 +1,6 @@
 #include "rex_kmp.h" 
-char OUT__1__4286__main__121__id__ = 0;
-struct __tgt_offload_entry OUT__1__4286__main__121__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__1__4286__main__121__id__)), "OUT__1__4286__main__121__kernel__", 0, 0, 0};
+char OUT__1__4144__main__121__id__ = 0;
+struct __tgt_offload_entry OUT__1__4144__main__121__omp_offload_entry__ __attribute__((section("omp_offloading_entries")))  = {((void *)(&OUT__1__4144__main__121__id__)), "OUT__1__4144__main__121__kernel__", 0, 0, 0};
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -119,14 +119,14 @@ int main(int argc,char *argv[])
     }
 {
 /* Launch CUDA kernel ... */
+      int64_t __device_id = 0;
       int _threads_per_block_ = 1024;
       int _num_blocks_ = 256;
-      int64_t __device_id = 0;
-      void *__host_ptr = (void *)(&OUT__1__4286__main__121__id__);
-      void *__args_base[] = {&rec_count, &target_lat, &target_long, locations, z};
-      void *__args[] = {&rec_count, &target_lat, &target_long, locations + 0, z + 0};
+      void *__host_ptr = (void *)(&OUT__1__4144__main__121__id__);
+      void *__args_base[] = {(void *)(int64_t)rec_count, (void *)(int64_t)target_lat, (void *)(int64_t)target_long, locations, z};
+      void *__args[] = {(void *)(int64_t)rec_count, (void *)(int64_t)target_lat, (void *)(int64_t)target_long, locations + 0, z + 0};
       int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(float ))), ((int64_t )(sizeof(float ))), ((int64_t )(sizeof(struct latLong ) * rec_count)), ((int64_t )(sizeof(float ) * 10))};
-      int64_t __arg_types[] = {33, 33, 33, 33, 34};
+      int64_t __arg_types[] = {288, 288, 288, 33, 34};
       int32_t __arg_num = 5;
       __tgt_target_teams(__device_id,__host_ptr,__arg_num,__args_base,__args,__arg_sizes,__arg_types,_num_blocks_,_threads_per_block_);
     }

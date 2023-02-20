@@ -35,11 +35,14 @@ int main(int ,char *[]);
 #ifdef __cplusplus
 extern "C" {
 #endif
-__device__ char OUT__1__4286__main__121__kernel___exec_mode = 0;
+__device__ char OUT__1__4144__main__121__kernel___exec_mode = 0;
 
-__global__ void OUT__1__4286__main__121__kernel__(int *rec_countp__,float *target_latp__,float *target_longp__,struct latLong *_dev_locations,float *_dev_z)
+__global__ void OUT__1__4144__main__121__kernel__(int rec_countp__2,float target_latp__2,float target_longp__2,struct latLong *_dev_locations,float *_dev_z)
 {
-  typedef int int64_t;
+  int *rec_countp__ = &rec_countp__2;
+  float *target_latp__ = &target_latp__2;
+  float *target_longp__ = &target_longp__2;
+
   int _p_i;
 {
     int _dev_lower;
