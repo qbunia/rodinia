@@ -38,8 +38,10 @@ extern "C" {
 #endif
 __device__ char OUT__2__5274__single_iteration__113__kernel___exec_mode = 0;
 
-__global__ void OUT__2__5274__single_iteration__113__kernel__(int *rowp__,int *colp__,double *_dev_result,double *_dev_temp)
+__global__ void OUT__2__5274__single_iteration__113__kernel__(int rowp__2,int colp__2,double *_dev_result,double *_dev_temp)
 {
+  int *rowp__ = &rowp__2;
+  int *colp__ = &colp__2;
   typedef int int64_t;
   int _p_r;
   int _p_c;
@@ -68,8 +70,17 @@ __global__ void OUT__2__5274__single_iteration__113__kernel__(int *rowp__,int *c
 }
 __device__ char OUT__1__5274__single_iteration__35__kernel___exec_mode = 0;
 
-__global__ void OUT__1__5274__single_iteration__35__kernel__(double *amb_tempp__,int *rowp__,int *colp__,double *Capp__,double *Rxp__,double *Ryp__,double *Rzp__,double *stepp__,double *deltap__,double *_dev_result,double *_dev_temp,double *_dev_power)
+__global__ void OUT__1__5274__single_iteration__35__kernel__(double amb_tempp__2,int rowp__2,int colp__2,double Capp__2,double Rxp__2,double Ryp__2,double Rzp__2,double stepp__2,double deltap__2,double *_dev_result,double *_dev_temp,double *_dev_power)
 {
+  double *amb_tempp__ = &amb_tempp__2;
+  int *rowp__ = &rowp__2;
+  int *colp__ = &colp__2;
+  double *Capp__ = &Capp__2;
+  double *Rxp__ = &Rxp__2;
+  double *Ryp__ = &Ryp__2;
+  double *Rzp__ = &Rzp__2;
+  double *stepp__ = &stepp__2;
+  double *deltap__ = &deltap__2;
   typedef int int64_t;
   int _p_r;
   int _p_c;
