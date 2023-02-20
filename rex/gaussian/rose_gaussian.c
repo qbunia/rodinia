@@ -168,10 +168,10 @@ void Fan1(float *m,float *a,int Size,int t)
     int _threads_per_block_ = 1024;
     int _num_blocks_ = 256;
     void *__host_ptr = (void *)(&OUT__1__5422__Fan1__177__id__);
-    void *__args_base[] = {&Size, &t, m, a};
-    void *__args[] = {&Size, &t, m + 0, a + 0};
+    void *__args_base[] = {(void *)Size, (void *)t, m, a};
+    void *__args[] = {(void *)Size, (void *)t, m + 0, a + 0};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(float ) * (Size * Size))), ((int64_t )(sizeof(float ) * (Size * Size)))};
-    int64_t __arg_types[] = {33, 33, 35, 35};
+    int64_t __arg_types[] = {288, 288, 35, 35};
     int32_t __arg_num = 4;
     __tgt_target_teams(__device_id,__host_ptr,__arg_num,__args_base,__args,__arg_sizes,__arg_types,_num_blocks_,_threads_per_block_);
   }
@@ -191,10 +191,10 @@ void Fan2(float *m,float *a,float *b,int Size,int j1,int t)
     int _threads_per_block_ = 1024;
     int _num_blocks_ = 256;
     void *__host_ptr = (void *)(&OUT__2__5422__Fan2__191__id__);
-    void *__args_base[] = {&Size, &t, m, a};
-    void *__args[] = {&Size, &t, m + 0, a + 0};
+    void *__args_base[] = {(void *)Size, (void *)t, m, a};
+    void *__args[] = {(void *)Size, (void *)t, m + 0, a + 0};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(float ) * (Size * Size))), ((int64_t )(sizeof(float ) * (Size * Size)))};
-    int64_t __arg_types[] = {33, 33, 35, 35};
+    int64_t __arg_types[] = {288, 288, 35, 35};
     int32_t __arg_num = 4;
     __tgt_target_teams(__device_id,__host_ptr,__arg_num,__args_base,__args,__arg_sizes,__arg_types,_num_blocks_,_threads_per_block_);
   }
@@ -204,10 +204,10 @@ void Fan2(float *m,float *a,float *b,int Size,int j1,int t)
     int _threads_per_block_ = 1024;
     int _num_blocks_ = 256;
     void *__host_ptr = (void *)(&OUT__3__5422__Fan2__199__id__);
-    void *__args_base[] = {&Size, &t, m, b};
-    void *__args[] = {&Size, &t, m + 0, b + 0};
+    void *__args_base[] = {(void *)Size, (void *)t, m, b};
+    void *__args[] = {(void *)Size, (void *)t, m + 0, b + 0};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(int ))), ((int64_t )(sizeof(int ))), ((int64_t )(sizeof(float ) * (Size * Size))), ((int64_t )(sizeof(float ) * Size))};
-    int64_t __arg_types[] = {33, 33, 35, 35};
+    int64_t __arg_types[] = {288, 288, 35, 35};
     int32_t __arg_num = 4;
     __tgt_target_teams(__device_id,__host_ptr,__arg_num,__args_base,__args,__arg_sizes,__arg_types,_num_blocks_,_threads_per_block_);
   }
@@ -224,10 +224,10 @@ void ForwardSub()
 /* Translated from #pragma omp target data ... */
 {
     int32_t __arg_num = 3;
-    int64_t __arg_types[] = {35, 35, 35};
+    int64_t __arg_types[] = {19, 19, 19};
     int64_t __arg_sizes[] = {((int64_t )(sizeof(float ) * (Size * Size))), ((int64_t )(sizeof(float ) * Size)), ((int64_t )(sizeof(float ) * (Size * Size)))};
     void *__args[] = {a + 0, b + 0, m + 0};
-    void *__args_base[] = {a, b, m};
+    void *__args_base[] = {&a, &b, &m};
     int64_t __device_id = 0;
     __tgt_target_data_begin(__device_id,__arg_num,__args_base,__args,__arg_sizes,__arg_types);
     struct timeval time_start;

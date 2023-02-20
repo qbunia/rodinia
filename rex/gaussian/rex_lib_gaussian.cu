@@ -100,9 +100,10 @@ extern "C" {
 #endif
 __device__ char OUT__3__5422__Fan2__199__kernel___exec_mode = 0;
 
-__global__ void OUT__3__5422__Fan2__199__kernel__(int *Sizep__,int *tp__,float *_dev_m,float *_dev_b)
+__global__ void OUT__3__5422__Fan2__199__kernel__(int Sizep__2,int tp__2,float *_dev_m,float *_dev_b)
 {
-  typedef int int64_t;
+  int *Sizep__ = &Sizep__2;
+  int *tp__ = &tp__2;
   int _p_i;
 {
     int _dev_lower;
@@ -121,9 +122,10 @@ __global__ void OUT__3__5422__Fan2__199__kernel__(int *Sizep__,int *tp__,float *
 }
 __device__ char OUT__2__5422__Fan2__191__kernel___exec_mode = 0;
 
-__global__ void OUT__2__5422__Fan2__191__kernel__(int *Sizep__,int *tp__,float *_dev_m,float *_dev_a)
+__global__ void OUT__2__5422__Fan2__191__kernel__(int Sizep__2,int tp__2,float *_dev_m,float *_dev_a)
 {
-  typedef int int64_t;
+  int *Sizep__ = &Sizep__2;
+  int *tp__ = &tp__2;
   int _p_i;
   int _p_j;
   int __i_total_iters__0__ = ( *Sizep__ - 1 -  *tp__ - 1 - 0 + 1) % 1 == 0?( *Sizep__ - 1 -  *tp__ - 1 - 0 + 1) / 1 : ( *Sizep__ - 1 -  *tp__ - 1 - 0 + 1) / 1 + 1;
@@ -151,9 +153,10 @@ __global__ void OUT__2__5422__Fan2__191__kernel__(int *Sizep__,int *tp__,float *
 }
 __device__ char OUT__1__5422__Fan1__177__kernel___exec_mode = 0;
 
-__global__ void OUT__1__5422__Fan1__177__kernel__(int *Sizep__,int *tp__,float *_dev_m,float *_dev_a)
+__global__ void OUT__1__5422__Fan1__177__kernel__(int Sizep__2,int tp__2,float *_dev_m,float *_dev_a)
 {
-  typedef int int64_t;
+  int *Sizep__ = &Sizep__2;
+  int *tp__ = &tp__2;
   int _p_i;
 {
     int _dev_lower;
