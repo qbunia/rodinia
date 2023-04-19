@@ -1585,8 +1585,8 @@ node *deleteVal(node *root, int key) {
   key_record = find(root, key, false);
   key_leaf = find_leaf(root, key, false);
   if (key_record != NULL && key_leaf != NULL) {
-    free(key_record);
     root = delete_entry(root, key_leaf, key, key_record);
+    free(key_record);
   }
   return root;
 }
