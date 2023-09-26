@@ -36,11 +36,18 @@ void init(int N, REAL *A) {
     }
 }
 
+double check(REAL *A, REAL B[], int N) {
+    int i;
+    double sum = 0.0;
+    for (i = 0; i < N; i++) {
+        sum += A[i] - B[i];
+    }
+    return sum;
+}
 
-void matvec_omp(int N, REAL *A, REAL *B, REAL *C) {
+void matvec_base(int N, REAL *A, REAL *B, REAL *C) {
     int i,j;
     REAL temp;
-#pragma omp parallel for shared(N,A,B,C) private(i,j,temp)
     for (i = 0; i < N; i++) {
         temp = 0.0;
         for (j = 0; j < N; j++)
@@ -48,6 +55,7 @@ void matvec_omp(int N, REAL *A, REAL *B, REAL *C) {
         C[i] = temp;
     }
 }
+
 
 int main(int argc, char *argv[]) {
     int N;
@@ -58,14 +66,13 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
     N = atoi(argv[1]);
-    if (argc >=3) num_threads = atoi(argv[2]);
-    omp_set_num_threads(num_threads);
+    
 
     double elapsed_omp;
 
     REAL *A = malloc(sizeof(REAL)*N*N);
     REAL *B = malloc(sizeof(REAL)*N*N);
-    REAL *C_cilkplus = malloc(sizeof(REAL)*N);
+    REAL *C_base = malloc(sizeof(REAL)*N);
 
     srand48((1 << 12));
     init(N, A);
@@ -73,11 +80,16 @@ int main(int argc, char *argv[]) {
 
     int i;
     int num_runs = 10;
+    
+        
+    //warm up
+    matvec_base(N, A, B, C_base);
 
     elapsed_omp = read_timer();
     for (i=0; i<num_runs; i++)
-        matvec_omp(N, A, B, C_cilkplus);
+        matvec_base(N, A, B, C_base);
     elapsed_omp = (read_timer() - elapsed_omp)/num_runs;
+   
 
 
     printf("======================================================================================================\n");
