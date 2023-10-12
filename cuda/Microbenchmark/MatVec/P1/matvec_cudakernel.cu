@@ -22,7 +22,10 @@ void matvec_cuda(REAL* result, REAL* vector, REAL* matrix, int n, int m) {
   cudaMemcpy(d_result, result, n*sizeof(REAL), cudaMemcpyHostToDevice);
 
   // Perform matvec elements
-  matvec_P1<<<(n+255)/256, 256>>>(d_matrix, d_vector, d_result, n, m);
+  int blockSize = 1024;
+  int gridSize = (m + blockSize - 1) / blockSize;  // Adjusted gridSize based on 'm'
+
+  matvec_P1<<<gridSize, blockSize>>>(d_matrix, d_vector, d_result, n, m);
 
   cudaMemcpy(result, d_result, n*sizeof(REAL), cudaMemcpyDeviceToHost);
   cudaFree(d_matrix);

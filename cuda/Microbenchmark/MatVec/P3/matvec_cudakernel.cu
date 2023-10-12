@@ -41,7 +41,7 @@ void matvec_cuda(REAL* result, REAL* vector, REAL* matrix, int n, int m) {
     cudaMemcpy(d_matrix, matrix, n * m * sizeof(REAL), cudaMemcpyHostToDevice);
     cudaMemcpy(d_vector, vector, m * sizeof(REAL), cudaMemcpyHostToDevice);
 
-    int blockSize = 64;
+    int blockSize = 1024;
     int gridSize = (m + blockSize - 1) / blockSize;  // Adjusted gridSize based on 'm'
 
     matvec_P4<<<gridSize, blockSize>>>(d_matrix, d_vector, d_result, n, m);
