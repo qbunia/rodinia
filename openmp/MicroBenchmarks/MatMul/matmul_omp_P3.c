@@ -63,7 +63,7 @@ void matmul_P3(int N, REAL *A, REAL *B, REAL *C) {
     int i,j,k;
     REAL temp;
     #pragma omp parallel shared(N,A,B,C) private(i,j,k,temp)
-    #pragma omp for schedule(dynamic,64)
+    #pragma omp for schedule(dynamic,64) collapse(2)
     {
         for (i = 0; i < N; i++) {
             for (j = 0; j < N; j++) {

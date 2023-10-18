@@ -40,11 +40,19 @@ void init(int N, REAL *A) {
     }
 }
 
+double check(REAL *A, REAL B[], int N) {
+    int i;
+    double sum = 0.0;
+    for (i = 0; i < N; i++) {
+        sum += A[i] - B[i];
+    }
+    return sum;
+}
+
 
 void matmul_omp(int N, REAL *A, REAL *B, REAL *C) {
     int i,j,k;
     REAL temp;
-#pragma omp parallel for shared(N,A,B,C) private(i,j,k,temp) collapse(2)
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
             temp = 0;
@@ -126,6 +134,9 @@ int main(int argc, char *argv[]) {
     printf("matmul_omp:\t\t%4f\t%4f\n", elapsed_omp * 1.0e3, ((((2.0 * N) * N) * N) / (1.0e6 * elapsed_omp)));
     printf("------------------------------------------------------------------------------------------------------\n");
     printf("matmul_omp_target:\t%4f\t%4f\n", elapsed_omp_target * 1.0e3, ((((2.0 * N) * N) * N) / (1.0e6 * elapsed_omp_target)));
+    
+    double error = check(C_omp,C_omp_target, N);
+    printf("error:%g\n", error);
     return 0;
 }
 
