@@ -8,11 +8,9 @@
 #include <math.h>
 #include <sys/timeb.h>
 #include <string.h>
-#include "omp.h"
+#include "mm_cuda.h"
 
 #define ALLOWED_DIFF 0.0001
-#define TEAM_NUM 1024
-#define TEAM_SIZE 256
 
 /* read timer in second */
 double read_timer() {
@@ -40,15 +38,6 @@ void init(int N, REAL *A) {
     }
 }
 
-double check(REAL *A, REAL B[], int N) {
-    int i;
-    double sum = 0.0;
-    for (i = 0; i < N; i++) {
-        sum += A[i] - B[i];
-    }
-    return sum;
-}
-
 
 void matmul_serial(int N, REAL *A, REAL *B, REAL *C) {
     int i,j,k;
@@ -64,40 +53,28 @@ void matmul_serial(int N, REAL *A, REAL *B, REAL *C) {
     }
 }
 
-void matmul_omp_target(int N, REAL *A, REAL *B, REAL *C) {
-    int size = N * N;
-    int i, j, k;
-#pragma omp target teams distribute parallel for map(to: N, A[0:size], B[0:size]) map(from: C[0:size]) collapse(2) num_teams(TEAM_NUM) num_threads(TEAM_SIZE)
+double check(REAL *A, REAL B[], int N) {
+    int i;
+    double sum = 0.0;
     for (i = 0; i < N; i++) {
-        for (j = 0; j < N; j++) {
-            REAL temp = 0;
-            for (k = 0; k < N; k++) {
-                temp += (A[i * N + k] * B[k * N + j]);
-            }
-            C[i * N + j] = temp;
-        }
+        sum += A[i] - B[i];
     }
+    return sum;
 }
 
 int main(int argc, char *argv[]) {
     int N;
 
-    int num_threads = 4; /* 4 is default number of threads */
-    if (argc < 2) {
-        fprintf(stderr, "Usage: mm <n> (default %d) [<num_threads>] (default %d)\n", N, num_threads);
-        exit(1);
-    }
     N = atoi(argv[1]);
-    if (argc >=3) num_threads = atoi(argv[2]);
-    omp_set_num_threads(num_threads);
+
 
     double elapsed_serial;
-    double elapsed_omp_target;
+    double elapsed_cuda;
 
     REAL *A = malloc(sizeof(REAL)*N*N);
     REAL *B = malloc(sizeof(REAL)*N*N);
     REAL *C_serial = malloc(sizeof(REAL)*N*N);
-    REAL *C_omp_target = malloc(sizeof(REAL)*N*N);
+    REAL *C = malloc(sizeof(REAL)*N*N);
 
     srand48((1 << 12));
     init(N, A);
@@ -112,15 +89,15 @@ int main(int argc, char *argv[]) {
     elapsed_serial = (read_timer() - elapsed_serial)/num_runs;
     /* you should add the call to each function and time the execution */
 
-    elapsed_omp_target = read_timer();
+    elapsed_cuda = read_timer();
     for (i=0; i<num_runs; i++)
-        matmul_omp_target(N, A, B, C_omp_target);
-    elapsed_omp_target = (read_timer() - elapsed_omp_target)/num_runs;
+        mm_kernel(A, B, C, N, 0);
+    elapsed_cuda = (read_timer() - elapsed_cuda)/num_runs;
     
     for (i = 0; i < N; i++) {
         for (j = 0; j < N; j++) {
-            if (fabs(C_omp_target[i * N + j] - C_serial[i * N + j]) > ALLOWED_DIFF) {
-                printf("C_omp_target[%d][%d]: %g, C_serial[%d][%d]: %g\n", i, j, C_omp_target[i * N + j], i, j, C_serial[i * N + j]);
+            if (fabs(C[i * N + j] - C_serial[i * N + j]) > ALLOWED_DIFF) {
+                printf("C[%d][%d]: %g, C_serial[%d][%d]: %g\n", i, j, C[i * N + j], i, j, C_serial[i * N + j]);
                 break;
             }
         }
@@ -133,10 +110,11 @@ int main(int argc, char *argv[]) {
     printf("------------------------------------------------------------------------------------------------------\n");
     printf("matmul_serial:\t\t%4f\t%4f\n", elapsed_serial * 1.0e3, ((((2.0 * N) * N) * N) / (1.0e6 * elapsed_serial)));
     printf("------------------------------------------------------------------------------------------------------\n");
-    printf("matmul_omp_target:\t%4f\t%4f\n", elapsed_omp_target * 1.0e3, ((((2.0 * N) * N) * N) / (1.0e6 * elapsed_omp_target)));
+    printf("matmul_cuda:\t\t%4f\t%4f\n", elapsed_cuda * 1.0e3, ((((2.0 * N) * N) * N) / (1.0e6 * elapsed_cuda)));
     
-    double error = check(C_serial,C_omp_target, N);
+    double error = check(C_serial,C, N);
     printf("error:%g\n", error);
+    
     return 0;
 }
 
