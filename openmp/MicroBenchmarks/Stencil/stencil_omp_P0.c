@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include <omp.h>
 #include <sys/timeb.h>
 
 #define REAL double
@@ -16,7 +15,7 @@
 // Usage: ./stencil.out <size>
 // e.g. ./stencil.out 512
 
-void stencil_omp(const REAL* src, REAL* dst, int width, int height, const float* filter, int flt_width, int flt_height);
+void stencil_serial(const REAL* src, REAL* dst, int width, int height, const float* filter, int flt_width, int flt_height);
 
 static double read_timer_ms() {
     struct timeb tm;
@@ -48,7 +47,7 @@ int main(int argc, char *argv[]) {
     int n = PROBLEM;
     int m = PROBLEM;
 
-    if (argc == 2) {
+    if (argc > 2) {
         n = atoi(argv[1]);
         m = atoi(argv[1]);
     };
@@ -75,11 +74,12 @@ int main(int argc, char *argv[]) {
 
     for (i = 0; i < TEST; i++) {
     	elapsed = read_timer_ms();
-        stencil_omp(input, result_cpu, width, height, filter[0], FILTER_WIDTH, FILTER_HEIGHT);
+        stencil_serial(input, result_cpu, width, height, filter[0], FILTER_WIDTH, FILTER_HEIGHT);
         cpu_time += read_timer_ms() - elapsed;
     };
-    printf("CPU time(ms): %g\n", cpu_time/TEST);
-    printf("CPU total time(ms): %g\n", cpu_time);
+    printf("Problem Size: %d, %d\n", m,n);
+    printf("Seirla time(ms): %g\n", cpu_time/TEST);
+    printf("Seirla total time(ms): %g\n", cpu_time);
 
     double dif = 0;
     for (i = 0; i < width*height; i++) {
@@ -94,9 +94,8 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void stencil_omp(const REAL* src, REAL* dst, int width, int height, const float* filter, int flt_width, int flt_height) {
+void stencil_serial(const REAL* src, REAL* dst, int width, int height, const float* filter, int flt_width, int flt_height) {
     int i, j;
-#pragma omp parallel for collapse(2)
     for (i = 0; i < height; i++) {
         for (j = 0; j < width; j++) {
             REAL sum = 0;
