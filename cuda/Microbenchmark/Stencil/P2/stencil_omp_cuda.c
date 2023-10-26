@@ -2,23 +2,17 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include <omp.h>
+//#include <omp.h>
 #include <sys/timeb.h>
+#include "stencil_omp_cuda.h"
 
-#define REAL double
 #define FILTER_HEIGHT 5
 #define FILTER_WIDTH 5
 #define TEST 10
 #define PROBLEM 10240
-#define TEAM_NUM 1024
-#define TEAM_SIZE 256
 
-// clang -fopenmp -fopenmp-targets=nvptx64 -Xopenmp-target -march=sm_35 --cuda-path=/usr/local/cuda -O3 -lpthread -fpermissive -msse4.1 stencil_metadirective.c -o stencil.out
-// Usage: ./stencil.out <size>
-// e.g. ./stencil.out 512
 
-void stencil_omp(const REAL* src, REAL* dst, int width, int height, const float* filter, int flt_width, int flt_height);
-void stencil_omp_target(const REAL* src, REAL* dst, int width, int height, const float* filter, int flt_width, int flt_height);
+//void stencil_omp(const REAL* src, REAL* dst, int width, int height, const float* filter, int flt_width, int flt_height);
 
 static double read_timer_ms() {
     struct timeb tm;
@@ -70,18 +64,22 @@ int main(int argc, char *argv[]) {
 
     int width = m;
     int height = n;
+    int i;
 
     double elapsed = read_timer_ms();
+    double cpu_time = 0.0;
     double gpu_time = 0.0;
-    int i;
 
     for (i = 0; i < TEST; i++) {
         elapsed = read_timer_ms();
-        stencil_omp_target(input, result, width, height, filter[0], FILTER_WIDTH, FILTER_HEIGHT);
+        stencil_kernel(input, result, width, height, filter[0], FILTER_WIDTH, FILTER_HEIGHT, 0);
         gpu_time += read_timer_ms() - elapsed;
-
+        //elapsed = read_timer_ms();
+        //stencil_omp(input, result_cpu, width, height, filter[0], FILTER_WIDTH, FILTER_HEIGHT);
+        //cpu_time += read_timer_ms() - elapsed;
     };
-
+    //printf("CPU time(ms): %g\n", cpu_time/TEST);
+    //printf("CPU total time(ms): %g\n", cpu_time);
     printf("GPU time(ms): %g\n", gpu_time/TEST);
     printf("GPU total time(ms): %g\n", gpu_time);
 
@@ -90,6 +88,7 @@ int main(int argc, char *argv[]) {
         int x = i % width;
         int y = i / width;
         if (x > FILTER_WIDTH/2 && x < width - FILTER_WIDTH/2 && y > FILTER_HEIGHT/2 && y < height - FILTER_HEIGHT/2)
+            //printf("CPU: %g, GPU: %g\n", result_cpu[i], result[i]);
             dif += fabs(result[i] - result_cpu[i]);
     }
     printf("verify dif = %g\n", dif);
@@ -98,12 +97,10 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
-void stencil_omp_target(const REAL* src, REAL* dst, int width, int height, const float* filter, int flt_width, int flt_height) {
-    int flt_size = flt_width*flt_height;
-    int N = width*height;
+/*
+void stencil_omp(const REAL* src, REAL* dst, int width, int height, const float* filter, int flt_width, int flt_height) {
     int i, j;
-
-#pragma omp target teams distribute parallel for map(to: src[0:N], filter[0:flt_size]) map(from: dst[0:N]) collapse(2) num_teams(N/TEAM_SIZE) num_threads(TEAM_SIZE)
+#pragma omp parallel for collapse(2)
     for (i = 0; i < height; i++) {
         for (j = 0; j < width; j++) {
             REAL sum = 0;
@@ -121,4 +118,5 @@ void stencil_omp_target(const REAL* src, REAL* dst, int width, int height, const
             dst[i*width + j] = sum;
         }
     }
-}
+}*/
+
