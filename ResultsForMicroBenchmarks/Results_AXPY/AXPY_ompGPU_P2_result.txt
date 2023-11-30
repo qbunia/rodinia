@@ -1,0 +1,2 @@
+axpy(102400000): time: 741.50ms
+error: 0.00ms
