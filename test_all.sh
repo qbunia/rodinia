@@ -6,6 +6,12 @@ cd ResultsForMicroBenchmarks
 mkdir Results_AXPY
 cd ..
 
+mkdir ResultsForRodiniaBenchmarks
+cd ResultsForRodiniaBenchmarks
+mkdir backprop cfd hotspot3D leukocyte mummergpu nw srad bfs heartwall kmeans lud myocyte particlefilter streamcluster b+tree hotspot lavaMD MicroBenchmarks nn pathfinder
+cd ..
+
+
 cd openmp/MicroBenchmarks
 
 #test for AXPY, input size: 102400000
@@ -47,3 +53,22 @@ nvcc -o test axpy_cuda.c axpy_cudakernel.cu
 rm test
 
 
+
+#test for other benchmarks
+
+#b++ tree
+
+cd openmp/b+tree
+make
+bash run -> ../../ResultsForRodiniaBenchmarks/b+tree/OMP_CPU_B+Tree.txt
+make clean
+
+cd ../../openmp-gpu/b+tree
+make
+bash run -> ../../ResultsForRodiniaBenchmarks/b+tree/OMP_GPU_B+Tree.txt
+make clean
+
+cd ../../cuda/b+tree
+make
+bash run -> ../../ResultsForRodiniaBenchmarks/b+tree/cuda_B+Tree.txt
+make clean
