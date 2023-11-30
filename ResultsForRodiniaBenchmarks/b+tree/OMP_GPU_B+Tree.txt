@@ -1,0 +1,26 @@
+Input File: ../../data/b+tree/mil.txt 
+Command File: ../../data/b+tree/command.txt 
+Command Buffer: 
+j 600000 300000
+k 60000
+
+
+Getting input from file core...
+Transforming data to a GPU suitable structure...
+Tree transformation took 0.091945
+Waiting for command
+> 
+******command: j count=600000, rSize=600000 
+Time spent in different stages of CPU/MCPU KERNEL:
+ 0.000000000000 s,  0.000000000000 % : MCPU: SET DEVICE
+ 0.015347000211 s, 100.000000000000 % : CPU/MCPU: KERNEL
+Total time:
+0.015347000211 s
+> > > > > > > > > > > > > > > > 
+ ******command: k count=60000 
+Time spent in different stages of CPU/MCPU KERNEL:
+ 0.000000000000 s,  0.000000000000 % : MCPU: SET DEVICE
+ 0.001042000018 s, 100.000000000000 % : CPU/MCPU: KERNEL
+Total time:
+0.001042000018 s
+> > > > > > > > > > 

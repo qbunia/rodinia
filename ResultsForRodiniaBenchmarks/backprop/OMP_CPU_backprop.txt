@@ -1,0 +1,5 @@
+Random number generator seed: 7
+Input layer size : 65536
+Starting training kernel
+Performing CPU computation
+Training done
