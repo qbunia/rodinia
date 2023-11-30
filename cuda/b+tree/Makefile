@@ -1,7 +1,7 @@
 include ../../common/make.config
 
 CUDA_LIB =	-lcuda -lcudart
-CUDA_FLAG = -arch sm_20
+CUDA_FLAG = -arch sm_60
 
 # ====================================================================================================100
 #	END
