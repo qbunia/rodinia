@@ -1,0 +1,6 @@
+#!/bin/bash
+
+./axpy_omp_P0 102400000 > ../../../ResultsForMicroBenchmarks/Results_AXPY/AXPY_ompCPU_P0_result.txt
+./axpy_omp_P1 102400000 > ../../../ResultsForMicroBenchmarks/Results_AXPY/AXPY_ompCPU_P1_result.txt
+./axpy_omp_P2 102400000 > ../../../ResultsForMicroBenchmarks/Results_AXPY/AXPY_ompCPU_P2_result.txt
+./axpy_omp_P3 102400000 > ../../../ResultsForMicroBenchmarks/Results_AXPY/AXPY_ompCPU_P3_result.txt
