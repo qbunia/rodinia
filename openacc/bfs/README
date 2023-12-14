@@ -1,3 +1,0 @@
-Usage: ./bfs.out <input_file> [<num_teams>] [<num_threads>]
-        <num_teams>  		- number of teams in a target offloading region (positive integer)
-        <num_threads>  		- number of threads in a team (positive integer)

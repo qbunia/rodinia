@@ -1,1 +1,0 @@
-./openmp-gpu/lud_openmp_gpu -i ../../data/lud/512.dat 

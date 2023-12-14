@@ -1,1 +1,0 @@
-./pf_llvm.out 100000 100 > result.log
