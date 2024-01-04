@@ -1,22 +1,51 @@
-CC = clang
-CFLAGS = -fopenmp
-OPT_LEVEL_P0 = -O0
-OPT_LEVEL_P1 = -O2
-OPT_LEVEL_P2 = -O3
+# Compiler and flags
+COMPILER ?= clang
+CC_CLANG := clang
+CC_GCC := gcc
+# Default optimization level is -O1
+OPT_LEVEL := -O1
+CFLAGS := -Wall -fopenmp $(OPT_LEVEL)
+LDFLAGS := -fopenmp-targets=nvptx64
 
-all: axpy_omp_P0 axpy_omp_P1 axpy_omp_P2 axpy_omp_P3
+# Source files
+SRCS := axpy_omp_CPU_P1.c axpy_omp_CPU_P2.c axpy_omp_CPU_P3.c axpy_P0.c main.c axpy_omp_Offloading.c
 
-axpy_omp_P0: axpy_omp_P0.c
-	$(CC) $(OPT_LEVEL_P0) $< -o $@
+# Object files
+OBJS := $(SRCS:.c=.o)
 
-axpy_omp_P1: axpy_omp_P1.c
-	$(CC) $(CFLAGS) $(OPT_LEVEL_P1) $< -o $@
+# Executable name
+EXEC := axpy_program
 
-axpy_omp_P2: axpy_omp_P2.c
-	$(CC) $(CFLAGS) $(OPT_LEVEL_P2) $< -o $@
+# Default target
+all: $(EXEC)
 
-axpy_omp_P3: axpy_omp_P3.c
-	$(CC) $(CFLAGS) $(OPT_LEVEL_P2) $< -o $@
+# Linking the executable
+$(EXEC): $(OBJS)
+	@if [ "$(COMPILER)" = "clang" ]; then \
+		$(CC_CLANG) $(CFLAGS) $(OBJS) -o $(EXEC) $(LDFLAGS); \
+	elif [ "$(COMPILER)" = "gcc" ]; then \
+		$(CC_GCC) $(CFLAGS) $(OBJS) -o $(EXEC); \
+	else \
+		echo "Invalid compiler choice. Use 'make COMPILER=clang' or 'make COMPILER=gcc'"; \
+	fi
 
+# Compiling individual source files
+%.o: %.c
+	# Use specific flags for axpy_omp_Offloading.c
+	if [ "$<" = "axpy_omp_Offloading.c" ]; then \
+		if [ "$(COMPILER)" = "clang" ]; then \
+			$(CC_CLANG) -fopenmp -O2 -fopenmp-targets=nvptx64 -c $< -o $@; \
+		elif [ "$(COMPILER)" = "gcc" ]; then \
+			$(CC_GCC) -fopenmp -O2 -c $< -o $@; \
+		fi \
+	else \
+		if [ "$(COMPILER)" = "clang" ]; then \
+			$(CC_CLANG) $(CFLAGS) -c $< -o $@; \
+		elif [ "$(COMPILER)" = "gcc" ]; then \
+			$(CC_GCC) $(CFLAGS) -c $< -o $@; \
+		fi \
+	fi
+
+# Clean up
 clean:
-	rm -f axpy_omp_P0 axpy_omp_P1 axpy_omp_P2 axpy_omp_P3
+	rm -f $(OBJS) $(EXEC)
