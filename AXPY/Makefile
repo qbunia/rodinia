@@ -8,7 +8,7 @@ CFLAGS := -Wall -fopenmp $(OPT_LEVEL)
 LDFLAGS := -fopenmp-targets=nvptx64
 
 # Source files
-SRCS := axpy_omp_CPU_P1.c axpy_omp_CPU_P2.c axpy_omp_CPU_P3.c axpy_P0.c main.c axpy_omp_Offloading.c
+SRCS := axpy_omp_CPU_P1.c axpy_omp_CPU_P2.c axpy_omp_CPU_P3.c axpy_P0.c main.c axpy_omp_Offloading.c axpy_common.c
 
 # Object files
 OBJS := $(SRCS:.c=.o)

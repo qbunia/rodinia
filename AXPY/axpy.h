@@ -33,3 +33,12 @@ void axpy_omp_P3(int N, REAL *Y, REAL *X, REAL a);
 void axpy_omp_offloading(int N, REAL *Y, REAL *X, REAL a);
 
 #endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void axpy_cuda(REAL *x, REAL * y, int n, REAL a);
+#ifdef __cplusplus
+}
+#endif
+
