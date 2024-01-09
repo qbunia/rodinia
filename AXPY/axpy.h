@@ -26,9 +26,12 @@ void init(REAL *A, int N);
 
 double check(REAL *A, REAL B[], int N);
 
-void axpy_kernel(int N, REAL *Y, REAL *X, REAL a);
-
-
+#ifdef __cplusplus
+extern "C" {
+#endif
+extern void axpy_kernel(int N, REAL *Y, REAL *X, REAL a);
+#ifdef __cplusplus
+}
 #endif
 
-
+#endif
