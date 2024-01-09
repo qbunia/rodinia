@@ -1,7 +1,7 @@
 #include "axpy.h"
 #include <omp.h>
 
-void axpy_omp_P3(int N, REAL *Y, REAL *X, REAL a) {
+void axpy_kernel(int N, REAL *Y, REAL *X, REAL a) {
     int i;
 #pragma omp parallel shared(N, X, Y, a) private(i)
     {

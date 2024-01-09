@@ -26,19 +26,9 @@ void init(REAL *A, int N);
 
 double check(REAL *A, REAL B[], int N);
 
-void axpy_P0(int N, REAL *Y, REAL *X, REAL a);
-void axpy_omp_P1(int N, REAL *Y, REAL *X, REAL a);
-void axpy_omp_P2(int N, REAL *Y, REAL *X, REAL a);
-void axpy_omp_P3(int N, REAL *Y, REAL *X, REAL a);
-void axpy_omp_offloading(int N, REAL *Y, REAL *X, REAL a);
+void axpy_kernel(int N, REAL *Y, REAL *X, REAL a);
+
 
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-extern void axpy_cuda(REAL *x, REAL * y, int n, REAL a);
-#ifdef __cplusplus
-}
-#endif
 
