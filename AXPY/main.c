@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
        printf("------------------------------------------------------------------------------------------------------\n");
        printf("axpy_kernel:\t\t%4f\t%4f \t\t%g\n", elapsed_omp_parallel_for * 1.0e3, (2.0 * N) / (1.0e6 * elapsed_omp_parallel_for), check(Y_base,Y_parallel, N));
    } else {
-        printf("%4f",elapsed_omp_parallel_for);
+        printf("%4f\n",elapsed_omp_parallel_for);
    }
 
    free(Y_base);
