@@ -10,8 +10,8 @@ int main(int argc, char *argv[]) {
    int default_num_threads = 4;
    int default_full_report = 1;
 
-   int N = atoi(argv[1]);
-   int num_threads = atoi(argv[2]);
+   int N = (argc > 1) ? atoi(argv[1]):default_N;
+   int num_threads = (argc > 2) ? atoi(argv[2]): default_num_threads;
    int full_report = (argc > 3) ? atoi(argv[3]) : default_full_report;
 
    
@@ -26,13 +26,6 @@ int main(int argc, char *argv[]) {
    init(Y_base, N);
    memcpy(Y_parallel, Y_base, N * sizeof(REAL));
 
-   int i;
-   int num_runs = 10;
-   
-   //for (i=0; i<num_runs+1; i++) axpy_P0(N, Y_base, X, a);
-       
-
-   char device_type[10];
    
    double elapsed_omp_parallel_for = read_timer();
 

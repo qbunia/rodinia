@@ -2,24 +2,25 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include <sys/timeb.h>
+#include <sys/time.h>
 #include "axpy.h"
+
 
 #define REAL float
 #define VECTOR_LENGTH 102400
 
 /* read timer in second */
 double read_timer() {
-    struct timeb tm;
-    ftime(&tm);
-    return (double)tm.time + (double)tm.millitm / 1000.0;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec + (double)tv.tv_usec / 1.0e6;
 }
 
 /* read timer in ms */
 double read_timer_ms() {
-    struct timeb tm;
-    ftime(&tm);
-    return (double)tm.time * 1000.0 + (double)tm.millitm;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (double)tv.tv_sec * 1000.0 + (double)tv.tv_usec / 1000.0;
 }
 
 /* initialize a vector with random floating point numbers */
