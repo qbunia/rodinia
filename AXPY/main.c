@@ -1,18 +1,16 @@
 #include "axpy.h"
 
 int main(int argc, char *argv[]) {
-   if (argc < 3) {
-       fprintf(stderr, "Usage: %s <n> <num_threads> [full_report]\n", argv[0]);
-       exit(1);
-   }
 
    int default_N = 1024000;
    int default_num_threads = 4;
    int default_full_report = 1;
 
-   int N = (argc > 1) ? atoi(argv[1]):default_N;
-   int num_threads = (argc > 2) ? atoi(argv[2]): default_num_threads;
+    
+   int N = (argc > 1) ? atoi(argv[1]) : default_N;
+   int num_threads = (argc > 2) ? atoi(argv[2]) : default_num_threads;
    int full_report = (argc > 3) ? atoi(argv[3]) : default_full_report;
+
 
    
    omp_set_num_threads(num_threads);
