@@ -18,19 +18,19 @@ clean:
 	rm -f $(filter-out %.cu, $(OBJS)) $(DEFAULT_EXEC) axpy_P0_exec axpy_omp_CPU_P1_exec axpy_omp_CPU_P2_exec axpy_omp_CPU_P3_exec axpy_omp_Offloading_exec axpy_cuda_exec
 
 # Targets for different versions
-axpy_P0_exec: axpy_P0.o main.o axpy_common.o
+axpy_P0_$(CC)_exec_$(OPT_LEVEL): axpy_P0.o main.o axpy_common.o
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-axpy_omp_CPU_P1_exec: axpy_omp_CPU_P1.o main.o axpy_common.o
+axpy_omp_CPU_P1_$(CC)_exec_$(OPT_LEVEL): axpy_omp_CPU_P1.o main.o axpy_common.o
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-axpy_omp_CPU_P2_exec: axpy_omp_CPU_P2.o main.o axpy_common.o
+axpy_omp_CPU_P2_$(CC)_exec_$(OPT_LEVEL): axpy_omp_CPU_P2.o main.o axpy_common.o
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-axpy_omp_CPU_P3_exec: axpy_omp_CPU_P3.o main.o axpy_common.o
+axpy_omp_CPU_P3_$(CC)_exec_$(OPT_LEVEL): axpy_omp_CPU_P3.o main.o axpy_common.o
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-axpy_omp_Offloading_exec: axpy_omp_Offloading.c main.c axpy_common.c
+axpy_omp_Offloading_$(CC)_exec_$(OPT_LEVEL): axpy_omp_Offloading.c main.c axpy_common.c
 	$(CC) $(CFLAGS) -fopenmp-targets=nvptx64 $^ -o $@ $(LDFLAGS)
 
 axpy_cuda_exec: axpy_cuda.cu main.c axpy_common.c

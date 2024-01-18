@@ -6,12 +6,9 @@ int main(int argc, char *argv[]) {
    int default_num_threads = 4;
    int default_full_report = 1;
 
-    
-   int N = (argc > 1) ? atoi(argv[1]) : default_N;
-   int num_threads = (argc > 2) ? atoi(argv[2]) : default_num_threads;
-   int full_report = (argc > 3) ? atoi(argv[3]) : default_full_report;
-
-
+   int full_report = (argc > 1) ? atoi(argv[1]) : default_full_report;
+   int N = (argc > 2) ? atoi(argv[2]) : default_N;
+   int num_threads = (argc > 3) ? atoi(argv[3]) : default_num_threads;
    
    omp_set_num_threads(num_threads);
    REAL a = 123.456;
