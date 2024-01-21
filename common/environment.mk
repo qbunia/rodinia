@@ -1,5 +1,5 @@
 # Compiler and flags
-CC ?= clang
+CC := clang
 
 NVCC := nvcc
 # Default optimization level is -O1
