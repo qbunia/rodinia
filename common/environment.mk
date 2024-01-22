@@ -1,4 +1,5 @@
 # Compiler and flags
+# Two options:clang and gcc-11
 CC := clang
 
 NVCC := nvcc
