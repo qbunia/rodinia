@@ -18,7 +18,7 @@ echo "Executable,AvgExecutionTime" > "$CSV_FILE"
 # Run report_run.sh for each executable and append results to CSV
 for exe in "${EXECS[@]}"; do
     echo "Running report_run.sh for $exe..."
-    result=$(./bash_run.sh "$exe" "$NUM_RUNS" | tail -n 1)  # Capture the last line of output
+    result=$(./report_run.sh "$exe" "$NUM_RUNS" | tail -n 1)  # Capture the last line of output
     echo "$exe,$result" >> "$CSV_FILE"
 done
 
