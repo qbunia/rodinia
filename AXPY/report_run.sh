@@ -1,32 +1,35 @@
 #!/bin/bash
 
+#INPUT_SIZE=102400000  # Default value is 102400000 if not provided
+#NUM_THREADS=-4  # Default value is 4 if not provided
+
 # Check if the correct number of arguments is provided
-if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 <compiler> <version> <optimization_level> <num_runs>"
+if [ "$#" -ne 2 ]; then
+    echo "Usage: $0 <exename> <num_runs>"
     exit 1
 fi
 
-compiler=$1
-version=$2
-optimization=$3
-num_runs=$4
+# Extract user inputs
+EXE_NAME=$1
+NUM_RUNS=$2
 
-# Initialize total elapsed time
-total_elapsed_time=0
+# Check if the executable exists
+if [ ! -x "$EXE_NAME" ]; then
+    echo "Error: Executable '$EXE_NAME' not found or not executable."
+    exit 1
+fi
 
-# Run the program multiple times
-for ((i = 1; i <= num_runs; i++)); do
-    echo "Run $i of $num_runs..."
-    make clean
-    ./run.sh "$compiler" "$version" "$optimization" 0
-    # Capture the output, which is assumed to be a single number
-    elapsed_time=$(./run.sh "$compiler" "$version" "$optimization" 0)
-
-    # Accumulate the elapsed time
-    total_elapsed_time=$(echo "$total_elapsed_time + $elapsed_time" | awk '{printf "%.6f", $1}')
+# Run the executable multiple times
+total_time=0
+for ((i=1; i<=$NUM_RUNS; i++)); do
+    echo "Run $i of $NUM_RUNS..."
+    elapsed_time=$(./$EXE_NAME 0 $INPUT_SIZE $NUM_THREADS )
+    total_time=$(echo "$total_time + $elapsed_time" | bc)
+    echo "Iteration $i: $elapsed_time"
 done
 
-# Calculate the average elapsed time
-average_elapsed_time=$(echo "$total_elapsed_time / $num_runs" | awk '{printf "%.6f", $1}')
+# Calculate average execution time
+average_time=$(echo "scale=4; $total_time / $NUM_RUNS" | bc)
 
-echo "Average elapsed time over $num_runs runs: $average_elapsed_time seconds"
+# Output the result (only the average execution time)
+echo "$average_time"
