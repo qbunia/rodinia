@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#INPUT_SIZE=102400000  # Default value is 102400000 if not provided
+#NUM_THREADS=-4  # Default value is 4 if not provided
+
 # Check if the correct number of arguments is provided
 if [ "$#" -ne 2 ]; then
     echo "Usage: $0 <exename> <num_runs>"
@@ -20,11 +23,9 @@ fi
 total_time=0
 for ((i=1; i<=$NUM_RUNS; i++)); do
     echo "Run $i of $NUM_RUNS..."
-    start_time=$(date +%s.%N)
-    ./$EXE_NAME 0
-    end_time=$(date +%s.%N)
-    elapsed_time=$(echo "$end_time - $start_time" | bc)
+    elapsed_time=$(./$EXE_NAME 0 $INPUT_SIZE $NUM_THREADS )
     total_time=$(echo "$total_time + $elapsed_time" | bc)
+    echo "Iteration $i: $elapsed_time"
 done
 
 # Calculate average execution time
