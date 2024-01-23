@@ -18,7 +18,7 @@ double read_timer_ms();
 
 #define REAL float
 #define VECTOR_LENGTH 102400
-#define TEAM_NUM 1024
+#define NUM_TEAMS 1024
 #define TEAM_SIZE 256
 
 /* initialize a vector with random floating point numbers */
